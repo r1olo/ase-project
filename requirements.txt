@@ -1,1 +1,5 @@
 flask
+flask-jwt-extended
+flask-sqlalchemy
+pytest
+pytest-mock
