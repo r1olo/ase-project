@@ -1,5 +1,5 @@
-# tests/test_auth.py
-from app.modules.user import User
+# authentication unit tests
+from app.models.user import User
 
 def test_register_success(client):
     # register a new user with valid fields
