@@ -1,7 +1,7 @@
 # main Flask entrypoint
-from app import create_app_with_db
+from app import create_app
 
-(app, db) = create_app_with_db()
+app = create_app()
 
 # run interactively if needed
 if __name__ == "__main__":
