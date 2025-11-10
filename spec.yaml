@@ -1,41 +1,38 @@
 
 openapi: 3.1.0
 info:
-  title: CARUSI Game Platform API
+  title: Carusi Cards Game API
   version: 1.0.0
-  summary: REST API for players, authentication, matchmaking, matches, rounds, and card catalogue
+  summary: REST API for players, authentication, matchmaking, matches, rounds, and card catalogue.
   description: |
-    This specification models the endpoints and data model described in the slides.
-    It is highly extensible and annotated with comments, reusable components, and metadata.
-  termsOfService: https://example.com/terms
+    This specification models the endpoints and data model of the card game.
+  # termsOfService:
   contact:
     name: API Support
     url: https://example.com/support
     email: support@example.com
-  license:
-    name: Apache-2.0
-    identifier: Apache-2.0
+  # license:
+  #   name:
+  #   identifier:
 
-# Servers can be extended with additional variables (e.g., region, version).
+
+# Servers
 servers:
-  - url: https://api.example.com/v1
-    description: Production
-  - url: https://staging-api.example.com/v1
-    description: Staging
-  - url: http://localhost:8080/v1
-    description: Local
+  - url: https://carusi.net/api
+    description: Game Endpoint
+
 
 tags:
   # Tag grouping for navigation UIs
   - name: Authentication
-    description: Login, registration, and logout flows.
+    description: Registration, login, and logout flows.
     x-displayName: Auth
   - name: Players
-    description: Player profiles, scores, rankings, and match history.
+    description: Player profile, score, ranking, and match history.
   - name: Matchmaking
     description: Enqueue/dequeue players and check queue status.
   - name: Matches
-    description: Create matches, manage rounds, play cards, and handle forfeits.
+    description: Manage matches, manage rounds, play cards, and handle forfeits.
   - name: Cards
     description: Card catalogue browsing.
   - name: Utilities
@@ -47,36 +44,9 @@ x-tagGroups:
   - name: Operations
     tags: [Utilities]
 
-# Common components kept DRY for wide reuse
+
+# Common components
 components:
-  securitySchemes:
-    # Cookie session or JWT bearer — support both to be flexible
-    SessionCookie:
-      type: apiKey
-      in: cookie
-      name: sid
-      description: Signed HTTP-only secure cookie set by /login
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-  headers:
-    RequestId:
-      description: Correlates requests across services
-      schema:
-        type: string
-    RateLimit-Limit:
-      description: The maximum number of requests allowed in the current window
-      schema:
-        type: integer
-    RateLimit-Remaining:
-      description: The number of requests left for the time window
-      schema:
-        type: integer
-    RateLimit-Reset:
-      description: UTC epoch seconds when the current rate limit window resets
-      schema:
-        type: integer
   parameters:
     # Reusable path/collection parameters
     PlayerId:
@@ -84,14 +54,14 @@ components:
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/Id'
+        type: integer
       description: Player identifier
     MatchId:
       name: mId
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/Id'
+        type: integer
       description: Match identifier
     RoundId:
       name: rId
@@ -99,271 +69,119 @@ components:
       required: true
       schema:
         type: integer
-        minimum: 1
-      description: Round sequence number (1-based)
-    PaginationLimit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 200
-        default: 25
-      description: Page size
-    PaginationCursor:
-      name: cursor
-      in: query
-      required: false
-      schema:
-        type: string
-      description: Opaque cursor for the next page
-    SearchQ:
-      name: q
-      in: query
-      required: false
-      schema:
-        type: string
-      description: Optional free-text search
-  responses:
-    Problem:
-      description: RFC 9457 problem+json response
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/Problem'
-    NoContent:
-      description: Operation succeeded; no content returned.
-  requestBodies:
-    # JSON with deck (list of card IDs) to attach to a match
-    DeckJson:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/DeckRequest'
-          examples:
-            example:
-              value:
-                cardIds: ["card_eco_01", "card_env_07", "card_food_04"]
-    PlayCardJson:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/PlayCardRequest'
-          examples:
-            example:
-              value:
-                cardId: "card_env_07"
-    LoginJson:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LoginRequest'
-          examples:
-            example:
-              value:
-                username: "andrea"
-                passwordHash: "base64-sha256(...)"  # per slides: hashed payload
-    RegisterJson:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/RegisterRequest'
-          examples:
-            example:
-              value:
-                username: "newplayer"
-                email: "np@example.com"
-                passwordHash: "base64-sha256(...)"
+      description: Round identifier
 
+      
   schemas:
-    # Primitive, commonly reused
-    Id:
-      type: string
-      description: Generic string identifier (UUID, ULID, or snowflake)
-      examples: ["usr_01h8g...", "match_01he...", "card_eco_01"]
-    # Error/Problem details
-    Problem:
-      type: object
-      properties:
-        type:
-          type: string
-          format: uri
-        title:
-          type: string
-        status:
-          type: integer
-        detail:
-          type: string
-        instance:
-          type: string
-          format: uri
-        traceId:
-          type: string
-      required: [title, status]
-      additionalProperties: true
-
-    # Core resources from the slides
+    # Core resources
     Player:
       type: object
       properties:
-        id: { $ref: '#/components/schemas/Id' }
+        id: { type: integer }
         username: { type: string }
         email: { type: string, format: email }
         profilePicture: { type: string, format: uri }
         score: { type: integer, description: "Cached" }
         ranking: { type: integer, description: "Cached" }
-        history:
-          type: array
-          items:
-            $ref: '#/components/schemas/MatchSummary'
-      required: [id, username]
-      description: Player profile, scores, and cached ranking
-    PlayerUpdate:
-      type: object
-      description: Fields allowed to be updated on a player
-      properties:
-        username: { type: string }
-        email: { type: string, format: email }
-        profilePicture: { type: string, format: uri }
-      additionalProperties: false
+      required: [id, username, email, score, ranking]
+      description: Player profile.
 
     Card:
       type: object
       properties:
-        id: { $ref: '#/components/schemas/Id' }
+        id: { type: integer }
         name: { type: string, description: "Name of the region" }
         image: { type: string, format: uri }
-        category:
-          type: string
-          enum: [economy, food, environment, special, average]
         economy: { type: integer }
         food: { type: integer }
         environment: { type: integer }
         special: { type: integer }
-        average: { type: number, format: float, description: "View/derived" }
-      required: [id, name, category]
+        average: { type: number, format: float }
+      required: [id, name, economy, food, environment, special, average]
 
     Match:
       type: object
       properties:
-        id: { $ref: '#/components/schemas/Id' }
-        player1Id: { $ref: '#/components/schemas/Id' }
-        player2Id: { $ref: '#/components/schemas/Id' }
+        id: { type: integer }
+        player1_id: { type: integer }
+        player2_id: { type: integer }
         status:
           type: string
-          enum: [queued, active, completed, forfeited, cancelled]
-        winnerId:
+          enum: [active, queued, completed, forfeited, cancelled]
+        winner_id:
           anyOf:
-            - $ref: '#/components/schemas/Id'
+            - type: integer
             - type: "null"
         rounds:
           type: array
           items: { $ref: '#/components/schemas/Round' }
-      required: [id, player1Id, player2Id, status]
-
-    MatchSummary:
-      type: object
-      properties:
-        id: { $ref: '#/components/schemas/Id' }
-        status:
-          type: string
-          enum: [queued, active, completed, forfeited, cancelled]
-        winnerId:
-          anyOf:
-            - $ref: '#/components/schemas/Id'
-            - type: "null"
+      required: [id, player1_id, player2_id, status, winner_id, rounds]
 
     Round:
       type: object
       properties:
         id: { type: integer }
-        matchId: { $ref: '#/components/schemas/Id' }
-        turnNumber: { type: integer, minimum: 1 }
+        match_id: { type: integer }
+        turn_number: { type: integer, minimum: 1 }
         category:
           type: string
           enum: [economy, food, environment, special, average]
-        player1CardId: { $ref: '#/components/schemas/Id' }
-        player2CardId: { $ref: '#/components/schemas/Id' }
-        winnerId:
+        card1_id: { type: integer }
+        card2_id: { type: integer }
+        winner_id:
           anyOf:
-            - $ref: '#/components/schemas/Id'
+            - type: integer
             - type: "null"
-      required: [id, matchId, turnNumber, category]
-
-    DeckRequest:
-      type: object
-      properties:
-        cardIds:
-          type: array
-          minItems: 1
-          items: { $ref: '#/components/schemas/Id' }
-      required: [cardIds]
-
-    PlayCardRequest:
-      type: object
-      properties:
-        cardId: { $ref: '#/components/schemas/Id' }
-      required: [cardId]
-
-    QueueStatus:
-      type: object
-      properties:
-        inQueue: { type: boolean }
-        position: { type: integer, minimum: 0 }
-        estimatedWaitSeconds: { type: integer, minimum: 0 }
-
-    LeaderboardEntry:
-      type: object
-      properties:
-        playerId: { $ref: '#/components/schemas/Id' }
-        username: { type: string }
-        score: { type: integer }
-        ranking: { type: integer }
-
-    LoginRequest:
-      type: object
-      description: Hashed payload per slides
-      properties:
-        username: { type: string }
-        passwordHash: { type: string }
-      required: [username, passwordHash]
-
-    RegisterRequest:
-      type: object
-      properties:
-        username: { type: string }
-        email: { type: string, format: email }
-        passwordHash: { type: string }
-      required: [username, email, passwordHash]
-
-  # Reusable example collection responses
-  examples:
-    CardsPage:
-      value:
-        data:
-          - id: card_env_07
-            name: "Cinque Terre"
-            image: "https://example.com/ct.jpg"
-            category: environment
-            environment: 95
-            average: 78.2
-        nextCursor: "c3VwZXJzZWNyZXQ"
+      required: [id, match_id, turn_number, category, card1_id, card2_id]
 
 
 paths:
   # AUTHENTICATION (per slides: POST /login, /register, /logout)
+  /register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - type: object
+                properties:
+                  username: { type: string }
+                  passwordHash: { type: string }
+                required: [username, passwordHash]
+              - type: object
+                properties:
+                  email: { type: string, format: email }
+                  passwordHash: { type: string }
+                required: [email, passwordHash]
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+        '409':
+          description: Error
+
   /login:
     post:
       tags: [Authentication]
-      summary: Log in
+      summary: User log in
       description: Sets a secure session cookie or returns a bearer token.
       requestBody:
-        $ref: '#/components/requestBodies/LoginJson'
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Hashed payload per slides
+              properties:
+                email: { type: string, format: email }
+                passwordHash: { type: string }
+              required: [username, passwordHash]
       responses:
         '200':
           description: Logged in
@@ -376,57 +194,19 @@ paths:
               schema:
                 type: object
                 properties:
-                  token: { type: string, description: "Optional JWT if Bearer is used" }
-        '401': { $ref: '#/components/responses/Problem' }
-
-  /register:
-    post:
-      tags: [Authentication]
-      summary: Register a new player
-      requestBody:
-        $ref: '#/components/requestBodies/RegisterJson'
-      responses:
-        '201':
-          description: Registered
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-        '409': { $ref: '#/components/responses/Problem' }
+                  token: { type: string, description: "JWT token" }
+        '401':
+          description: Error
 
   /logout:
     post:
       tags: [Authentication]
-      summary: Log out
+      summary: User log out
       responses:
-        '204': { $ref: '#/components/responses/NoContent' }
+        '204':
+          description: No content error
 
   # PLAYERS
-  /players:
-    get:
-      tags: [Players]
-      summary: List players
-      parameters:
-        - $ref: '#/components/parameters/PaginationLimit'
-        - $ref: '#/components/parameters/PaginationCursor'
-        - $ref: '#/components/parameters/SearchQ'
-      responses:
-        '200':
-          description: A paginated list of players
-          headers:
-            RateLimit-Limit: { $ref: '#/components/headers/RateLimit-Limit' }
-            RateLimit-Remaining: { $ref: '#/components/headers/RateLimit-Remaining' }
-            RateLimit-Reset: { $ref: '#/components/headers/RateLimit-Reset' }
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items: { $ref: '#/components/schemas/Player' }
-                  nextCursor:
-                    type: string
-
   /players/{pId}:
     get:
       tags: [Players]
@@ -439,38 +219,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Player' }
-        '404': { $ref: '#/components/responses/Problem' }
-    post:
-      tags: [Players]
-      summary: Update player (legacy POST)
-      description: Allows updating via POST for compatibility with the slides; PATCH is preferred.
-      parameters:
-        - $ref: '#/components/parameters/PlayerId'
-      requestBody:
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/PlayerUpdate' }
-      responses:
-        '200':
-          description: Updated player
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-    patch:
-      tags: [Players]
-      summary: Update player
-      parameters:
-        - $ref: '#/components/parameters/PlayerId'
-      requestBody:
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/PlayerUpdate' }
-      responses:
-        '200':
-          description: Updated player
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Player' }
+        '404':
+          description: Error
 
   /players/{pId}/score:
     get:
@@ -486,6 +236,7 @@ paths:
               schema:
                 type: object
                 properties:
+                  pId: { type: integer }
                   score: { type: integer }
 
   /players/{pId}/ranking:
@@ -502,18 +253,16 @@ paths:
               schema:
                 type: object
                 properties:
+                  pId: { type: integer }
                   ranking: { type: integer }
-
-  /leaderboard:
+                  
+  /players:
     get:
       tags: [Players]
-      summary: Get leaderboard
-      parameters:
-        - $ref: '#/components/parameters/PaginationLimit'
-        - $ref: '#/components/parameters/PaginationCursor'
+      summary: Get all players of the game
       responses:
         '200':
-          description: Leaderboard entries
+          description: A list of players
           content:
             application/json:
               schema:
@@ -521,18 +270,36 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: '#/components/schemas/LeaderboardEntry' }
-                  nextCursor:
-                    type: string
+                    items: { $ref: '#/components/schemas/Player' }
 
+  /leaderboard:
+    get:
+      tags: [Players]
+      summary: Get leaderboard of the game
+      responses:
+        '200':
+          description: List of all players ranked by score
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        player_id: { type: integer }
+                        username: { type: string }
+                        score: { type: integer }
+                        ranking: { type: integer }
+          
   /players/{pId}/matches:
     get:
       tags: [Players]
-      summary: List matches for player
+      summary: Get all matches for player
       parameters:
         - $ref: '#/components/parameters/PlayerId'
-        - $ref: '#/components/parameters/PaginationLimit'
-        - $ref: '#/components/parameters/PaginationCursor'
       responses:
         '200':
           description: Player matches
@@ -543,9 +310,7 @@ paths:
                 properties:
                   data:
                     type: array
-                    items: { $ref: '#/components/schemas/MatchSummary' }
-                  nextCursor:
-                    type: string
+                    items: { $ref: '#/components/schemas/Match' }
 
   /players/{pId}/matches/{mId}:
     get:
@@ -560,7 +325,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Match' }
-        '404': { $ref: '#/components/responses/Problem' }
+        '404': 
+          description: Error
 
   # MATCHMAKING
   /queue:
@@ -574,7 +340,8 @@ paths:
       tags: [Matchmaking]
       summary: Dequeue current player
       responses:
-        '204': { $ref: '#/components/responses/NoContent' }
+        '204':
+          description: No content error
     get:
       tags: [Matchmaking]
       summary: Queue status for current player
@@ -583,7 +350,12 @@ paths:
           description: Queue status
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/QueueStatus' }
+              schema:
+                type: object
+                properties:
+                  inQueue: { type: boolean }
+                  position: { type: integer, minimum: 0 }
+                  estimatedWaitSeconds: { type: integer, minimum: 0 }
 
   # MATCHES
   /matches/{mId}:
@@ -598,7 +370,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Match' }
-        '404': { $ref: '#/components/responses/Problem' }
+        '404':
+          description: Error
 
   /matches/{mId}/deck:
     post:
@@ -607,7 +380,20 @@ paths:
       parameters:
         - $ref: '#/components/parameters/MatchId'
       requestBody:
-        $ref: '#/components/requestBodies/DeckJson'
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cardIds:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+              required: [cardIds]
       responses:
         '202':
           description: Deck accepted
@@ -621,7 +407,17 @@ paths:
           description: Deck
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/DeckRequest' }
+              schema: 
+                type: object
+                properties:
+                  cards_id:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                required: [cards_id]
 
   /matches/{mId}/rounds/{rId}:
     get:
@@ -640,12 +436,18 @@ paths:
   /matches/{mId}/rounds/{rId}/play:
     post:
       tags: [Matches]
-      summary: Play a card in a round
+      summary: Play a card in a round of the match
       parameters:
         - $ref: '#/components/parameters/MatchId'
         - $ref: '#/components/parameters/RoundId'
       requestBody:
-        $ref: '#/components/requestBodies/PlayCardJson'
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                card_id: { type: integer }
       responses:
         '202':
           description: Move accepted
@@ -660,29 +462,14 @@ paths:
         '202':
           description: Forfeit accepted
 
-  # Alias for the slide's spelling "forfait"
-  /matches/{mId}/forfait:
-    post:
-      tags: [Matches]
-      summary: Forfeit a match (alias /forfait for slides compatibility)
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-      responses:
-        '202':
-          description: Forfeit accepted
-
   # CARD CATALOGUE
   /cards:
     get:
       tags: [Cards]
-      summary: List cards
-      parameters:
-        - $ref: '#/components/parameters/PaginationLimit'
-        - $ref: '#/components/parameters/PaginationCursor'
-        - $ref: '#/components/parameters/SearchQ'
+      summary: Get all cards of the game
       responses:
         '200':
-          description: A paginated list of cards
+          description: A list of cards
           content:
             application/json:
               schema:
@@ -691,11 +478,6 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Card' }
-                  nextCursor:
-                    type: string
-              examples:
-                page:
-                  $ref: '#/components/examples/CardsPage'
 
   /cards/{id}:
     get:
@@ -706,14 +488,17 @@ paths:
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/Id'
+            type: object
+            properties:
+              card_id: { type: integer }
       responses:
         '200':
           description: Card
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Card' }
-        '404': { $ref: '#/components/responses/Problem' }
+        '404':
+          description: Error
 
   # UTILITIES
   /_meta:
@@ -733,27 +518,3 @@ paths:
                   features:
                     type: object
                     additionalProperties: { type: boolean }
-
-security:
-  - SessionCookie: []
-  - BearerAuth: []
-
-# Optional webhooks for future extensibility
-webhooks:
-  match.status.changed:
-    post:
-      summary: Notification when a match status changes
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                matchId: { $ref: '#/components/schemas/Id' }
-                oldStatus: { type: string }
-                newStatus: { type: string }
-                at: { type: string, format: date-time }
-      responses:
-        '200':
-          description: Acknowledge
