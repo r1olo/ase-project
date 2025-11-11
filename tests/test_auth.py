@@ -1,11 +1,6 @@
 # authentication unit tests
 from app.models.user import User
 
-def assert_err_resp(resp):
-    j = resp.json()
-    assert j is not None
-    assert "msg" in j
-
 def test_register_success(client):
     # register a new user with valid fields
     resp = client.post("/auth/register", json={
@@ -14,7 +9,8 @@ def test_register_success(client):
         "password": "secret"
     })
     assert resp.status_code == 200
-    assert_err_resp(resp)
+    data = resp.get_json()
+    assert data["msg"] == "Succesfully registered"
 
     # ensure user was saved in the database
     user = User.query.filter_by(email="alice@example.com").first()
@@ -28,7 +24,7 @@ def test_register_missing_fields(client):
     # try registering with missing fields
     resp = client.post("/auth/register", json={"username": "bob"})
     assert resp.status_code == 400
-    assert_err_resp(resp)
+    assert "You must supply" in resp.get_json()["msg"]
 
 def test_register_duplicate_username_or_email(client):
     # register first user
@@ -45,7 +41,6 @@ def test_register_duplicate_username_or_email(client):
         "password": "5678"
     })
     assert resp.status_code == 409
-    assert_err_resp(resp)
 
     # try registering with duplicate email
     resp = client.post("/auth/register", json={
@@ -54,7 +49,6 @@ def test_register_duplicate_username_or_email(client):
         "password": "5678"
     })
     assert resp.status_code == 409
-    assert_err_resp(resp)
 
 def test_login_success_with_username(client):
     # register a user
@@ -70,7 +64,6 @@ def test_login_success_with_username(client):
         "password": "mypass"
     })
     assert resp.status_code == 200
-    assert resp.get_json() is not None
     token = resp.get_json().get("access_token")
 
     # ensure a jwt token was returned
@@ -91,14 +84,13 @@ def test_login_success_with_email(client):
         "password": "secret"
     })
     assert resp.status_code == 200
-    assert resp.get_json() is not None
     assert "access_token" in resp.get_json()
 
 def test_login_missing_fields(client):
     # try logging in without a password
     resp = client.post("/auth/login", json={"username": "nobody"})
     assert resp.status_code == 400
-    assert_err_resp(resp)
+    assert "Missing" in resp.get_json()["msg"]
 
 def test_login_invalid_user(client):
     # try logging in with a user that does not exist
@@ -107,7 +99,7 @@ def test_login_invalid_user(client):
         "password": "nope"
     })
     assert resp.status_code == 401
-    assert_err_resp(resp)
+    assert "Invalid credentials" in resp.get_json()["msg"]
 
 def test_login_wrong_password(client):
     # register a user
@@ -123,7 +115,6 @@ def test_login_wrong_password(client):
         "password": "badpass"
     })
     assert resp.status_code == 401
-    assert_err_resp(resp)
 
 #########################
 # extra edge-case tests #
@@ -133,19 +124,22 @@ def test_register_empty_payload(client):
     # try registering with completely empty json body
     resp = client.post("/auth/register", json={})
     assert resp.status_code == 400
-    assert_err_resp(resp)
+    assert "You must supply" in resp.get_json()["msg"]
+
 
 def test_register_non_json_payload(client):
     # try registering with non-json content type
     resp = client.post("/auth/register", data="not a json")
     assert resp.status_code == 400
-    assert_err_resp(resp)
+    assert "You must supply" in resp.get_json()["msg"]
+
 
 def test_login_empty_payload(client):
     # try logging in with empty json
     resp = client.post("/auth/login", json={})
     assert resp.status_code == 400
-    assert_err_resp(resp)
+    assert "Missing" in resp.get_json()["msg"]
+
 
 def test_login_with_both_username_and_email(client):
     # register a user
@@ -162,8 +156,8 @@ def test_login_with_both_username_and_email(client):
         "password": "abc123"
     })
     assert resp.status_code == 200
-    assert resp.get_json() is not None
     assert "access_token" in resp.get_json()
+
 
 def test_register_with_extra_fields(client):
     # register with extra unused fields
@@ -174,6 +168,25 @@ def test_register_with_extra_fields(client):
         "nickname": "grgr"  # this should be ignored
     })
     assert resp.status_code == 200
+    assert "Succesfully" in resp.get_json()["msg"]
+
+
+def test_register_then_login_flow(client):
+    # register and login immediately
+    client.post("/auth/register", json={
+        "username": "hank",
+        "email": "hank@example.com",
+        "password": "pw123"
+    })
+
+    # login should succeed right after registration
+    resp = client.post("/auth/login", json={
+        "username": "hank",
+        "password": "pw123"
+    })
+    assert resp.status_code == 200
+    assert "access_token" in resp.get_json()
+
 
 def test_login_returns_jwt_identity(client):
     # register and login, then decode jwt to verify identity field
@@ -188,10 +201,7 @@ def test_login_returns_jwt_identity(client):
         "username": "ivan",
         "password": "topsecret"
     })
-    assert resp.status_code == 200
-    assert resp.get_json() is not None
     token = resp.get_json()["access_token"]
-    assert token is not None
 
     # decode jwt and ensure identity matches username
     decoded = decode_token(token)

@@ -7,5 +7,176 @@
         "environment": 6,
         "special": 7,
         "total": 5.8
+    },
+    "basilicata": {
+        "name": "Basilicata",
+        "image": "02-basilicata.png",
+        "economy": 5,
+        "food": 3,
+        "environment": 4,
+        "special": 9,
+        "total": 5.3
+    },
+    "calabria": {
+        "name": "Calabria",
+        "image": "03-calabria.png",
+        "economy": 1,
+        "food": 3,
+        "environment": 4,
+        "special": 9,
+        "total": 4.2
+    },
+    "campania": {
+        "name": "Campania",
+        "image": "04-campania.png",
+        "economy": 3,
+        "food": 9,
+        "environment": 9,
+        "special": 10,
+        "total": 7.8
+    },
+    "emilia_romagna": {
+        "name": "Emilia-Romagna",
+        "image": "05-emilia_romagna.png",
+        "economy": 8,
+        "food": 10,
+        "environment": 7,
+        "special": 5,
+        "total": 7.5
+    },
+    "friuli_venezia_giulia": {
+        "name": "Friuli-Venezia Giulia",
+        "image": "06-friuli_venezia_giulia.png",
+        "economy": 7,
+        "food": 4,
+        "environment": 4,
+        "special": 6,
+        "total": 5.2
+    },
+    "lazio": {
+        "name": "Lazio",
+        "image": "07-lazio.png",
+        "economy": 8,
+        "food": 8,
+        "environment": 6,
+        "special": 10,
+        "total": 8.0
+    },
+    "liguria": {
+        "name": "Liguria",
+        "image": "08-liguria.png",
+        "economy": 7,
+        "food": 7,
+        "environment": 6,
+        "special": 10,
+        "total": 7.5
+    },
+    "lombardia": {
+        "name": "Lombardia",
+        "image": "09-lombardia.png",
+        "economy": 9,
+        "food": 6,
+        "environment": 8,
+        "special": 3,
+        "total": 6.5
+    },
+    "marche": {
+        "name": "Marche",
+        "image": "10-marche.png",
+        "economy": 6,
+        "food": 7,
+        "environment": 6,
+        "special": 5,
+        "total": 6.0
+    },
+    "molise": {
+        "name": "Molise",
+        "image": "11-molise.png",
+        "economy": 4,
+        "food": 2,
+        "environment": 3,
+        "special": 8,
+        "total": 4.3
+    },
+    "piemonte": {
+        "name": "Piemonte",
+        "image": "12-piemonte.png",
+        "economy": 7,
+        "food": 7,
+        "environment": 5,
+        "special": 4,
+        "total": 5.7
+    },
+    "puglia": {
+        "name": "Puglia",
+        "image": "13-puglia.png",
+        "economy": 3,
+        "food": 8,
+        "environment": 8,
+        "special": 8,
+        "total": 6.7
+    },
+    "sardegna": {
+        "name": "Sardegna",
+        "image": "14-sardegna.png",
+        "economy": 4,
+        "food": 6,
+        "environment": 8,
+        "special": 9,
+        "total": 6.8
+    },
+    "sicilia": {
+        "name": "Sicilia",
+        "image": "15-sicilia.png",
+        "economy": 2,
+        "food": 9,
+        "environment": 10,
+        "special": 10,
+        "total": 7.8
+    },
+    "toscana": {
+        "name": "Toscana",
+        "image": "16-toscana.png",
+        "economy": 7,
+        "food": 8,
+        "environment": 10,
+        "special": 6,
+        "total": 7.7
+    },
+    "trentino_alto_adige": {
+        "name": "Trentino-Alto Adige",
+        "image": "17-trentino_alto_adige.png",
+        "economy": 10,
+        "food": 7,
+        "environment": 8,
+        "special": 5,
+        "total": 7.5
+    },
+    "umbria": {
+        "name": "Umbria",
+        "image": "18-umbria.png",
+        "economy": 5,
+        "food": 5,
+        "environment": 7,
+        "special": 7,
+        "total": 6.0
+    },
+    "valle_daosta": {
+        "name": "Valle d'Aosta",
+        "image": "19-valle_daosta.png",
+        "economy": 9,
+        "food": 4,
+        "environment": 6,
+        "special": 7,
+        "total": 6.5
+    },
+    "veneto": {
+        "name": "Veneto",
+        "image": "20-veneto.png",
+        "economy": 8,
+        "food": 7,
+        "environment": 8,
+        "special": 6,
+        "total": 7.3
     }
 }

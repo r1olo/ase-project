@@ -36,13 +36,37 @@ class Card(db.Model):
         }
     
     @classmethod
-    def from_json(cls, data: dict):
+    def from_json(cls, data: dict):        
+        name = data.get("name")
+        image = data.get("image")
+        economy = data.get("economy")
+        food = data.get("food")
+        environment = data.get("environment")
+        special = data.get("special")
+        total = data.get("total")
+
+        error_msg = "Invalid or missing {} field to create Card"
+        if not (isinstance(name, str) and name.strip()):
+            raise ValueError(error_msg.format("name"))
+        if not (isinstance(image, str) and image.strip()):
+            raise ValueError(error_msg.format("image"))
+        if not isinstance(economy, int):
+            raise ValueError(error_msg.format("economy"))
+        if not isinstance(food, int):
+            raise ValueError(error_msg.format("food"))
+        if not isinstance(environment, int):
+            raise ValueError(error_msg.format("environment"))
+        if not isinstance(special, int):
+            raise ValueError(error_msg.format("special"))
+        if not isinstance(total, float):
+            raise ValueError(error_msg.format("total"))
+
         return cls(
-            name=data.get("name"),
-            image=data.get("image"),
-            economy=data.get("economy"),
-            food=data.get("food"),
-            environment=data.get("environment"),
-            special=data.get("special"),
-            total=data.get("total")
+            name=name,
+            image=image,
+            economy=economy,
+            food=food,
+            environment=environment,
+            special=special,
+            total=total
         )
