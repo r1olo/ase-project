@@ -1,5 +1,6 @@
 from flask import Flask
 from .auth import auth
+from .catalogue import catalogue
 from .config import Config
 from .extensions import bcrypt, db, jwt
 from .routes import main
@@ -29,6 +30,7 @@ def create_app(config_override=None):
 
     # register routes
     app.register_blueprint(main)
+    app.register_blueprint(catalogue)
     app.register_blueprint(auth, url_prefix="/auth")
 
     return app

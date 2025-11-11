@@ -34,19 +34,25 @@ def test_get_all_cards(client):
     # add cards to the database
     fill_db()
 
-    # fetch all cards
+    # try to fetch all cards
     resp = client.get("/cards")
     assert resp.status_code == 200
     data = resp.get_json()
-    assert len(data["data"]) == 2
-
+    assert data is not None
+    with open("cards/cards.json") as file:
+        cards_data = json.load(file)
+        assert len(data["data"]) == len(cards_data)
+        for card in data["data"]:
+            card.pop("id")  # remove id for comparison
+            assert card in cards_data.values()
+ 
 def test_get_single_card_success(client):
     # add a card to the database
     card = Card("Molise", "/images/11-molise.png", 4, 2, 3, 8, 17.0)
     db.session.add(card)
     db.session.commit()
 
-    # fetch the card by id
+    # try to fetch the card by id
     resp = client.get(f"/cards/{card.id}")
     assert resp.status_code == 200
     data = resp.get_json()

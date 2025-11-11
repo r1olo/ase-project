@@ -18,7 +18,7 @@ def get_cards():
 @catalogue.route("/cards/<int:card_id>", methods=["GET"])
 def get_single_card(card_id: int):
     # fetch card by id
-    card = Card.query.get(card_id)
+    card = Card.query.filter_by(id=card_id).first()
     if not card:
         return jsonify({"msg": "Card not found"}), 404
 
