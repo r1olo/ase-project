@@ -4,16 +4,21 @@ from datetime import timedelta
 
 # TODO
 class Config:
+    # database
     SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL", "sqlite:///:memory:")
+
+    # token algorithm
     JWT_ALGORITHM = "RS256"
     JWT_PRIVATE_KEY = None
     JWT_PUBLIC_KEY = None
     JWT_SECRET_KEY = None
 
+    # token options
     JWT_TOKEN_LOCATION = ["headers", "cookies"]
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
 
+    # redis
     FAKE_REDIS = False
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
@@ -50,10 +55,18 @@ class Config:
 
 # TODO find a better way
 class TestConfig(Config):
+    # database
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
+    # token algorithm
     JWT_SECRET_KEY = "test123"
     JWT_ALGORITHM = "HS256"
 
+    # token options
+    JWT_COOKIE_SECURE = False
+    JWT_COOKIE_CSRF_PROTECT = True
+
+    # redis
     FAKE_REDIS = True
 
     def __init__(self):

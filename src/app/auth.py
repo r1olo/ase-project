@@ -6,7 +6,9 @@ from flask_jwt_extended import (
         create_refresh_token,
         jwt_required,
         get_jwt_identity,
-        get_jwt
+        get_jwt,
+        set_refresh_cookies,
+        unset_refresh_cookies
 )
 from .extensions import bcrypt, db, redis
 from .models.user import User
@@ -79,10 +81,8 @@ def login():
     store_refresh_token(user.id, jti, expires_in)
 
     # send refresh token as HttpOnly cookie
-    resp = make_response(jsonify(access_token=access_token))
-    resp.set_cookie("refresh_token", refresh_token, httponly=True,
-                    secure=True, samesite="Strict", max_age=expires_in,
-                    path="/refresh")
+    resp = jsonify(access_token=access_token)
+    set_refresh_cookies(resp, refresh_token)
     return resp
 
 @auth.route("/refresh", methods=["POST"])
@@ -106,15 +106,13 @@ def refresh():
 def logout():
     # revoke the refresh token in redis and clear the cookie
     user_id = int(get_jwt_identity())
-    jwt_data = get_jwt()
-    jti = jwt_data["jti"]
 
     # revoke token in redis
-    revoke_refresh_token(user_id, jti)
+    revoke_all_refresh_tokens(user_id)
 
     # clear cookie
-    resp = make_response(jsonify(msg="Logged out"))
-    resp.delete_cookie("refresh_token", path="/refresh")
+    resp = jsonify(msg="Logged out")
+    unset_refresh_cookies(resp)
     return resp
 
 @auth.route("/register", methods=["POST"])
