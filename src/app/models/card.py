@@ -34,3 +34,15 @@ class Card(db.Model):
             "special": self.special_pts,
             "total": self.total_pts
         }
+    
+    @classmethod
+    def from_json(cls, data: dict):
+        return cls(
+            name=data.get("name"),
+            image=data.get("image"),
+            economy=data.get("economy"),
+            food=data.get("food"),
+            environment=data.get("environment"),
+            special=data.get("special"),
+            total=data.get("total")
+        )

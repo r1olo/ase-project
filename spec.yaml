@@ -107,7 +107,7 @@ components:
         player2_id: { type: integer }
         status:
           type: string
-          enum: [active, queued, completed, forfeited, cancelled]
+          enum: [ongoing, completed, forfeited, cancelled]
         winner_id:
           anyOf:
             - type: integer

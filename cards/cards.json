@@ -1,0 +1,11 @@
+{
+    "abruzzo": {
+        "name": "Abruzzo",
+        "image": "01-abruzzo.png",
+        "economy": 5,
+        "food": 5,
+        "environment": 6,
+        "special": 7,
+        "total": 5.8
+    }
+}
