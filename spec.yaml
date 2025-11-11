@@ -96,8 +96,8 @@ components:
         food: { type: integer }
         environment: { type: integer }
         special: { type: integer }
-        average: { type: number, format: float }
-      required: [id, name, economy, food, environment, special, average]
+        total: { type: number, format: float }
+      required: [id, name, economy, food, environment, special, total]
 
     Match:
       type: object
@@ -125,7 +125,7 @@ components:
         turn_number: { type: integer, minimum: 1 }
         category:
           type: string
-          enum: [economy, food, environment, special, average]
+          enum: [economy, food, environment, special, total]
         card1_id: { type: integer }
         card2_id: { type: integer }
         winner_id:
