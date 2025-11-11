@@ -1,6 +1,8 @@
+fakeredis
 flask
 flask-bcrypt
 flask-jwt-extended
 flask-sqlalchemy
 pytest
 pytest-mock
+redis

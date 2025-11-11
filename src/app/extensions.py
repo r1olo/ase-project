@@ -2,6 +2,7 @@
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
+from .ext.redismanager import RedisManager
 
 # bcrypt extension
 bcrypt = Bcrypt()
@@ -11,3 +12,6 @@ db = SQLAlchemy()
 
 # JWTManager extension
 jwt = JWTManager()
+
+# RedisManager extension
+redis = RedisManager()

@@ -5,4 +5,4 @@ app = create_app()
 
 # run interactively if needed
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)
