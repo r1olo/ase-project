@@ -4,6 +4,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from ..extensions import db
 
 class User(db.Model):
+    __tablename__ = "users"
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
     user : Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     email : Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
