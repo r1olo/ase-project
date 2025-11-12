@@ -1,6 +1,6 @@
 # cards methods
 from flask import Blueprint, jsonify
-from models.card import Card
+from .models.card import Card
 
 catalogue = Blueprint("catalogue", __name__)
 

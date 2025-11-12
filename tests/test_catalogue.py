@@ -1,6 +1,24 @@
-from src.catalogue.models.card import Card
-from src.extensions import db
+from catalogue import create_test_app
+from catalogue.models.card import Card
+from extensions import db
 import json
+import pytest
+
+@pytest.fixture
+def app():
+    app = create_test_app()
+    with app.app_context():
+        db.create_all()
+        yield app
+        db.drop_all()
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
+
+@pytest.fixture
+def runner(app):
+    return app.test_cli_runner()
 
 ### helper functions
 

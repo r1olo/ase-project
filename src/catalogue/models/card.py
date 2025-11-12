@@ -1,7 +1,7 @@
 # Card representation
 from sqlalchemy import Integer, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
-from ..extensions import db
+from extensions import db
 
 class Card(db.Model):
     __tablename__ = 'cards'
