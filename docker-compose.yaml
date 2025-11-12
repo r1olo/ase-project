@@ -1,0 +1,24 @@
+services:
+  auth:
+    build: ./auth
+    container_name: authentication
+    ports:
+      - 5001:5000
+    # depends_on:
+    #   -
+  catalogue:
+    build: ./catalogue
+    container_name: card-catalogue
+    ports:
+      - 5002:5000
+  game:
+    build: ./game
+    container_name: game-engine
+    ports:
+      - 5003:5000
+  players:
+    build: ./players
+    container_name: players
+    ports:
+      - 5000:5000
+      

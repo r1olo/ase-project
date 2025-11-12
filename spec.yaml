@@ -1,4 +1,3 @@
-
 openapi: 3.1.0
 info:
   title: Carusi Cards Game API
@@ -6,7 +5,6 @@ info:
   summary: REST API for players, authentication, matchmaking, matches, rounds, and card catalogue.
   description: |
     This specification models the endpoints and data model of the card game.
-  # termsOfService:
   contact:
     name: API Support
     url: https://example.com/support
@@ -16,12 +14,12 @@ info:
   #   identifier:
 
 
-# Servers
+### servers
 servers:
   - url: https://carusi.net/api
     description: Game Endpoint
 
-
+### tags
 tags:
   # Tag grouping for navigation UIs
   - name: Authentication
@@ -44,8 +42,7 @@ x-tagGroups:
   - name: Operations
     tags: [Utilities]
 
-
-# Common components
+### common components
 components:
   parameters:
     # Reusable path/collection parameters
@@ -71,9 +68,9 @@ components:
         type: integer
       description: Round identifier
 
-      
+  ### schemas  
   schemas:
-    # Core resources
+    # core resources
     Player:
       type: object
       properties:
@@ -134,13 +131,45 @@ components:
             - type: "null"
       required: [id, match_id, turn_number, category, card1_id, card2_id]
 
-
+### paths
 paths:
-  # AUTHENTICATION (per slides: POST /login, /register, /logout)
+  # authentication
   /register:
     post:
       tags: [Authentication]
-      summary: Register a new user
+      summary: Register a new user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+              required: [username, email, password]
+
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Player' }
+        '409':
+          description: User already registered 
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+
+  /login:
+    post:
+      tags: [Authentication]
+      summary: User log in
+      description: Sets and return refresh and access tokens.
       requestBody:
         required: true
         content:
@@ -150,38 +179,13 @@ paths:
               - type: object
                 properties:
                   username: { type: string }
-                  passwordHash: { type: string }
-                required: [username, passwordHash]
+                  password: { type: string }
+                required: [username, password]
               - type: object
                 properties:
                   email: { type: string, format: email }
-                  passwordHash: { type: string }
-                required: [email, passwordHash]
-      responses:
-        '201':
-          description: Registered
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Player' }
-        '409':
-          description: Error
-
-  /login:
-    post:
-      tags: [Authentication]
-      summary: User log in
-      description: Sets a secure session cookie or returns a bearer token.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              description: Hashed payload per slides
-              properties:
-                email: { type: string, format: email }
-                passwordHash: { type: string }
-              required: [username, passwordHash]
+                  password: { type: string }
+                required: [email, password]
       responses:
         '200':
           description: Logged in
@@ -196,7 +200,13 @@ paths:
                 properties:
                   token: { type: string, description: "JWT token" }
         '401':
-          description: Error
+          description: User not registered or invalid password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
 
   /logout:
     post:
@@ -204,9 +214,31 @@ paths:
       summary: User log out
       responses:
         '204':
-          description: No content error
+          description: Logged out
 
-  # PLAYERS
+  /refresh:
+    post:
+      tags: [Authentication]
+      summary: Generate a new access token
+      responses:
+        '200':
+          description: New access token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token: { type: string, description: "JWT token" }
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+
+  # players
   /players/{pId}:
     get:
       tags: [Players]
@@ -328,7 +360,7 @@ paths:
         '404': 
           description: Error
 
-  # MATCHMAKING
+  # matchmaking
   /queue:
     post:
       tags: [Matchmaking]
@@ -357,7 +389,7 @@ paths:
                   position: { type: integer, minimum: 0 }
                   estimatedWaitSeconds: { type: integer, minimum: 0 }
 
-  # MATCHES
+  # matches
   /matches/{mId}:
     get:
       tags: [Matches]
@@ -462,7 +494,7 @@ paths:
         '202':
           description: Forfeit accepted
 
-  # CARD CATALOGUE
+  # card catalogue
   /cards:
     get:
       tags: [Cards]
@@ -493,14 +525,28 @@ paths:
               card_id: { type: integer }
       responses:
         '200':
-          description: Card
+          description: Requested card
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Card' }
+        '400':
+          description: Invalid card
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
         '404':
-          description: Error
+          description: Card not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
 
-  # UTILITIES
+  # utilities
   /_meta:
     get:
       tags: [Utilities]
@@ -518,3 +564,4 @@ paths:
                   features:
                     type: object
                     additionalProperties: { type: boolean }
+                    
