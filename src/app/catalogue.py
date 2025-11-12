@@ -1,7 +1,5 @@
 # cards methods
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
-from .extensions import db
+from flask import Blueprint, jsonify
 from .models.card import Card
 
 catalogue = Blueprint("catalogue", __name__)
@@ -15,8 +13,13 @@ def get_cards():
     cards_json = [card.to_json() for card in cards]
     return jsonify({"data": cards_json})
 
-@catalogue.route("/cards/<int:card_id>", methods=["GET"])
+@catalogue.route("/cards/<card_id>", methods=["GET"])
 def get_single_card(card_id: int):
+    try:
+        int(card_id)
+    except:
+        return jsonify({"msg": "Invalid card ID"}), 400
+
     # fetch card by id
     card = Card.query.filter_by(id=card_id).first()
     if not card:

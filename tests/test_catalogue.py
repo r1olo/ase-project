@@ -64,4 +64,11 @@ def test_get_single_card_not_found(client):
     assert resp.status_code == 404
     data = resp.get_json()
     assert data["msg"] == "Card not found"
+
+def test_get_single_card_invalid_id(client):
+    # try to fetch a card using an invalid ID
+    resp = client.get("/cards/abc123")
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert data["msg"] == "Invalid card ID"
     
