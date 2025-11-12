@@ -1,5 +1,5 @@
-from app.models.card import Card
-from app.extensions import db
+from src.catalogue.models.card import Card
+from src.extensions import db
 import json
 
 ### helper functions
