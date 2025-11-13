@@ -11,6 +11,10 @@ def utcnow() -> datetime:
     return datetime.now(datetime.UTC)
 
 class Move(db.Model):
+    """
+    Represents a single card played by a single player in one round.
+    This is an append-only log of game actions.
+    """
     __tablename__ = "moves"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -19,15 +23,21 @@ class Move(db.Model):
     )
     player_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     round_number: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    
+    # Stores the card ID (e.g., "card_name_001")
     card_id: Mapped[str] = mapped_column(String(100), nullable=False)
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=utcnow
     )
 
+    # --- Relationships ---
+    # A Move belongs to one Match.
     match: Mapped["Match"] = relationship("Match", back_populates="moves")
 
-    # Ensures one player can only make one move per round
+    # --- Constraints ---
+    # This is a critical game rule: A player can only submit ONE
+    # move per round in a given match.
     __table_args__ = (
         UniqueConstraint(
             'match_id', 
@@ -44,7 +54,7 @@ class Move(db.Model):
         card_id: str,
         match: Optional[Match] = None,
         match_id: Optional[int] = None,
-        created_at: Optional[datetime] = None,
+        **kwargs
     ):
         if match is not None:
             self.match = match
@@ -54,7 +64,7 @@ class Move(db.Model):
         self.player_id = player_id
         self.round_number = round_number
         self.card_id = card_id
-        self.created_at = created_at or utcnow()
+        self.created_at = kwargs.get("created_at", utcnow())
 
     def to_dict(self) -> dict:
         """Serializes the Move object to a dictionary."""
