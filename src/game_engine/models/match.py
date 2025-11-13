@@ -1,9 +1,9 @@
-# models/match.py
+from common.extensions import db
 from typing import Dict, List, Optional, Any, Enum 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Integer, DateTime, JSON
 from datetime import datetime, UTC
-from extensions import db
+
 
 from move import Move 
 

@@ -1,9 +1,8 @@
-# models/move.py
+from common.extensions import db
 from datetime import datetime
 from typing import Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, UniqueConstraint, Integer, String, DateTime  
-from extensions import db
 
 from match import Match
 
