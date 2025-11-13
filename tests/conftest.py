@@ -1,7 +1,7 @@
 import pytest
 
 from auth.app import create_test_app as create_auth_test_app
-from auth.extensions import db as auth_db, redis_manager
+from common.extensions import db as auth_db, redis_manager
 from catalogue.app import create_test_app as create_catalogue_test_app
 from catalogue.extensions import db as catalogue_db
 

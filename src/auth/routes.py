@@ -15,7 +15,7 @@ from flask_jwt_extended import (
 )
 from sqlalchemy.exc import IntegrityError
 
-from .extensions import bcrypt, db, redis_manager
+from common.extensions import bcrypt, db, redis_manager
 from .models import User
 
 

@@ -4,7 +4,7 @@ import re
 from flask_jwt_extended import get_csrf_token
 
 from auth.models import User
-from auth.extensions import redis_manager, db
+from common.extensions import redis_manager, db
 
 JWT_PATTERN = re.compile(r"^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$")
 

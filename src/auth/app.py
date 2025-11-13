@@ -5,7 +5,7 @@ from __future__ import annotations
 from flask import Flask
 
 from .config import Config, TestConfig
-from .extensions import bcrypt, db, jwt, redis_manager
+from common.extensions import bcrypt, db, jwt, redis_manager
 from .routes import bp as auth_blueprint
 
 
