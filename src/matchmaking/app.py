@@ -1,43 +1,27 @@
+"""Application factory for the matchmaking service."""
+
+from __future__ import annotations
+
 from flask import Flask
-from .auth import auth
-from .catalogue import catalogue
+
 from .config import Config, TestConfig
-from .extensions import bcrypt, db, jwt, redis
-from .routes import main
+from .routes import bp as matchmaking_blueprint
 
-# implementation of factory function
-def _create_app(testing=False):
+
+def _create_app(config) -> Flask:
     app = Flask(__name__)
-
-    # use a particular config based on whether we're testing
-    conf = TestConfig() if testing else Config()
-    app.config.from_object(conf)
-
-    # init database and populate tables if they don't exist
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
-
-    # init bcrypt
-    bcrypt.init_app(app)
-
-    # init jwtmanager
-    jwt.init_app(app)
-
-    # init redis client
-    redis.init_app(app)
-
-    # register routes
-    app.register_blueprint(main)
-    app.register_blueprint(catalogue)
-    app.register_blueprint(auth)
-
+    app.config.from_object(config)
+    app.register_blueprint(matchmaking_blueprint)
     return app
 
-# create normal app
-def create_app():
-    return _create_app(testing=False)
 
-# create test app
-def create_test_app():
-    return _create_app(testing=True)
+def create_app() -> Flask:
+    return _create_app(Config())
+
+
+def create_test_app() -> Flask:
+    return _create_app(TestConfig())
+
+
+if __name__ == "__main__":  # pragma: no cover
+    create_app().run(host="0.0.0.0", port=5004)

@@ -1,4 +1,4 @@
-"""Catalogue microservice exposing card data."""
+"""Auth microservice package."""
 
 from .app import create_app, create_test_app
 

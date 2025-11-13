@@ -1,4 +1,4 @@
-"""Application factory for the players microservice."""
+"""Application factory for the game engine service."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from flask import Flask
 
 from .config import Config, TestConfig
 from .extensions import db
-from .routes import bp as players_blueprint
+from .routes import bp as engine_blueprint
 
 
 def _create_app(config) -> Flask:
@@ -17,7 +17,7 @@ def _create_app(config) -> Flask:
     with app.app_context():
         db.create_all()
 
-    app.register_blueprint(players_blueprint)
+    app.register_blueprint(engine_blueprint)
     return app
 
 
@@ -30,4 +30,4 @@ def create_test_app() -> Flask:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    create_app().run(host="0.0.0.0", port=5002)
+    create_app().run(host="0.0.0.0", port=5003)

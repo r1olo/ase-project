@@ -1,4 +1,4 @@
-"""Catalogue microservice exposing card data."""
+"""Matchmaking microservice scaffolding."""
 
 from .app import create_app, create_test_app
 

@@ -1,4 +1,4 @@
-"""Catalogue microservice exposing card data."""
+"""Game engine microservice."""
 
 from .app import create_app, create_test_app
 
