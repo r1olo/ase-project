@@ -6,6 +6,7 @@ import json
 import uuid
 
 from flask import Blueprint, jsonify, request
+from werkzeug.exceptions import NotFound
 
 from .extensions import db
 from .models import Match, Round
@@ -14,11 +15,11 @@ from .models import Match, Round
 bp = Blueprint("game_engine", __name__)
 
 
-def _match_or_404(public_id: str):
+def _match_or_404(public_id: str) -> Match:
     match = Match.query.filter_by(public_id=public_id).first()
     if not match:
-        return None, jsonify({"msg": "Match not found"}), 404
-    return match, None, None
+        raise NotFound(description="Match not found")
+    return match
 
 
 @bp.get("/health")
@@ -46,17 +47,13 @@ def create_match():
 
 @bp.get("/matches/<public_id>")
 def get_match(public_id: str):
-    match, resp, status = _match_or_404(public_id)
-    if not match:
-        return resp, status
+    match = _match_or_404(public_id)
     return jsonify(match.to_dict())
 
 
 @bp.post("/matches/<public_id>/rounds")
 def record_round(public_id: str):
-    match, resp, status = _match_or_404(public_id)
-    if not match:
-        return resp, status
+    match = _match_or_404(public_id)
 
     payload = request.get_json(silent=True) or {}
     round_number = payload.get("round_number")
