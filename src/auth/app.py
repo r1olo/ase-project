@@ -5,24 +5,18 @@ from __future__ import annotations
 from flask import Flask
 
 from .config import Config, TestConfig
+from common.app_factory import create_flask_app
 from common.extensions import bcrypt, db, jwt, redis_manager
 from .routes import bp as auth_blueprint
 
 
 def _create_app(config_object) -> Flask:
-    app = Flask(__name__)
-    app.config.from_object(config_object)
-
-    db.init_app(app)
-    bcrypt.init_app(app)
-    jwt.init_app(app)
-    redis_manager.init_app(app)
-
-    with app.app_context():
-        db.create_all()
-
-    app.register_blueprint(auth_blueprint)
-    return app
+    return create_flask_app(
+        config_obj=config_object,
+        extensions=(db, bcrypt, jwt, redis_manager),
+        blueprints=(auth_blueprint,),
+        init_app_context_steps=(lambda _app: db.create_all(),),
+    )
 
 
 def create_app() -> Flask:
