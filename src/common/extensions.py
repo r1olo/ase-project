@@ -1,15 +1,17 @@
-"""Flask extension singletons for the auth service."""
-
-from __future__ import annotations
-
+# Flask extensions
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager
-
 from common.redis_manager import RedisManager
 
-
+# Bcrypt extension
 bcrypt = Bcrypt()
+
+# SQLAlchemy extension
 db = SQLAlchemy()
+
+# JWTManager extension
 jwt = JWTManager()
+
+# Our custom RedisManager extension
 redis_manager = RedisManager()
