@@ -2,7 +2,7 @@
 from __future__ import annotations
 from sqlalchemy import Integer, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
-from extensions import db
+from .extensions import db
 
 class Card(db.Model):
     __tablename__ = 'cards'
@@ -32,7 +32,6 @@ class Card(db.Model):
         self.special_pts = special
         self.total_pts = total
 
-    @classmethod
     def to_json(self) -> dict:
         return {
             "id": self.id,

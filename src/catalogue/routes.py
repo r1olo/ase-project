@@ -34,8 +34,13 @@ def get_single_card(card_id: int):
 @catalogue.route("/cards/validation", methods=["GET"])
 def validate_deck():
     payload = request.get_json(silent=True) or {}
+    # checks each card in the payload
     for card in payload.get("data", []):
+        if not card:
+            return jsonify({"data": False})
+        
+        # case no match or match is wrong
         card_catalogue = Card.query.filter_by(id=card.get("id") or "").first()
-        if not card_catalogue or not card_catalogue == card:
+        if not card_catalogue or not card_catalogue.to_json() == card:
             return jsonify({"data": False})
     return jsonify({"data": True})

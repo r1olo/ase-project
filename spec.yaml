@@ -561,13 +561,13 @@ paths:
                   items: { $ref: '#/components/schemas/Card' }
       responses:
           '200':
-            description: Requested card
+            description: Validation result
             content:
               application/json:
                 schema:
                   type: object
                   properties:
-                    data: { type: boolean}
+                    data: { type: boolean }
   
   # utilities
   /_meta:
