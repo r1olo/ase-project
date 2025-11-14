@@ -2,14 +2,15 @@
 from flask import Flask
 
 # create a Flask application with the following parameters:
+#   name: Name of the Flask's app
 #   config_obj: A class instance containing configuration parameters
 #   extensions: A list of extension objects to init with this app
 #   blueprints: A list of Flask blueprints to register within the app
 #   init_app_context_steps: A list of things to do with this app's context
-def create_flask_app(*, config_obj, extensions, blueprints,
+def create_flask_app(*, name, config_obj, extensions, blueprints,
                      init_app_context_steps):
     # create app and configure it
-    app = Flask(__name__)
+    app = Flask(name)
     app.config.from_object(config_obj)
 
     # init all the extensions

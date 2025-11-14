@@ -7,6 +7,7 @@ from .routes import bp as matchmaking_blueprint
 # flask app creation generic function
 def _create_app(config_object):
     return create_flask_app(
+        name=__name__,
         config_obj=config_object,
         extensions=(jwt, redis_manager),
         blueprints=(matchmaking_blueprint,),

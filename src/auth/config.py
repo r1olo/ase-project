@@ -12,7 +12,7 @@ def _bool_env(name: str, default: bool = False) -> bool:
 class Config:
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = os.getenv("AUTH_DATABASE_URL",
-                                        "sqlite://:memory:")
+                                        "sqlite:///:memory:")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # JWT token stuff

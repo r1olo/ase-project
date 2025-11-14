@@ -7,6 +7,7 @@ from .routes import bp as auth_blueprint
 # flask app creation generic function
 def _create_app(config_object):
     return create_flask_app(
+        name=__name__,
         config_obj=config_object,
         extensions=(db, bcrypt, jwt, redis_manager),
         blueprints=(auth_blueprint,),

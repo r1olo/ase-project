@@ -9,8 +9,8 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src/common /app/common
-COPY src/auth /app
+COPY src/auth /app/auth
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["flask", "--app=auth.app", "run", "--host=0.0.0.0", "--port=5000"]
