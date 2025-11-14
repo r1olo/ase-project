@@ -13,7 +13,6 @@ info:
   #   name:
   #   identifier:
 
-
 ### servers
 servers:
   - url: https://carusi.net/api
@@ -545,7 +544,31 @@ paths:
                 type: object
                 properties:
                   msg: { type: string }
-
+  /cards/validation:
+    get:
+      tags: [Card]
+      summary: Validate cards
+      description: Check if cards are in catalogue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Card' }
+      responses:
+          '200':
+            description: Requested card
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    data: { type: boolean}
+  
   # utilities
   /_meta:
     get:

@@ -1,13 +1,9 @@
-"""Application factory for the catalogue microservice."""
-
+"""Application factory for the Card Catalogue microservice."""
 from __future__ import annotations
-
-from flask import Flask
-
 from .config import Config, TestConfig
 from .extensions import db
-from .routes import bp as catalogue_blueprint
-
+from .routes import catalogue as catalogue_blueprint
+from flask import Flask
 
 def _create_app(config) -> Flask:
     app = Flask(__name__)
@@ -20,14 +16,11 @@ def _create_app(config) -> Flask:
     app.register_blueprint(catalogue_blueprint)
     return app
 
-
 def create_app() -> Flask:
     return _create_app(Config())
-
 
 def create_test_app() -> Flask:
     return _create_app(TestConfig())
 
-
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == "__main__":
     create_app().run(host="0.0.0.0", port=5001)

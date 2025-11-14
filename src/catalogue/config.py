@@ -1,9 +1,7 @@
-"""Configuration for the catalogue service."""
-
+"""Configuration for the Card Catalogue service."""
 from __future__ import annotations
 
 import os
-
 
 class Config:
     SQLALCHEMY_DATABASE_URI = os.getenv(
@@ -11,7 +9,6 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     TESTING = False
-
 
 class TestConfig(Config):
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
