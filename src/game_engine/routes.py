@@ -48,58 +48,86 @@ def create_match():
     if player1_id == player2_id:
         return jsonify({"msg": "Player IDs must be different"}), 400
 
-    match = Match(
-        player1_id=player1_id,
-        player2_id=player2_id,
-    )
-    db.session.add(match)
-    db.session.commit()
-    
-    return jsonify(match.to_dict(include_moves=False)), 201
+    try:
+        match = Match(
+            player1_id=player1_id,
+            player2_id=player2_id,
+        )
+        db.session.add(match)
+        db.session.commit()
+        
+        return jsonify(match.to_dict(include_moves=False)), 201
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating match: {e}")
+        return jsonify({"msg": "Internal server error"}), 500
 
 @bp.post("/matches/<int:match_id>/deck")
 def choose_deck(match_id: int):
     """
     Endpoint for a player to submit their chosen deck (subset of cards).
-    Validates the deck against the catalogue service.
+    Validates the deck and *fetches all card stats* from the catalogue service.
     """
-    match = _match_or_404(match_id)
+    try:
+        match = _match_or_404(match_id)
 
-    if match.status != MatchStatus.SETUP:
-        return jsonify({"msg": "Decks can only be chosen during SETUP"}), 400
+        if match.status != MatchStatus.SETUP:
+            return jsonify({"msg": "Decks can only be chosen during SETUP"}), 400
 
-    payload = request.get_json(silent=True) or {}
-    player_id = payload.get("player_id")
-    deck = payload.get("deck") # Expects a list of card IDs
+        payload = request.get_json(silent=True) or {}
+        player_id = payload.get("player_id")
+        deck_card_ids = payload.get("deck") # Expects a *list* of card IDs
 
-    if not isinstance(player_id, int) or not isinstance(deck, list):
-        return jsonify({"msg": "player_id (int) and deck (list) are required"}), 400
-    if not deck:
-         return jsonify({"msg": "Deck cannot be empty"}), 400
-    
-    # --- TODO: Validate deck against Catalogue Microservice ---
-    # catalogue_url = os.environ.get("CATALOGUE_SERVICE_URL")
-    # try:
-    #     response = requests.post(f"{catalogue_url}/cards/validate-ids", json={"card_ids": deck})
-    #     response.raise_for_status()
-    #     if not response.json().get("valid"):
-    #         return jsonify({"msg": "Invalid deck"}), 400
-    # except requests.exceptions.RequestException as e:
-    #     return jsonify({"msg": "Catalogue service unavailable"}), 503
-    # --- End TODO ---
-
-    if player_id == match.player1_id:
-        match.player1_deck = deck
-    elif player_id == match.player2_id:
-        match.player2_deck = deck
-    else:
-        return jsonify({"msg": "Player is not part of this match"}), 403
-
-    if match.player1_deck is not None and match.player2_deck is not None:
-        match.status = MatchStatus.IN_PROGRESS
+        if not isinstance(player_id, int) or not isinstance(deck_card_ids, list):
+            return jsonify({"msg": "player_id (int) and deck (list) are required"}), 400
+        if not deck_card_ids:
+            return jsonify({"msg": "Deck cannot be empty"}), 400
         
-    db.session.commit()
-    return jsonify(match.to_dict(include_moves=False))
+        # --- TODO: Call Catalogue Microservice ---
+        # This is the new "slow" part. It runs once per player.
+        # catalogue_url = os.environ.get("CATALOGUE_SERVICE_URL")
+        # try:
+        #     response = requests.post(f"{catalogue_url}/cards/batch-lookup", json={"card_ids": deck_card_ids})
+        #     response.raise_for_status()
+        #     # We expect the catalogue to return the full stats map
+        #     deck_stats_map = response.json() 
+        # except requests.exceptions.RequestException as e:
+        #     return jsonify({"msg": "Catalogue service unavailable"}), 503
+        #
+        # --- MOCK DATA (Remove when TODO is implemented) ---
+        # This is the data structure we now store in the Match
+        deck_stats_map = {}
+        for card_id in deck_card_ids:
+            deck_stats_map[card_id] = {
+                "economy": random.randint(5, 15), 
+                "food": random.randint(5, 15), 
+                "environment": random.randint(5, 15), 
+                "special": random.randint(0, 5), 
+                "total": random.uniform(20.0, 40.0)
+            }
+        # --- END MOCK DATA ---
+
+        # Assign the *full stats map* to the correct player
+        if player_id == match.player1_id:
+            match.player1_deck = deck_stats_map
+        elif player_id == match.player2_id:
+            match.player2_deck = deck_stats_map
+        else:
+            return jsonify({"msg": "Player is not part of this match"}), 403
+
+        # If both decks are set, start the game
+        if match.player1_deck is not None and match.player2_deck is not None:
+            match.status = MatchStatus.IN_PROGRESS
+            
+        db.session.commit()
+        return jsonify(match.to_dict(include_moves=False))
+    
+    except NotFound as e:
+        return jsonify({"msg": str(e)}), 404
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error in choose_deck: {e}")
+        return jsonify({"msg": "Internal server error"}), 500
 
 @bp.post("/matches/<int:match_id>/moves")
 def submit_move(match_id: int):
@@ -109,14 +137,11 @@ def submit_move(match_id: int):
     """
     payload = request.get_json(silent=True) or {}
     player_id = payload.get("player_id")
-    card_id = payload.get("card_id")
+    card_id = payload.get("card_id") # This is the string ID of the card
 
     if not isinstance(player_id, int) or not isinstance(card_id, str):
         return jsonify({"msg": "player_id (int) and card_id (str) are required"}), 400
 
-    # We use a transaction and lock to handle concurrency.
-    # The 'with_for_update' locks the match row until the 'try'
-    # block is finished and a commit/rollback happens.
     try:
         match = db.session.scalars(
             db.select(Match).filter_by(id=match_id).with_for_update()
@@ -131,9 +156,12 @@ def submit_move(match_id: int):
         if player_id not in [match.player1_id, match.player2_id]:
             return jsonify({"msg": "Player is not part of this match"}), 403
 
+        # Get the player's deck stats map
         player_deck = match.player1_deck if player_id == match.player1_id else match.player2_deck
         if not player_deck:
             return jsonify({"msg": "Player deck not found or not set"}), 400
+        
+        # Validate the card is in the player's deck stats map 
         if card_id not in player_deck:
             return jsonify({"msg": f"Card {card_id} is not in the player's deck"}), 400
         
@@ -145,9 +173,19 @@ def submit_move(match_id: int):
             )
         ).all()
 
-        # Check if this player has already moved this round
         if player_id in [m.player_id for m in moves_this_round]:
             return jsonify({"msg": "Player has already submitted a move for this round"}), 409
+        
+        # Check if card has already been played in previous rounds
+        all_player_moves = db.session.scalars(
+            db.select(Move).filter_by(
+                match_id=match_id,
+                player_id=player_id
+            )
+        ).all()
+        
+        if card_id in [m.card_id for m in all_player_moves]:
+            return jsonify({"msg": f"Card {card_id} has already been played"}), 409
 
         # Save the New Move
         move = Move(
@@ -160,7 +198,6 @@ def submit_move(match_id: int):
 
         if len(moves_this_round) == 0:
             # This is the first move of the round.
-            # Commit the move and release the lock.
             db.session.commit()
             return jsonify({
                 "status": "WAITING_FOR_OPPONENT",
@@ -169,36 +206,36 @@ def submit_move(match_id: int):
 
         elif len(moves_this_round) == 1:
             # This is the second move. Process the round.
-            # We are still holding the lock.
-            
             move_p1 = moves_this_round[0]
             move_p2 = move # The new move we just created
             category = match.current_round_category
 
-            # --- TODO: Call Catalogue Microservice ---
-            # catalogue_url = os.environ.get("CATALOGUE_SERVICE_URL")
-            # response = requests.post(f"{catalogue_url}/cards/batch-lookup", ...)
-            # card_stats_map = response.json()
-            card_stats_map = {
-                move_p1.card_id: {"economy": 10, "food": 5, "environment": 7, "special": 0, "total": 22.0},
-                move_p2.card_id: {"economy": 8, "food": 12, "environment": 6, "special": 2, "total": 28.0}
-            }
+            # Retrieve stats *instantly* from the match object.
+            try:
+                # Get stats for each player's card (CORRECTED)
+                if move_p1.player_id == match.player1_id:
+                    p1_card_stats = match.player1_deck[move_p1.card_id]
+                    p2_card_stats = match.player2_deck[move_p2.card_id]
+                else:
+                    p1_card_stats = match.player1_deck[move_p2.card_id]
+                    p2_card_stats = match.player2_deck[move_p1.card_id]
 
-            card1_stats = card_stats_map.get(move_p1.card_id)
-            card2_stats = card_stats_map.get(move_p2.card_id)
+                score_p1 = p1_card_stats[category]
+                score_p2 = p2_card_stats[category]
 
-            if not card1_stats or not card2_stats:
-                raise Exception("Card stats not found in catalogue")
+            except KeyError as e:
+                # This could happen if category or card_id is bad
+                # This is now an internal logic error, not a network error
+                current_app.logger.error(f"Error processing round: {e}")
+                raise Exception(f"Card stats or category key error: {e}")
 
-            score1 = card1_stats[category]
-            score2 = card2_stats[category]
-            
             round_winner_id = None
-            if score1 > score2:
-                round_winner_id = move_p1.player_id
-            elif score2 > score1:
-                round_winner_id = move_p2.player_id
+            if score_p1 > score_p2:
+                round_winner_id = match.player1_id # Player 1 wins
+            elif score_p2 > score_p1:
+                round_winner_id = match.player2_id # Player 2 wins
             
+            # Update score (handle P1/P2 correctly)
             if round_winner_id == match.player1_id:
                 match.player1_score += 1
             elif round_winner_id == match.player2_id:
@@ -216,7 +253,6 @@ def submit_move(match_id: int):
                 match.current_round += 1
                 match.current_round_category = random.choice(CARD_CATEGORIES)
 
-            # Commit all changes (new move, match update) at once.
             db.session.commit()
             
             return jsonify({
@@ -235,13 +271,9 @@ def submit_move(match_id: int):
     except NotFound as e:
         return jsonify({"msg": str(e)}), 404
     except Exception as e:
-        # If anything fails (catalogue call, logic error), roll back.
         db.session.rollback()
         current_app.logger.error(f"Error in submit_move: {e}")
         return jsonify({"msg": "Internal server error"}), 500
-
-    # This line should not be reachable
-    return jsonify({"msg": "Internal server error"}), 500
 
 
 @bp.get("/matches/<int:match_id>/round")
@@ -251,7 +283,6 @@ def get_current_round_status(match_id: int):
     """
     match = _match_or_404(match_id)
     
-    # Get only the moves for this round.
     moves_this_round = db.session.scalars(
         db.select(Move).filter_by(
             match_id=match_id,

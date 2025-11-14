@@ -1,6 +1,6 @@
 from random import random
 from common.extensions import db
-from typing import List, Optional, Any, Enum 
+from typing import Dict, Optional, Any, Enum 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Integer, DateTime, JSON, String
 from datetime import datetime, UTC
@@ -48,12 +48,12 @@ class Match(db.Model):
     )
     current_round: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     
-    # Stores the active category for the current round (e.g., "economy")
     current_round_category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
 
     # --- Player Deck Storage ---
-    player1_deck: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
-    player2_deck: Mapped[Optional[List[Any]]] = mapped_column(JSON, nullable=True)
+    # Stores the full stats map for the deck,
+    player1_deck: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    player2_deck: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     
     # --- Timestamps ---
     created_at: Mapped[datetime] = mapped_column(
@@ -64,7 +64,6 @@ class Match(db.Model):
     )
 
     # --- Relationships ---
-    # A Match contains many Moves.
     moves: Mapped[list["Move"]] = relationship(
         "Move", back_populates="match", cascade="all, delete-orphan"
     )
@@ -74,18 +73,16 @@ class Match(db.Model):
         player1_id: int,
         player2_id: int,
         status: MatchStatus = MatchStatus.SETUP,
-        **kwargs # Allows for flexible creation
+        **kwargs
     ):
         self.player1_id = player1_id
         self.player2_id = player2_id
         self.status = status
 
-        # Set initial game state
         self.current_round = 1
         self.player1_score = 0
         self.player2_score = 0
         
-        # Pick the category for the *first* round.
         self.current_round_category = random.choice(CARD_CATEGORIES)
         
         now = utcnow()
@@ -111,9 +108,9 @@ class Match(db.Model):
             "winner_id": self.winner_id,
             "created_at": self.created_at.isoformat(),
             "updated_at": self.updated_at.isoformat(),
+            # Note: We don't return the full deck stats by default
         }
 
-        # Only add the 'moves' key if the flag is True
         if include_moves:
             payload["moves"] = [m.to_dict() for m in self.moves]
         
