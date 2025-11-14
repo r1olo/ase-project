@@ -15,7 +15,7 @@ info:
 
 ### servers
 servers:
-  - url: https://carusi.net/api
+  - url: https://carusi.eu/api
     description: Game Endpoint
 
 ### tags
