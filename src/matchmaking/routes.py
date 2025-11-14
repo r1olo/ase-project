@@ -1,81 +1,59 @@
-"""Matchmaking HTTP routes."""
-
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-from typing import Dict, List
-
-from flask import Blueprint, current_app, jsonify, request
-
+# http endpoints for matchmaking
+import time
+from flask import Blueprint, current_app, jsonify
+from flask_jwt_extended import get_jwt_identity, jwt_required
+from common.extensions import redis_manager
 
 bp = Blueprint("matchmaking", __name__)
 
+# placeholder for integration with the game engine
+def call_game_engine(player_ids):
+    current_app.logger.info("match found for players %s", player_ids)
 
-@dataclass
-class QueueState:
-    queue_id: str
-    players: List[str] = field(default_factory=list)
+# retrieve the redis key for the matchmaking queue
+def _queue_key():
+    return current_app.config.get("MATCHMAKING_QUEUE_KEY", "matchmaking:queue")
 
-    def to_dict(self) -> dict:
-        return {"queue_id": self.queue_id, "size": len(self.players), "players": self.players}
+# get the redis connection
+def _redis():
+    return redis_manager.conn
 
+# pop a full match (two players) from redis or restore entries if incomplete
+def _pop_match(conn, key):
+    popped = conn.zpopmin(key, 2)
+    if len(popped) == 2:
+        return [popped[0][0], popped[1][0]]
+    for member, score in popped:
+        conn.zadd(key, {member: score})
+    return None
 
-class QueueRegistry:
-    def __init__(self):
-        self._queues: Dict[str, QueueState] = {}
+# enqueue the authenticated user into the matchmaking queue
+@bp.post("/enqueue")
+@jwt_required()
+def enqueue():
+    conn = _redis()
+    key = _queue_key()
+    user_id = str(get_jwt_identity())
+    max_size = current_app.config.get("MATCHMAKING_MAX_QUEUE_SIZE")
+    already_waiting = conn.zscore(key, user_id) is not None
+    if (not already_waiting and max_size and max_size > 0
+            and conn.zcard(key) >= max_size):
+        return jsonify({"msg": "Queue is full"}), 409
+    conn.zadd(key, {user_id: time.time()}, nx=True)
+    players = _pop_match(conn, key)
+    if players:
+        call_game_engine(players)
+        return jsonify({"status": "Matched", "players": players}), 200
+    return jsonify({"status": "Waiting"}), 202
 
-    def get(self, queue_id: str) -> QueueState:
-        if queue_id not in self._queues:
-            self._queues[queue_id] = QueueState(queue_id=queue_id)
-        return self._queues[queue_id]
-
-
-def _registry() -> QueueRegistry:
-    registry = current_app.config.get("QUEUE_REGISTRY")
-    if not registry:
-        registry = QueueRegistry()
-        current_app.config["QUEUE_REGISTRY"] = registry
-    return registry
-
-
-@bp.get("/health")
-def health():
-    return jsonify({"status": "ok"}), 200
-
-
-@bp.post("/queues/<queue_id>/join")
-def join_queue(queue_id: str):
-    registry = _registry()
-    player_id = (request.get_json(silent=True) or {}).get("player_id")
-    if not player_id:
-        return jsonify({"msg": "player_id is required"}), 400
-
-    queue = registry.get(queue_id)
-    if player_id in queue.players:
-        return jsonify(queue.to_dict()), 200
-
-    max_size = current_app.config.get("MAX_QUEUE_SIZE", 500)
-    if len(queue.players) >= max_size:
-        return jsonify({"msg": "queue is full"}), 409
-
-    queue.players.append(player_id)
-    return jsonify(queue.to_dict()), 202
-
-
-@bp.delete("/queues/<queue_id>/leave")
-def leave_queue(queue_id: str):
-    registry = _registry()
-    player_id = request.args.get("player_id")
-    if not player_id:
-        return jsonify({"msg": "player_id query param is required"}), 400
-
-    queue = registry.get(queue_id)
-    if player_id in queue.players:
-        queue.players.remove(player_id)
-    return jsonify(queue.to_dict())
-
-
-@bp.get("/queues/<queue_id>")
-def queue_status(queue_id: str):
-    queue = _registry().get(queue_id)
-    return jsonify(queue.to_dict())
+# dequeue the authenticated user from the matchmaking queue
+@bp.post("/dequeue")
+@jwt_required()
+def dequeue():
+    conn = _redis()
+    key = _queue_key()
+    user_id = str(get_jwt_identity())
+    removed = conn.zrem(key, user_id)
+    if removed:
+        return jsonify({"status": "Removed"}), 200
+    return jsonify({"msg": "Player not found in queue"}), 409

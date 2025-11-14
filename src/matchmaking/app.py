@@ -1,27 +1,27 @@
-"""Application factory for the matchmaking service."""
-
-from __future__ import annotations
-
-from flask import Flask
-
+# app factory for the matchmaking module
+from common.app_factory import create_flask_app
+from common.extensions import jwt, redis_manager
 from .config import Config, TestConfig
 from .routes import bp as matchmaking_blueprint
 
+# flask app creation generic function
+def _create_app(config_object):
+    return create_flask_app(
+        config_obj=config_object,
+        extensions=(jwt, redis_manager),
+        blueprints=(matchmaking_blueprint,),
+        init_app_context_steps=(),
+    )
 
-def _create_app(config) -> Flask:
-    app = Flask(__name__)
-    app.config.from_object(config)
-    app.register_blueprint(matchmaking_blueprint)
-    return app
-
-
-def create_app() -> Flask:
+# create a normal config app
+def create_app():
     return _create_app(Config())
 
-
-def create_test_app() -> Flask:
+# create a test config app
+def create_test_app():
     return _create_app(TestConfig())
 
-
-if __name__ == "__main__":  # pragma: no cover
-    create_app().run(host="0.0.0.0", port=5004)
+# main Flask entrypoint
+if __name__ == "__main__":
+    app = create_app()
+    app.run(host="0.0.0.0", port=5004)

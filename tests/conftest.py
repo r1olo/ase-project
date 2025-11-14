@@ -5,6 +5,7 @@ from auth.app import create_test_app as create_auth_test_app
 from common.extensions import db as auth_db, redis_manager
 from catalogue.app import create_test_app as create_catalogue_test_app
 from catalogue.extensions import db as catalogue_db
+from matchmaking.app import create_test_app as create_matchmaking_test_app
 
 @pytest.fixture
 def auth_app():
@@ -34,3 +35,16 @@ def catalogue_app():
 @pytest.fixture
 def catalogue_client(catalogue_app):
     return catalogue_app.test_client()
+
+@pytest.fixture
+def matchmaking_app():
+    app = create_matchmaking_test_app()
+    ctx = app.app_context()
+    ctx.push()
+    yield app
+    redis_manager.conn.flushall()
+    ctx.pop()
+
+@pytest.fixture
+def matchmaking_client(matchmaking_app):
+    return matchmaking_app.test_client()
