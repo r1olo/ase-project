@@ -2,10 +2,14 @@
 import pytest
 
 from auth.app import create_test_app as create_auth_test_app
+# TODO: Check if common extensions can be shared across microservices
 from common.extensions import db as auth_db, redis_manager
+from game_engine.extensions import db as game_engine_db
+
 from catalogue.app import create_test_app as create_catalogue_test_app
 from catalogue.extensions import db as catalogue_db
 from matchmaking.app import create_test_app as create_matchmaking_test_app
+from game_engine.app import create_test_app as create_game_engine_test_app
 
 @pytest.fixture
 def auth_app():
@@ -48,3 +52,17 @@ def matchmaking_app():
 @pytest.fixture
 def matchmaking_client(matchmaking_app):
     return matchmaking_app.test_client()
+
+@pytest.fixture
+def game_engine_app():
+    app = create_game_engine_test_app()
+    ctx = app.app_context()
+    ctx.push()
+    yield app
+    game_engine_db.session.remove()
+    game_engine_db.drop_all()
+    ctx.pop()
+
+@pytest.fixture
+def game_engine_client(game_engine_app):
+    return game_engine_app.test_client()
