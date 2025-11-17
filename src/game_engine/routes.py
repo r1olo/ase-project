@@ -7,16 +7,16 @@ selecting decks, submitting moves, and processing rounds.
 import random
 from flask import Blueprint, jsonify, request, current_app
 from werkzeug.exceptions import NotFound
+from sqlalchemy.orm import joinedload
 
 from common.extensions import db 
+
 from .models import Match, Move, MatchStatus, CARD_CATEGORIES
+from .game_engine import GameEngine, MoveSubmissionStatus, RoundStatus
 
 bp = Blueprint("game_engine", __name__, url_prefix="/game")
 
-# --- Constants ---
 
-# Define the total number of rounds before a game ends.
-MAX_ROUNDS = 10 
 
 # --- Helper Functions ---
 
@@ -24,8 +24,10 @@ def _match_or_404(match_id: int) -> Match:
     """Gets a Match by its integer ID or raises a 404."""
     match = db.session.get(Match, match_id)
     if not match:
+        current_app.logger.warning(f"Match {match_id} not found")
         raise NotFound(description="Match not found")
     return match
+
 
 # --- Core API Endpoints ---
 
@@ -33,6 +35,7 @@ def _match_or_404(match_id: int) -> Match:
 def health():
     """Health check endpoint."""
     return jsonify({"status": "ok"}), 200
+
 
 @bp.post("/matches")
 def create_match():
@@ -43,10 +46,11 @@ def create_match():
     player1_id = payload.get("player1_id")
     player2_id = payload.get("player2_id")
 
-    if not isinstance(player1_id, int) or not isinstance(player2_id, int):
-        return jsonify({"msg": "player1_id and player2_id must be integers"}), 400
-    if player1_id == player2_id:
-        return jsonify({"msg": "Player IDs must be different"}), 400
+    # Validate using GameEngine
+    is_valid, error_msg = GameEngine.validate_match_creation(player1_id, player2_id)
+    if not is_valid:
+        current_app.logger.warning(f"Invalid match creation: {error_msg}")
+        return jsonify({"msg": error_msg}), 400
 
     try:
         match = Match(
@@ -56,46 +60,57 @@ def create_match():
         db.session.add(match)
         db.session.commit()
         
+        current_app.logger.info(f"Match {match.id} created between players {player1_id} and {player2_id}")
         return jsonify(match.to_dict(include_moves=False)), 201
+    
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error creating match: {e}")
+        current_app.logger.error(f"Error creating match: {e}", exc_info=True)
         return jsonify({"msg": "Internal server error"}), 500
+
 
 @bp.post("/matches/<int:match_id>/deck")
 def choose_deck(match_id: int):
     """
     Endpoint for a player to submit their chosen deck (subset of cards).
-    Validates the deck and *fetches all card stats* from the catalogue service.
+    Validates the deck and fetches all card stats from the catalogue service.
     """
     try:
         match = _match_or_404(match_id)
-
-        if match.status != MatchStatus.SETUP:
-            return jsonify({"msg": "Decks can only be chosen during SETUP"}), 400
-
+        
         payload = request.get_json(silent=True) or {}
         player_id = payload.get("player_id")
-        deck_card_ids = payload.get("deck") # Expects a *list* of card IDs
+        deck_card_ids = payload.get("deck")
 
-        if not isinstance(player_id, int) or not isinstance(deck_card_ids, list):
-            return jsonify({"msg": "player_id (int) and deck (list) are required"}), 400
-        if not deck_card_ids:
-            return jsonify({"msg": "Deck cannot be empty"}), 400
+        # Validate using GameEngine
+        is_valid, error_msg = GameEngine.validate_deck_submission(deck_card_ids, player_id, match)
+        if not is_valid:
+            current_app.logger.warning(f"Invalid deck submission for match {match_id}: {error_msg}")
+            return jsonify({"msg": error_msg}), 400
         
+        """
+        Fetch card stats from the catalogue service.
+        
+        TODO: Implement actual API call to catalogue service.
+        Currently returns mock data.
+        
+        Returns:
+            Dictionary mapping card_id to stats dictionary
+        """
         # --- TODO: Call Catalogue Microservice ---
-        # This is the new "slow" part. It runs once per player.
         # catalogue_url = os.environ.get("CATALOGUE_SERVICE_URL")
         # try:
-        #     response = requests.post(f"{catalogue_url}/cards/batch-lookup", json={"card_ids": deck_card_ids})
+        #     response = requests.post(
+        #         f"{catalogue_url}/cards/batch-lookup", 
+        #         json={"card_ids": deck_card_ids}
+        #     )
         #     response.raise_for_status()
-        #     # We expect the catalogue to return the full stats map
-        #     deck_stats_map = response.json() 
+        #     return response.json() 
         # except requests.exceptions.RequestException as e:
-        #     return jsonify({"msg": "Catalogue service unavailable"}), 503
-        #
+        #     current_app.logger.error(f"Catalogue service error: {e}")
+        #     raise ValidationError("Catalogue service unavailable")
+        
         # --- MOCK DATA (Remove when TODO is implemented) ---
-        # This is the data structure we now store in the Match
         deck_stats_map = {}
         for card_id in deck_card_ids:
             deck_stats_map[card_id] = {
@@ -105,19 +120,20 @@ def choose_deck(match_id: int):
                 "special": random.randint(0, 5), 
                 "total": random.uniform(20.0, 40.0)
             }
-        # --- END MOCK DATA ---
+        
 
-        # Assign the *full stats map* to the correct player
+        # Assign deck to the correct player
         if player_id == match.player1_id:
             match.player1_deck = deck_stats_map
-        elif player_id == match.player2_id:
+            current_app.logger.info(f"Player 1 (ID: {player_id}) deck set for match {match_id} with {len(deck_card_ids)} cards")
+        else:  # player_id == match.player2_id
             match.player2_deck = deck_stats_map
-        else:
-            return jsonify({"msg": "Player is not part of this match"}), 403
+            current_app.logger.info(f"Player 2 (ID: {player_id}) deck set for match {match_id} with {len(deck_card_ids)} cards")
 
-        # If both decks are set, start the game
-        if match.player1_deck is not None and match.player2_deck is not None:
+        # Check if match should start using GameEngine
+        if GameEngine.should_start_match(match):
             match.status = MatchStatus.IN_PROGRESS
+            current_app.logger.info(f"Match {match_id} starting - both decks submitted")
             
         db.session.commit()
         return jsonify(match.to_dict(include_moves=False))
@@ -126,46 +142,30 @@ def choose_deck(match_id: int):
         return jsonify({"msg": str(e)}), 404
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error in choose_deck: {e}")
+        current_app.logger.error(f"Error in choose_deck for match {match_id}: {e}", exc_info=True)
         return jsonify({"msg": "Internal server error"}), 500
+
 
 @bp.post("/matches/<int:match_id>/moves")
 def submit_move(match_id: int):
     """
     Submit a move (a card) for the current round.
-    This is the core game logic endpoint.
     """
     payload = request.get_json(silent=True) or {}
     player_id = payload.get("player_id")
-    card_id = payload.get("card_id") # This is the string ID of the card
-
-    if not isinstance(player_id, int) or not isinstance(card_id, str):
-        return jsonify({"msg": "player_id (int) and card_id (str) are required"}), 400
+    card_id = payload.get("card_id")
 
     try:
+        # Lock match row to avoid race conditions
         match = db.session.scalars(
             db.select(Match).filter_by(id=match_id).with_for_update()
         ).first()
-        
+
         if not match:
-            raise NotFound(description="Match not found")
+            current_app.logger.warning(f"Match {match_id} not found for move submission")
+            raise NotFound("Match not found")
 
-        # --- Validation Block ---
-        if match.status != MatchStatus.IN_PROGRESS:
-            return jsonify({"msg": "Match is not in progress"}), 400
-        if player_id not in [match.player1_id, match.player2_id]:
-            return jsonify({"msg": "Player is not part of this match"}), 403
-
-        # Get the player's deck stats map
-        player_deck = match.player1_deck if player_id == match.player1_id else match.player2_deck
-        if not player_deck:
-            return jsonify({"msg": "Player deck not found or not set"}), 400
-        
-        # Validate the card is in the player's deck stats map 
-        if card_id not in player_deck:
-            return jsonify({"msg": f"Card {card_id} is not in the player's deck"}), 400
-        
-        # Get only the moves for the current round
+        # MOVES FOR VALIDATION
         moves_this_round = db.session.scalars(
             db.select(Move).filter_by(
                 match_id=match_id,
@@ -173,21 +173,28 @@ def submit_move(match_id: int):
             )
         ).all()
 
-        if player_id in [m.player_id for m in moves_this_round]:
-            return jsonify({"msg": "Player has already submitted a move for this round"}), 409
-        
-        # Check if card has already been played in previous rounds
         all_player_moves = db.session.scalars(
             db.select(Move).filter_by(
                 match_id=match_id,
                 player_id=player_id
             )
         ).all()
-        
-        if card_id in [m.card_id for m in all_player_moves]:
-            return jsonify({"msg": f"Card {card_id} has already been played"}), 409
 
-        # Save the New Move
+        # VALIDATE MOVE (returns {"msg": "...", "code": "..."} on fail)
+        is_valid, err = GameEngine.validate_move_submission(
+            player_id, card_id, match, moves_this_round, all_player_moves
+        )
+
+        if not is_valid:
+            current_app.logger.warning(
+                f"Invalid move for match {match_id}: {err['msg']} ({err['code']})"
+            )
+            return jsonify({
+                "msg": err["msg"],
+                "code": err["code"]
+            }), 400
+
+        # CREATE MOVE
         move = Move(
             match=match,
             player_id=player_id,
@@ -195,84 +202,89 @@ def submit_move(match_id: int):
             card_id=card_id
         )
         db.session.add(move)
+        current_app.logger.info(
+            f"Move submitted: Player {player_id} played {card_id} in round {match.current_round}"
+        )
 
-        if len(moves_this_round) == 0:
-            # This is the first move of the round.
+        # Append now-inserted move so we have both moves in memory
+        moves_this_round.append(move)
+
+        # FIRST OR SECOND MOVE?
+        is_second_move = GameEngine.should_process_round(moves_this_round)
+
+        # --- FIRST MOVE ---
+        if not is_second_move:
             db.session.commit()
+            current_app.logger.info(
+                f"First move of round {match.current_round} submitted, waiting for opponent."
+            )
             return jsonify({
-                "status": "WAITING_FOR_OPPONENT",
+                "status": MoveSubmissionStatus.WAITING_FOR_OPPONENT.value,
                 "move_submitted": move.to_dict()
             }), 200
 
-        elif len(moves_this_round) == 1:
-            # This is the second move. Process the round.
-            move_p1 = moves_this_round[0]
-            move_p2 = move # The new move we just created
-            category = match.current_round_category
+        # --- SECOND MOVE ---
+        try:
+            p1_move = next(m for m in moves_this_round if m.player_id == match.player1_id)
+            p2_move = next(m for m in moves_this_round if m.player_id == match.player2_id)
+        except StopIteration:
+            raise Exception("Required moves for both players not found.")
 
-            # Retrieve stats *instantly* from the match object.
-            try:
-                # Get stats for each player's card (CORRECTED)
-                if move_p1.player_id == match.player1_id:
-                    p1_card_stats = match.player1_deck[move_p1.card_id]
-                    p2_card_stats = match.player2_deck[move_p2.card_id]
-                else:
-                    p1_card_stats = match.player1_deck[move_p2.card_id]
-                    p2_card_stats = match.player2_deck[move_p1.card_id]
+        category = match.current_round_category
+        current_app.logger.info(
+            f"Processing round {match.current_round} for match {match_id}, category: {category}"
+        )
 
-                score_p1 = p1_card_stats[category]
-                score_p2 = p2_card_stats[category]
+        # SCORES
+        try:
+            p1_score, p2_score = GameEngine.calculate_round_scores(match, p1_move, p2_move, category)
+        except KeyError as e:
+            raise Exception(f"Missing card stats during round scoring: {e}")
 
-            except KeyError as e:
-                # This could happen if category or card_id is bad
-                # This is now an internal logic error, not a network error
-                current_app.logger.error(f"Error processing round: {e}")
-                raise Exception(f"Card stats or category key error: {e}")
+        # ROUND WINNER
+        round_winner_id, is_draw = GameEngine.calculate_round_winner(
+            p1_score, p2_score, match.player1_id, match.player2_id
+        )
 
-            round_winner_id = None
-            if score_p1 > score_p2:
-                round_winner_id = match.player1_id # Player 1 wins
-            elif score_p2 > score_p1:
-                round_winner_id = match.player2_id # Player 2 wins
-            
-            # Update score (handle P1/P2 correctly)
-            if round_winner_id == match.player1_id:
-                match.player1_score += 1
-            elif round_winner_id == match.player2_id:
-                match.player2_score += 1
+        # UPDATE SCOREBOARD
+        GameEngine.update_match_scores(match, round_winner_id)
 
-            # End Game or Advance Round
-            if match.current_round >= MAX_ROUNDS:
-                match.status = MatchStatus.FINISHED
-                if match.player1_score > match.player2_score:
-                    match.winner_id = match.player1_id
-                elif match.player2_score > match.player1_score:
-                    match.winner_id = match.player2_id
-                match.current_round_category = None
-            else:
-                match.current_round += 1
-                match.current_round_category = random.choice(CARD_CATEGORIES)
+        # MATCH END CHECK
+        if GameEngine.should_end_match(match):
+            GameEngine.finalize_match(match)
+            current_app.logger.info(
+                f"Match {match_id} finished. Winner={match.winner_id}"
+            )
+        else:
+            GameEngine.advance_to_next_round(match)
+            current_app.logger.info(
+                f"Advancing to round {match.current_round}, next category={match.current_round_category}"
+            )
 
-            db.session.commit()
-            
-            return jsonify({
-                "status": "ROUND_PROCESSED",
-                "round_winner_id": round_winner_id,
-                "moves": [move_p1.to_dict(), move_p2.to_dict()],
-                "scores": {
-                    match.player1_id: match.player1_score,
-                    match.player2_id: match.player2_score
-                },
-                "next_round": match.current_round,
-                "next_category": match.current_round_category,
-                "game_status": match.status.name
-            }), 200
+        db.session.commit()
+
+        return jsonify({
+            "status": MoveSubmissionStatus.ROUND_PROCESSED.value,
+            "round_winner_id": round_winner_id,
+            "is_draw": is_draw,
+            "moves": [p1_move.to_dict(), p2_move.to_dict()],
+            "scores": {
+                match.player1_id: match.player1_score,
+                match.player2_id: match.player2_score
+            },
+            "next_round": match.current_round,
+            "next_category": match.current_round_category,
+            "game_status": match.status.name
+        }), 200
 
     except NotFound as e:
         return jsonify({"msg": str(e)}), 404
+
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error in submit_move: {e}")
+        current_app.logger.error(
+            f"Error in submit_move for match {match_id}: {e}", exc_info=True
+        )
         return jsonify({"msg": "Internal server error"}), 500
 
 
@@ -290,17 +302,15 @@ def get_current_round_status(match_id: int):
         )
     ).all()
 
-    status_text = "WAITING_FOR_BOTH_PLAYERS"
-    if len(moves_this_round) == 1:
-        status_text = "WAITING_FOR_ONE_PLAYER"
-    elif len(moves_this_round) == 2:
-        status_text = "ROUND_COMPLETE_OR_PROCESSING"
+    # Get status using GameEngine
+    status = GameEngine.get_round_status(len(moves_this_round))
+    current_app.logger.debug(f"Round status check for match {match_id}: {status.value}")
 
     return jsonify({
         "match_id": match.id,
         "current_round": match.current_round,
         "current_round_category": match.current_round_category,
-        "round_status": status_text,
+        "round_status": status.value,
         "moves_submitted_count": len(moves_this_round),
         "moves": [m.to_dict() for m in moves_this_round]
     })
@@ -312,6 +322,7 @@ def get_match(match_id: int):
     Get the match info (without moves).
     """
     match = _match_or_404(match_id)
+    current_app.logger.debug(f"Fetching match {match_id} info")
     return jsonify(match.to_dict(include_moves=False))
 
 
@@ -319,6 +330,18 @@ def get_match(match_id: int):
 def get_match_with_history(match_id: int):
     """
     Get the match info with all moves.
+    Uses eager loading to avoid N+1 queries.
     """
-    match = _match_or_404(match_id)
+    # Use joinedload to fetch moves in a single query
+    match = db.session.scalars(
+        db.select(Match)
+        .options(joinedload(Match.moves))
+        .filter_by(id=match_id)
+    ).first()
+    
+    if not match:
+        current_app.logger.warning(f"Match {match_id} not found for history request")
+        raise NotFound(description="Match not found")
+    
+    current_app.logger.debug(f"Fetching match {match_id} history with {len(match.moves)} moves")
     return jsonify(match.to_dict(include_moves=True))
