@@ -1,6 +1,7 @@
 # Carusi S.r.l.
 
 Team members:
+
 - Francesco Alizzi
 - Andrea Riolo Vinciguerra
 - Rebecca Rodi
@@ -53,34 +54,42 @@ The scores of Economy, Environment and Food were assigned on the basis of real d
 
 ### Game rules
 
+<!-- TODO -->
+The game is played between two players, each of whom builds a deck of 10 unique cards drawn from the full set of 20 Italian regions.
+
 
 ## Project overview
 
 ### Architecture
 
-Carusi S.r.l. is implemented as a constellation of Flask microservices that only share JWT-signed identities. Every module has its own `Dockerfile`, while `docker-compose.yml` provisions per-service PostgreSQL databases plus Redis instances for the pieces that need ephemeral state. The shared `src/common` package contributes the Flask app factory, SQLAlchemy/Bcrypt/JWT extensions, and the reusable `RedisManager`, so every service boots consistently yet stays isolated. The main components are:
+Carusi S.r.l. is implemented as a collection of Flask microservices, which are barely coupled with each other only for the minimum interactions.
+All microservices live under their own modules, each one of which has its own `Dockerfile`, while `docker-compose.yml` provisions per-service PostgreSQL databases plus Redis instances for the components that need ephemeral state (such as the matchmaking queue).
+The `src/common` package contains shared functionality needed by the modules, including a custom-made Flask extension (`RedisManager`) and a generic app factory function.
+The main components are:
 
-- **API Gateway (`src/api_gateway`)** – exposes `/health`, `/services`, and `/services/<name>/health` by reading the upstream URLs from `Config.SERVICE_DEFAULTS`. Today it surfaces metadata and health probes, but it is the public entry point that knows how to contact `http://auth:5000`, `http://matchmaking:5004`, `http://game-engine:5003`, and the other internal hosts declared in the compose file.
-- **Auth service (`src/auth`)** – implements `/register`, `/login`, `/refresh`, and `/logout`. Users are stored via SQLAlchemy, credentials are hashed with Bcrypt, JWT access/refresh tokens are minted through Flask-JWT-Extended, and refresh JTIs are stored inside Redis so `logout` can revoke every session. RSA keys arrive via Docker secrets (`AUTH_PRIVATE_KEY`/`AUTH_PUBLIC_KEY`), and all other services verify tokens with the shared public key.
-- **Players service (`src/players`)** – persists public player profiles (`PlayerProfile`). The `/players/<user_id>` endpoints let clients create or update usernames, bios, avatars, and other metadata tied to the authenticated `user_id`.
-- **Catalogue service (`src/catalogue`)** – is the source of truth for the 20 Italian-region cards in `cards/cards.json`. It exposes `/cards`, `/cards/<id>`, and `/cards/validation` so deck builders can fetch stats or confirm that a submitted deck matches what the DB contains.
-- **Matchmaking service (`src/matchmaking`)** – protects `/enqueue` and `/dequeue` with JWTs and keeps a Redis sorted set (`MATCHMAKING_QUEUE_KEY`) as a lobby. `_enqueue_atomic` guarantees atomic queue mutations, pairs the oldest two players, invokes the `call_game_engine` hook (currently a logging stub), and responds with the matched IDs.
-- **Game Engine service (`src/game_engine`)** – stores `Match` and `Move` rows, exposes the `/game/**` routes, and delegates the core rules to `game_engine/GameEngine`. That module defines constants such as `DECK_SIZE = 10` and `MAX_ROUNDS = 10`, validates input, calculates round scores, advances to the next category, and finalizes winners.
+- **API Gateway (`src/api_gateway`)** &ndash; the main application entrypoint, which exposes all the RESTful API methods as specified in `spec.yaml`. It reads internal components' upstream URLs from `Config.SERVICE_DEFAULTS`. Requests are routed to the appropriate service based on the path prefix.
+- **Authentication service (`src/auth`)** &ndash; implements `/register`, `/login`, `/refresh`, and `/logout`. Users are stored via SQLAlchemy in its own database, passwords are hashed with Bcrypt, JWT access/refresh tokens are generated via Flask-JWT-Extended, and refresh JTIs are stored inside Redis so `logout` can revoke every session. RSA keys arrive via Docker secrets (`AUTH_PRIVATE_KEY`/`AUTH_PUBLIC_KEY`), and all other services verify tokens with the shared public key.
+- **Players service (`src/players`)** &ndash; stores public player profiles (`PlayerProfile`). The `/players/<user_id>` endpoints let clients create or update usernames, bios, avatars, and other metadata tied to the authenticated `user_id`. This service purposefully does not communicate with the Authentication service as to separate profile data from user credentials, enhancing security.
+- **Catalogue service (`src/catalogue`)** &ndash; is the authoritative source of the game cards found in `cards/cards.json`. It exposes `/cards`, `/cards/<id>`, and `/cards/validation` so the game engine or the frontend(s) can fetch stats or confirm that a submitted deck matches what the database contains.
+- **Matchmaking service (`src/matchmaking`)** &ndash; exposes `/enqueue` and `/dequeue` with JWTs and keeps a Redis sorted set (indexed by `MATCHMAKING_QUEUE_KEY`) as a lobby. `_enqueue_atomic` guarantees atomic queue mutations, pairs the oldest two players, invokes the `call_game_engine` hook, and responds with the matched IDs.
+- **Game Engine service (`src/game_engine`)** &ndash; the main orchestrator of a match, which stores `Match` and `Move` rows, exposes various routes that allow the players to make their moves and query the match status. It delegates the core rules to the `GameEngine` class, which defines constants such as `DECK_SIZE = 10` and `MAX_ROUNDS = 10`, enabling modularity.
 
-Other supporting pieces include the `cards/` directory (images plus JSON used to seed the catalogue) and the environment wiring provided by Compose. Tests reuse in-memory SQLite databases and `fakeredis` via each service’s `create_test_app`, so they never touch the production containers.
+Other supporting elements include the `cards/` directory (images plus JSON used to seed the catalogue) and the environment wiring provided by Docker Compose. The tests reuse in-memory SQLite databases and `fakeredis` via each service’s `create_test_app`, so they never touch the production containers.
+
 
 ### Match flow
 
-A single match traverses several services and HTTP endpoints:
+A single match goes through several services and HTTP endpoints:
 
-1. **Authentication** – Players register and log in through the Auth service to obtain a JWT access token plus a refresh cookie. That token is attached to subsequent `Authorization: Bearer` headers so downstream services know the player’s `user_id`.
-2. **Profile setup** – Players may call the Players service (`POST /players/<user_id>`) to create or update their public profile, so opponents can see usernames and avatars distinct from the auth database.
-3. **Queueing** – Ready players call `POST /enqueue` on Matchmaking. The service stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`; when the second player arrives the oldest two entries are popped and delivered to the caller while `call_game_engine` is invoked (currently it only logs, but it marks the future hand-off spot to the Game Engine).
-4. **Match creation** – With two IDs in hand, a client creates a match by calling `POST /game/matches`. `GameEngine.validate_match_creation` ensures the IDs differ and are integers, then a `Match` row is stored in the `SETUP` state with a random `current_round_category`.
-5. **Deck selection** – Each player submits exactly 10 unique card IDs via `POST /game/matches/<match_id>/deck`. `GameEngine.validate_deck_submission` enforces membership, deck size, and uniqueness before assigning the card stats to `player*_deck`. The route is wired for a Catalogue RPC (currently stubbed with random stats) and flips the match into `IN_PROGRESS` once both decks are registered.
-6. **Rounds** – Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /game/matches/<match_id>/moves` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the match row is locked, both `Move` rows are analyzed through `GameEngine.calculate_round_scores`, the winner is computed, the scoreboard is updated, and either the next round begins (with a fresh random category) or the match ends when `MAX_ROUNDS` (10) have been played.
-7. **Observability** – Clients can poll `/game/matches/<match_id>/round` to see whether both moves have been submitted, fetch `/game/matches/<match_id>` for a summary without moves, or `/game/matches/<match_id>/history` for the entire move log (with `joinedload` to avoid N+1 queries).
-8. **Completion** – When the end condition is met, `GameEngine.finalize_match` sets `status = FINISHED`, stores `winner_id` (or `None` for a draw), clears the active category, and the final `submit_move` response includes the updated scores so the UI can show the result.
+1. **Authentication** &ndash; Players register and log in through the Authentication service to obtain a JWT access token plus a refresh cookie. That token is attached to subsequent `Authorization: Bearer` headers so that all the downstream services within the system can immediately authenticate the player, extracting its `user_id`.
+2. **Profile setup** &ndash; Players must call the Players service (`POST /players/<user_id>`) to create their public profile. This step is mandatory before initiating a match, as the Game Engine requires a full profile to proceed. This guarantees a proper separation of concerns between user credentials and public player profiles.
+3. **Queueing** Ready players call `POST /enqueue` on Matchmaking service that stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`. As soon as the second player arrives, the oldest two Redis entries are popped and delivered to the caller while the Game Engine is invoked and a match is formed.
+4. **Match creation** &ndash; Once the Matchmaking service calls the Game Engine with the two players' IDs, a new match is created and stored within the database.
+5. **Deck selection** &ndash; Each player submits exactly 10 (may change in the future) unique card IDs via `POST /game/matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
+6. **Rounds** &ndash; Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /game/matches/<match_id>/rounds/<round_id>` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the round row is updated, both moves are analyzed through and the winner is computed, and either the next round begins (with a fresh random category) or the match ends when all the rounds have been played.
+7. **Status tracking** &ndash; Clients can poll `/game/matches/<match_id>/round/<round_id>` to see whether both moves have been submitted, fetch `/game/matches/<match_id>` for a summary without moves, or `/game/matches/<match_id>/history` for the entire round log.
+8. **Completion** &ndash; When the match is over, its status is set to finished, and the `winner_id` (or `None` for a draw) is stored in the database.
+
 
 ### Compilation instructions
 
@@ -88,7 +97,7 @@ A single match traverses several services and HTTP endpoints:
 
 1. Install Docker and Docker Compose, then place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
 2. From the repository root execute `docker compose up --build`. Compose builds every microservice image, provisions PostgreSQL/Redis sidecars for Auth, Catalogue, Players, Matchmaking, and the Game Engine, and connects them on a shared network so they can reach each other through hostnames such as `auth`, `catalogue`, or `game-engine`.
-3. Once the stack is up, inspect `http://localhost:5080/health` for the gateway view or hit each service directly on ports 5000–5004 to drive the APIs. Logs show when Matchmaking pairs players and when a match transitions through its life cycle.
+3. Once the stack is up, inspect `http://localhost:5080/health` for the gateway view or hit each service directly on ports 5000-5004 to drive the APIs. Logs show when Matchmaking pairs players and when a match transitions through its life cycle.
 
 **Running individual services for development**
 
