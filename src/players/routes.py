@@ -1,98 +1,48 @@
 """Players HTTP routes."""
-
 from __future__ import annotations
 import os
-import jwt  # pip install pyjwt
 import requests
 from flask import Blueprint, jsonify, request, current_app
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
 
 from .extensions import db
 from .models import PlayerProfile
 
 bp = Blueprint("players", __name__)
+GAME_ENGINE_URL = os.environ.get("GAME_ENGINE_URL", "http://game_engine:5000")
 
-# --- CONFIGURAZIONE ---
-GAME_ENGINE_URL = os.environ.get("GAME_ENGINE_URL", "http://game-engine:5000")
-
-# Carichiamo la chiave pubblica per verificare i token generati da Auth.
-# In produzione, monta il file della chiave pubblica nel container.
-AUTH_PUBLIC_KEY_PATH = os.environ.get("AUTH_PUBLIC_KEY_PATH", "jwtRS256.key.pub")
-AUTH_PUBLIC_KEY = None
-
-if os.path.exists(AUTH_PUBLIC_KEY_PATH):
-    with open(AUTH_PUBLIC_KEY_PATH, "r") as f:
-        AUTH_PUBLIC_KEY = f.read()
-else:
-    # Fallback per sviluppo locale se usi HS256 (Sconsigliato per microservizi reali)
-    # Se Auth usa HS256, qui serve la stessa SECRET_KEY di Auth.
-    JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "supersecretkey")
-
-
-# --- HELPER PER IL JWT ---
-def get_user_id_from_token():
-    """
-    Decodifica il JWT dall'header Authorization.
-    Restituisce l'user_id (int) se valido, altrimenti None.
-    """
-    auth_header = request.headers.get("Authorization")
-    if not auth_header:
-        return None
-
-    try:
-        # Formato header: "Bearer <token>"
-        token = auth_header.split(" ")[1]
-        
-        if AUTH_PUBLIC_KEY:
-            # Caso RS256 (Produzione): Verifichiamo con la Chiave Pubblica
-            payload = jwt.decode(token, AUTH_PUBLIC_KEY, algorithms=["RS256"])
-        else:
-            # Caso HS256 (Sviluppo/Fallback): Verifichiamo con la Secret Key
-            payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=["HS256"])
-            
-        # 'sub' è il campo standard dove flask_jwt_extended mette l'identity (user.id)
-        return int(payload["sub"])
-        
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, IndexError, ValueError) as e:
-        current_app.logger.warning(f"Invalid JWT: {e}")
-        return None
-
-
-# --- ENDPOINTS ---
 
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
-# 1. GET /players/me (Check e Dati Profilo)
+
+# 1. GET /players/me
 @bp.get("/players/me")
+@jwt_required()
 def get_my_profile():
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"msg": "Missing or invalid authentication"}), 401
+    # get_jwt_identity() restituisce l'user_id (dal campo 'sub' del token)
+    current_user_id = int(get_jwt_identity()) 
 
     profile = db.session.execute(
-        db.select(PlayerProfile).filter_by(user_id=user_id)
+        db.select(PlayerProfile).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
 
     if not profile:
-        # 404 dice al frontend: "Utente autenticato, ma non ha ancora creato il profilo Giocatore"
         return jsonify({"msg": "Profile not found", "action": "create_profile"}), 404
     
     return jsonify(profile.to_dict()), 200
 
 
-# 2. POST /players (Creazione Profilo)
+# 2. POST /players
 @bp.post("/players")
+@jwt_required()
 def create_profile():
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"msg": "Missing or invalid authentication"}), 401
-
-    # Check difensivo se esiste già
+    current_user_id = int(get_jwt_identity())
+    
     existing = db.session.execute(
-        db.select(PlayerProfile).filter_by(user_id=user_id)
+        db.select(PlayerProfile).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
     
     if existing:
@@ -105,7 +55,7 @@ def create_profile():
         return jsonify({"msg": "username is required"}), 400
 
     new_profile = PlayerProfile(
-        user_id=user_id,
+        user_id=current_user_id, 
         username=username,
         profile_picture=payload.get("profile_picture"),
         region=payload.get("region")
@@ -121,7 +71,7 @@ def create_profile():
     return jsonify(new_profile.to_dict()), 201
 
 
-# 3. GET /players/<username> (Pubblico)
+# 3. GET /players/<username> (Pubblico - Nessun JWT richiesto)
 @bp.get("/players/<username>")
 def get_player_public(username: str):
     profile = db.session.execute(
@@ -138,16 +88,15 @@ def get_player_public(username: str):
 
 # 4. GET /history (Lista Partite)
 @bp.get("/history")
+@jwt_required() 
 def get_my_match_list():
-    user_id = get_user_id_from_token()
-    if not user_id:
-        return jsonify({"msg": "Unauthorized"}), 401
-
+    current_user_id = get_jwt_identity() # Prende l'ID dal token validato
+    
     try:
         # Chiama il Game Engine filtrando per user_id
         resp = requests.get(
             f"{GAME_ENGINE_URL}/matches", 
-            params={"user_id": user_id}, 
+            params={"user_id": current_user_id}, 
             timeout=5
         )
         
@@ -162,10 +111,10 @@ def get_my_match_list():
 
 # 5. GET /history/<match_id> (Dettaglio Partita / Replay)
 @bp.get("/history/<int:match_id>")
+@jwt_required() 
 def get_match_details(match_id: int):
-    if not get_user_id_from_token():
-         return jsonify({"msg": "Unauthorized"}), 401
-
+    # Qui verifichiamo solo che l'utente sia loggato.
+    
     try:
         target_url = f"{GAME_ENGINE_URL}/matches/{match_id}/history"
         resp = requests.get(target_url, timeout=5)
@@ -181,7 +130,7 @@ def get_match_details(match_id: int):
         return jsonify({"msg": "Game Engine unavailable"}), 503
 
 
-# 6. GET /leaderboard (Classifica Arricchita)
+# 6. GET /leaderboard (Classifica Arricchita - Pubblica)
 @bp.get("/leaderboard")
 def get_leaderboard():
     try:
