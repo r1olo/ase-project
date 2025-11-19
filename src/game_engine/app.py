@@ -1,16 +1,15 @@
 from flask import Flask
-
 from .config import Config, TestConfig
 from common.app_factory import create_flask_app
 from common.extensions import db
-from .routes import bp as auth_blueprint
+from .routes import game_engine as game_blueprint 
 
 
 def _create_app(config_object) -> Flask:
     return create_flask_app(
         config_obj=config_object,
-        extensions=(db,),    # TODO: Add also JWT 
-        blueprints=(auth_blueprint,),
+        extensions=(db,),
+        blueprints=(game_blueprint,),
         init_app_context_steps=(lambda _app: db.create_all(),),
     )
 

@@ -1,6 +1,14 @@
-from random import random
-from .models import Match, MatchStatus, Move, RoundStatus, CARD_CATEGORIES
-from typing import Any, Dict, Optional, Tuple, Enum
+"""
+Game Engine - Core business logic.
+
+This module contains all game rules and calculations.
+All methods are static as this is a stateless service.
+"""
+import random
+from typing import Any, Dict, Optional, Tuple, List
+from enum import Enum
+
+from .models import Match, MatchStatus, Move, CARD_CATEGORIES
 
 # --- Constants ---
 
@@ -20,6 +28,22 @@ class MoveSubmissionStatus(Enum):
     """Status returned after move submission."""
     WAITING_FOR_OPPONENT = "WAITING_FOR_OPPONENT"
     ROUND_PROCESSED = "ROUND_PROCESSED"
+
+
+class ValidationError(Enum):
+    """Error codes for validation failures."""
+    INVALID_TYPES = "INVALID_TYPES"
+    SAME_PLAYER = "SAME_PLAYER"
+    EMPTY_DECK = "EMPTY_DECK"
+    WRONG_STATUS = "WRONG_STATUS"
+    NOT_PARTICIPANT = "NOT_PARTICIPANT"
+    WRONG_DECK_SIZE = "WRONG_DECK_SIZE"
+    DUPLICATE_CARDS = "DUPLICATE_CARDS"
+    CARD_NOT_IN_DECK = "CARD_NOT_IN_DECK"
+    ALREADY_MOVED_THIS_ROUND = "ALREADY_MOVED_THIS_ROUND"
+    CARD_ALREADY_PLAYED = "CARD_ALREADY_PLAYED"
+    NO_DECK = "NO_DECK"
+
 
 class GameEngine:
     """
@@ -84,52 +108,80 @@ class GameEngine:
         return match.player1_deck is not None and match.player2_deck is not None
     
     @staticmethod
-    def validate_move_submission(player_id: Any, card_id: Any, match: Match, 
-                                 moves_this_round: list[Move], 
-                                 all_player_moves: list[Move]) -> Tuple[bool, Optional[str]]:
+    def validate_move_submission(
+        player_id: Any, 
+        card_id: Any, 
+        match: Match, 
+        moves_this_round: List[Move], 
+        all_player_moves: List[Move]
+    ) -> Tuple[bool, Optional[Dict[str, str]]]:
         """
         Validate a move submission with all business rules.
         
         Returns:
-            Tuple of (is_valid, error_message)
+            Tuple of (is_valid, error_dict with msg and code)
         """
         # Type validation
         if not isinstance(player_id, int) or not isinstance(card_id, str):
-            return False, "player_id (int) and card_id (str) are required"
+            return False, {
+                "msg": "player_id (int) and card_id (str) are required",
+                "code": ValidationError.INVALID_TYPES.value
+            }
         
         # Match status validation
         if match.status != MatchStatus.IN_PROGRESS:
-            return False, "Match is not in progress"
+            return False, {
+                "msg": "Match is not in progress",
+                "code": ValidationError.WRONG_STATUS.value
+            }
         
         # Player validation
         if player_id not in [match.player1_id, match.player2_id]:
-            return False, "Player is not part of this match"
+            return False, {
+                "msg": "Player is not part of this match",
+                "code": ValidationError.NOT_PARTICIPANT.value
+            }
         
         # Deck validation
         player_deck = match.player1_deck if player_id == match.player1_id else match.player2_deck
         if not player_deck:
-            return False, "Player deck not found or not set"
+            return False, {
+                "msg": "Player deck not found or not set",
+                "code": ValidationError.NO_DECK.value
+            }
         
         # Card in deck validation
         if card_id not in player_deck:
-            return False, f"Card {card_id} is not in the player's deck"
+            return False, {
+                "msg": f"Card {card_id} is not in the player's deck",
+                "code": ValidationError.CARD_NOT_IN_DECK.value
+            }
         
         # Already submitted this round validation
         if player_id in [m.player_id for m in moves_this_round]:
-            return False, "Player has already submitted a move for this round"
+            return False, {
+                "msg": "Player has already submitted a move for this round",
+                "code": ValidationError.ALREADY_MOVED_THIS_ROUND.value
+            }
         
         # Card already played validation
         if card_id in [m.card_id for m in all_player_moves]:
-            return False, f"Card {card_id} has already been played"
+            return False, {
+                "msg": f"Card {card_id} has already been played",
+                "code": ValidationError.CARD_ALREADY_PLAYED.value
+            }
         
         return True, None
     
     @staticmethod
-    def should_process_round(moves_this_round: list[Move]) -> bool:
+    def should_process_round(moves_this_round: List[Move]) -> bool:
         """
         Determine if the round should be processed (both players have moved).
+
+        Returns:
+            True if we now have 2 moves (second move just submitted)
         """
-        return len(moves_this_round) == 1  # We just added the second move
+        return len(moves_this_round) == 2 
     
     @staticmethod
     def get_card_stats(match: Match, player_id: int, card_id: str) -> Dict[str, float]:
@@ -151,8 +203,12 @@ class GameEngine:
         return deck[card_id]
     
     @staticmethod
-    def calculate_round_scores(match: Match, move_p1: Move, move_p2: Move, 
-                               category: str) -> Tuple[float, float]:
+    def calculate_round_scores(
+        match: Match, 
+        move_p1: Move, 
+        move_p2: Move, 
+        category: str
+    ) -> Tuple[float, float]:
         """
         Calculate the scores for both players in a round.
         
@@ -168,8 +224,12 @@ class GameEngine:
         return score_p1, score_p2
     
     @staticmethod
-    def calculate_round_winner(score_p1: float, score_p2: float, 
-                               player1_id: int, player2_id: int) -> Tuple[Optional[int], bool]:
+    def calculate_round_winner(
+        score_p1: float, 
+        score_p2: float, 
+        player1_id: int, 
+        player2_id: int
+    ) -> Tuple[Optional[int], bool]:
         """
         Determine the winner of a round.
         
@@ -204,8 +264,12 @@ class GameEngine:
         return match.current_round >= MAX_ROUNDS
     
     @staticmethod
-    def determine_match_winner(player1_score: int, player2_score: int,
-                               player1_id: int, player2_id: int) -> Optional[int]:
+    def determine_match_winner(
+        player1_score: int, 
+        player2_score: int,
+        player1_id: int, 
+        player2_id: int
+    ) -> Optional[int]:
         """
         Determine the winner of the entire match.
         
