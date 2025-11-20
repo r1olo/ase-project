@@ -1,17 +1,16 @@
 version: "3.9"
 
 services:
-  api-gateway:
+  nginx:
     build:
       context: .
-      dockerfile: src/api_gateway/Dockerfile
+      dockerfile: nginx.Dockerfile
     environment:
-      GATEWAY_AUTH_URL: http://auth:5000
-      GATEWAY_PLAYERS_URL: http://players:5000
-      GATEWAY_CATALOGUE_URL: http://catalogue:5000
-      GATEWAY_MATCHMAKING_URL: http://matchmaking:5000
-      GATEWAY_GAME_ENGINE_URL: http://game-engine:5000
-      AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
+      AUTH_URL: http://auth:5000
+      PLAYERS_URL: http://players:5000
+      MATCHMAKING_URL: http://matchmaking:5000
+      CATALOGUE_URL: http://catalogue:5000
+      GAME_ENGINE_URL: http://game-engine:5000
     depends_on:
       - auth
       - players
@@ -20,8 +19,6 @@ services:
       - game-engine
     ports:
       - "80:80"
-    secrets:
-      - jwt_public_key
 
   auth:
     build:
@@ -108,6 +105,7 @@ services:
       context: .
       dockerfile: src/game_engine/Dockerfile
     environment:
+      CATALOGUE_URL: http://catalogue:5000
       GAME_ENGINE_DATABASE_URL: postgresql+psycopg://engine_user:engine_password@game-engine-db:5432/game_engine_db
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
@@ -131,6 +129,7 @@ services:
       context: .
       dockerfile: src/matchmaking/Dockerfile
     environment:
+      GAME_ENGINE_URL: http://game-engine:5000
       MATCHMAKING_REDIS_URL: redis://matchmaking-redis:6379/0
       MATCHMAKING_QUEUE_KEY: matchmaking:queue
       MATCHMAKING_MAX_QUEUE_SIZE: 500

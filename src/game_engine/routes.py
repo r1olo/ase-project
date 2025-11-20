@@ -9,7 +9,7 @@ from werkzeug.exceptions import NotFound
 from common.extensions import db
 from .services import MatchService
 
-game_engine = Blueprint("game_engine", __name__, url_prefix="/game")
+game_engine = Blueprint("game_engine", __name__)
 
 
 # Initialize service
@@ -45,7 +45,7 @@ def health():
     return jsonify({"status": "ok"}), 200
 
 
-@game_engine.post("/matches")
+@game_engine.post("/matches/create")
 def create_match():
     """Create a new match with 2 player IDs."""
     payload = request.get_json(silent=True) or {}

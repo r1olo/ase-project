@@ -2,19 +2,21 @@
 from __future__ import annotations
 from .config import Config, TestConfig
 from .routes import catalogue as catalogue_blueprint
+from common.app_factory import create_flask_app
 from common.extensions import db
 from flask import Flask
 
+def _init_cards_db():
+    pass
+
 def _create_app(config) -> Flask:
-    app = Flask(__name__)
-    app.config.from_object(config)
-
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
-
-    app.register_blueprint(catalogue_blueprint)
-    return app
+    return create_flask_app(
+        name=__name__,
+        config_obj=config,
+        extensions=(db),
+        blueprints=(catalogue_blueprint),
+        init_app_context_steps=(_init_cards_db)
+    )
 
 def create_app() -> Flask:
     return _create_app(Config())

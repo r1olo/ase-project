@@ -23,6 +23,8 @@ class Config:
     REDIS_URL = os.getenv("MATCHMAKING_REDIS_URL", "redis://matchmaking-redis:6379/0")
     MATCHMAKING_QUEUE_KEY = os.getenv("MATCHMAKING_QUEUE_KEY", "matchmaking:queue")
     MATCHMAKING_MAX_QUEUE_SIZE = int(os.getenv("MATCHMAKING_MAX_QUEUE_SIZE", "500"))
+    GAME_ENGINE_URL = os.getenv("GAME_ENGINE_URL", "http://game-engine:5000")
+    GAME_ENGINE_REQUEST_TIMEOUT = float(os.getenv("GAME_ENGINE_REQUEST_TIMEOUT", "3"))
 
     # testing
     TESTING = False
