@@ -54,15 +54,32 @@ The scores of Economy, Environment and Food were assigned on the basis of real d
 
 ### Game rules
 
-<!-- TODO -->
-The game is played between two players, each of whom builds a deck of 10 unique cards drawn from the full set of 20 Italian regions.
+The game is played between two players.
+
+1. Each player builds a deck of 10 unique cards drawn from the full set of Italian regions.
+
+2. After both players have submitted their decks, the match begins.
+
+3. In each round:
+
+   i. One of the five categories (Economy, Environment, Food, Special, Total) is randomly selected.
+
+   ii. Both players must then select one card from their respective decks.
+
+   iii. The selected cards are revealed simultaneously, and their scores in the chosen category are compared.
+   
+   The player whose card has the higher score in that category wins the round and earns one point. In case of a tie, no points are awarded.
+
+6. The game continues with subsequent rounds, until all rounds have been played or a player concedes.
+
+7. The player with the most points at the end of the game is declared the winner. In case of a tie, the game ends in a draw.
 
 
 ## Project overview
 
 ### Architecture
 
-Carusi S.r.l. is implemented as a collection of Flask microservices, which are barely coupled with each other only for the minimum interactions.
+The card game is implemented as a collection of Flask microservices, which are barely coupled with each other only for the minimum interactions.
 All microservices live under their own modules, each one of which has its own `Dockerfile`, while `docker-compose.yml` provisions per-service PostgreSQL databases plus Redis instances for the components that need ephemeral state (such as the matchmaking queue).
 The `src/common` package contains shared functionality needed by the modules, including a custom-made Flask extension (`RedisManager`) and a generic app factory function.
 The main components are:
@@ -85,7 +102,7 @@ A single match goes through several services and HTTP endpoints:
 2. **Profile setup** &ndash; Players must call the Players service (`POST /players/<user_id>`) to create their public profile. This step is mandatory before initiating a match, as the Game Engine requires a full profile to proceed. This guarantees a proper separation of concerns between user credentials and public player profiles.
 3. **Queueing** Ready players call `POST /enqueue` on Matchmaking service that stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`. As soon as the second player arrives, the oldest two Redis entries are popped and delivered to the caller while the Game Engine is invoked and a match is formed.
 4. **Match creation** &ndash; Once the Matchmaking service calls the Game Engine with the two players' IDs, a new match is created and stored within the database.
-5. **Deck selection** &ndash; Each player submits exactly 10 (may change in the future) unique card IDs via `POST /game/matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
+5. **Deck selection** &ndash; Each player submits exactly 10 unique card IDs via `POST /game/matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
 6. **Rounds** &ndash; Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /game/matches/<match_id>/rounds/<round_id>` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the round row is updated, both moves are analyzed through and the winner is computed, and either the next round begins (with a fresh random category) or the match ends when all the rounds have been played.
 7. **Status tracking** &ndash; Clients can poll `/game/matches/<match_id>/round/<round_id>` to see whether both moves have been submitted, fetch `/game/matches/<match_id>` for a summary without moves, or `/game/matches/<match_id>/history` for the entire round log.
 8. **Completion** &ndash; When the match is over, its status is set to finished, and the `winner_id` (or `None` for a draw) is stored in the database.
@@ -119,7 +136,7 @@ pytest -v tests/<test_module>
 Key suites:
 
 - `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis.
-- `tests/test_catalogue.py` checks cards and card by id, and validates deck.
+- `tests/test_catalogue.py` checks cards and card by id, and validates decks submitted by players.
 - `tests/test_matchmaking.py` uses `fakeredis` to populate the lobby, ensures `_enqueue_atomic` pairs players fairly, and validates `/dequeue` when players leave or were already matched.
 - `tests/test_game_engine.py` covers the pure business logic in `game_engine/GameEngine`—score calculation, per-round winners, match finalization, and round advancement.
 - `tests/test_game_engine_api.py` drives the `/game/**` endpoints end-to-end by creating a match, monkeypatching the catalogue lookup, submitting decks/moves for both players, and confirming that the match history records every move until `FINISHED`.
