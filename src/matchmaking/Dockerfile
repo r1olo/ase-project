@@ -8,9 +8,9 @@ WORKDIR /app
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
+COPY src/matchmaking /app/matchmaking
 COPY src/common /app/common
-COPY src/matchmaking /app
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["flask", "--app=matchmaking.app", "run", "--host=0.0.0.0", "--port=5000"]

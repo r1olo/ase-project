@@ -5,7 +5,7 @@ from __future__ import annotations
 from flask import Flask
 
 from .config import Config, TestConfig
-from .extensions import db, jwt  
+from common.extensions import db, jwt  
 from .routes import bp as players_blueprint
 
 

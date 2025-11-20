@@ -5,4 +5,6 @@ flask-jwt-extended
 flask-sqlalchemy
 pytest
 pytest-mock
+psycopg
 redis
+requests

@@ -1,8 +1,9 @@
 from random import choice
 from common.extensions import db
-from typing import Dict, Optional, Any, Enum 
+from typing import Dict, Optional, Any
+from enum import Enum as PyEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, DateTime, JSON, String, ForeignKey, UniqueConstraint
+from sqlalchemy import Integer, DateTime, JSON, String, ForeignKey, UniqueConstraint, Enum as SAEnum
 from datetime import datetime, UTC
 
 # --- Constants ---
@@ -18,7 +19,7 @@ def utcnow():
 
 # --- Model Definitions ---
 
-class MatchStatus(Enum):
+class MatchStatus(PyEnum):
     """Enumeration for the state of a match."""
     SETUP = "SETUP"                 # Waiting for players to choose decks
     IN_PROGRESS = "IN_PROGRESS"     # Game is actively being played
@@ -43,7 +44,7 @@ class Match(db.Model):
 
     # --- Game State ---
     status: Mapped[MatchStatus] = mapped_column(
-        Enum(MatchStatus), nullable=False, default=MatchStatus.SETUP
+        SAEnum(MatchStatus), nullable=False, default=MatchStatus.SETUP
     )
 
     # --- Player Deck Storage ---

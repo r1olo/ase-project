@@ -7,6 +7,7 @@ from .routes import game_engine as game_blueprint
 
 def _create_app(config_object) -> Flask:
     return create_flask_app(
+        name=__name__,
         config_obj=config_object,
         extensions=(db,),
         blueprints=(game_blueprint,),

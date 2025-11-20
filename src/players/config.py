@@ -1,4 +1,4 @@
-# configuration for matchmaking microservice
+# configuration for players microservice
 import os
 
 # convert env var into boolean
@@ -9,6 +9,11 @@ def _bool_env(name, default=False):
     return raw.lower() in {"1", "true", "yes", "on"}
 
 class Config:
+    # SQLAlchemy
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "PLAYERS_DATABASE_URL", "sqlite:///players.db"
+    )
+        
     # JWT
     JWT_TOKEN_LOCATION = ["headers"]
     JWT_COOKIE_SECURE = _bool_env("MATCHMAKING_JWT_COOKIE_SECURE", True)

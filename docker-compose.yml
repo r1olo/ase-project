@@ -28,6 +28,7 @@ services:
       context: .
       dockerfile: src/auth/Dockerfile
     environment:
+      FLASK_APP: auth.app
       AUTH_DATABASE_URL: postgresql+psycopg://auth_user:auth_password@auth-db:5432/auth_db
       AUTH_REDIS_URL: redis://auth-redis:6379/0
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
