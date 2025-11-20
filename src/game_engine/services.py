@@ -4,6 +4,7 @@ Service layer for business logic.
 Coordinates between repositories and game engine logic.
 """
 import random
+import requests
 from typing import Dict, List, Optional
 from flask import current_app
 
@@ -324,12 +325,60 @@ class MatchService:
     def _fetch_card_stats(deck_card_ids: List[str]) -> Dict:
         """
         Fetch card stats from catalogue service.
-        
-        TODO: Replace with actual API call.
         """
+        if current_app.testing and current_app.config.get("CATALOGUE_USE_STUB_DATA"):
+            return MatchService._build_stub_card_stats(deck_card_ids)
+
+        base_url = current_app.config.get("CATALOGUE_URL", "http://catalogue:5000").rstrip("/")
+        timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
+
+        try:
+            response = requests.get(f"{base_url}/cards", timeout=timeout)
+        except requests.RequestException as exc:
+            current_app.logger.error(f"Failed to reach catalogue service at {base_url}: {exc}")
+            raise RuntimeError("Unable to reach catalogue service") from exc
+
+        if response.status_code != 200:
+            message = MatchService._catalogue_error_message(response)
+            current_app.logger.error(message)
+            raise RuntimeError(message)
+
+        try:
+            payload = response.json()
+            cards = payload.get("data", [])
+        except ValueError as exc:
+            raise RuntimeError("Invalid response from catalogue service") from exc
+
+        card_index = {str(card["id"]): card for card in cards if card.get("id") is not None}
+        deck_stats_map: Dict[str, Dict] = {}
+        missing_ids = []
+
+        for card_id in deck_card_ids:
+            card_key = str(card_id)
+            card_data = card_index.get(card_key)
+            if not card_data:
+                missing_ids.append(card_id)
+                continue
+            try:
+                deck_stats_map[card_key] = {
+                    category: card_data[category] for category in CARD_CATEGORIES
+                }
+            except KeyError as exc:
+                raise ValueError(
+                    f"Catalogue data for card {card_id} is missing field '{exc.args[0]}'"
+                ) from exc
+
+        if missing_ids:
+            raise ValueError(f"Cards not found in catalogue: {', '.join(map(str, missing_ids))}")
+
+        return deck_stats_map
+
+    @staticmethod
+    def _build_stub_card_stats(deck_card_ids: List[str]) -> Dict:
+        """Fallback stub for tests without the catalogue service."""
         deck_stats_map = {}
         for card_id in deck_card_ids:
-            deck_stats_map[card_id] = {
+            deck_stats_map[str(card_id)] = {
                 "economy": random.randint(5, 15),
                 "food": random.randint(5, 15),
                 "environment": random.randint(5, 15),
@@ -337,3 +386,14 @@ class MatchService:
                 "total": random.uniform(20.0, 40.0)
             }
         return deck_stats_map
+
+    @staticmethod
+    def _catalogue_error_message(response: requests.Response) -> str:
+        try:
+            payload = response.json()
+            details = payload.get("msg") or payload.get("error") or ""
+        except ValueError:
+            details = response.text
+
+        base = f"Catalogue service error ({response.status_code})"
+        return f"{base}: {details}" if details else base

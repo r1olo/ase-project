@@ -26,6 +26,9 @@ def _handle_service_error(e: Exception, default_status: int = 500):
         if isinstance(e.args[0], dict):
             return jsonify(e.args[0]), 400
         return jsonify({"msg": str(e)}), 400
+    elif isinstance(e, RuntimeError):
+        current_app.logger.error(f"Service unavailable: {e}")
+        return jsonify({"msg": str(e)}), 503
     elif isinstance(e, LookupError):
         current_app.logger.warning(f"Not found: {e}")
         return jsonify({"msg": str(e)}), 404
