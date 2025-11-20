@@ -1,23 +1,18 @@
 """Database models for the players service."""
 
 from __future__ import annotations
-
 from datetime import datetime, UTC
-
 from sqlalchemy import Integer, String, Text, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
-
-from .extensions import db
+from common.extensions import db
 
 
 def utcnow():
     return datetime.now(UTC)
 
 
-class PlayerProfile(db.Model):
+class Player(db.Model):
     __tablename__ = "players"
-    
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)

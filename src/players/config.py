@@ -1,41 +1,58 @@
-"""Configuration for the players service."""
-
-from __future__ import annotations
-
+# configuration for matchmaking microservice
 import os
 
+# convert env var into boolean
+def _bool_env(name, default=False):
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.lower() in {"1", "true", "yes", "on"}
 
 class Config:
-    # --- Database Configuration ---
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "PLAYERS_DATABASE_URL", "sqlite:///players.db"
-    )
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # JWT
+    JWT_TOKEN_LOCATION = ["headers"]
+    JWT_COOKIE_SECURE = _bool_env("MATCHMAKING_JWT_COOKIE_SECURE", True)
+    JWT_COOKIE_CSRF_PROTECT = True
+    JWT_PRIVATE_KEY = None
+    JWT_PUBLIC_KEY = None
+    JWT_ALGORITHM = None
+    JWT_SECRET_KEY = None
+
+    # testing
     TESTING = False
 
-    # --- JWT Configuration (Necessaria per flask-jwt-extended) ---
-    JWT_TOKEN_LOCATION = ["headers"]
-    JWT_HEADER_NAME = "Authorization"
-    JWT_HEADER_TYPE = "Bearer"
-    
-    # Percorso della chiave pubblica
-    _public_key_path = os.getenv("AUTH_PUBLIC_KEY_PATH", "jwtRS256.key.pub")
+    def __init__(self):
+        # init jwt keys or fallback secret
+        self._init_keys()
 
-    # Logica per scegliere l'algoritmo
-    if os.path.exists(_public_key_path):
-        # PRODUZIONE/STAGING: Usiamo la chiave pubblica RSA
-        with open(_public_key_path, "r") as f:
-            JWT_PUBLIC_KEY = f.read()
-        JWT_ALGORITHM = "RS256"
-    else:
-        # SVILUPPO LOCALE (Fallback): Se manca la chiave, usiamo HS256
-        # Questo evita che l'app crashi se lanci i test senza il file della chiave
-        JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "supersecretkey")
-        JWT_ALGORITHM = "HS256"
+    def _init_keys(self):
+        # load a public key if available
+        candidate_paths = [
+            os.getenv("MATCHMAKING_PUBLIC_KEY"),
+            os.getenv("AUTH_PUBLIC_KEY"),
+            "jwtRS256.key.pub",
+        ]
+        for path in candidate_paths:
+            if path and os.path.exists(path):
+                with open(path) as f:
+                    self.JWT_PUBLIC_KEY = f.read()
+                self.JWT_ALGORITHM = "RS256"
+                return
 
+        # fallback to symmetric encryption
+        self.JWT_ALGORITHM = "HS256"
+        self.JWT_SECRET_KEY = os.getenv(
+            "MATCHMAKING_JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey")
+        )
 
 class TestConfig(Config):
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    # JWT
+    JWT_SECRET_KEY = "test-secret"
+    JWT_COOKIE_SECURE = False
+    JWT_COOKIE_CSRF_PROTECT = True
+
+    # Redis
+    FAKE_REDIS = True
+
+    # testing
     TESTING = True
-    # Per i test, spesso è comodo disabilitare la verifica CSRF se presente, 
-    # ma con i JWT puri non serve solitamente.

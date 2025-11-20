@@ -5,18 +5,17 @@ import requests
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
-
-from .extensions import db
-from .models import PlayerProfile
+from common.extensions import db
+from .models import Player
 
 bp = Blueprint("players", __name__)
-GAME_ENGINE_URL = os.environ.get("GAME_ENGINE_URL", "http://game_engine:5000")
 
+def _game_engine_url():
+    return current_app.config.get("GAME_ENGINE_URL", "http://game-engine:5000")
 
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
-
 
 # 1. GET /players/me
 @bp.get("/players/me")
@@ -26,7 +25,7 @@ def get_my_profile():
     current_user_id = int(get_jwt_identity()) 
 
     profile = db.session.execute(
-        db.select(PlayerProfile).filter_by(user_id=current_user_id)
+        db.select(Player).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
 
     if not profile:
@@ -42,7 +41,7 @@ def create_profile():
     current_user_id = int(get_jwt_identity())
     
     existing = db.session.execute(
-        db.select(PlayerProfile).filter_by(user_id=current_user_id)
+        db.select(Player).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
     
     if existing:
@@ -54,7 +53,7 @@ def create_profile():
     if not username:
         return jsonify({"msg": "username is required"}), 400
 
-    new_profile = PlayerProfile(
+    new_profile = Player(
         user_id=current_user_id, 
         username=username,
         profile_picture=payload.get("profile_picture"),
@@ -75,7 +74,7 @@ def create_profile():
 @bp.get("/players/<username>")
 def get_player_public(username: str):
     profile = db.session.execute(
-        db.select(PlayerProfile).filter_by(username=username)
+        db.select(Player).filter_by(username=username)
     ).scalar_one_or_none()
 
     if not profile:
@@ -95,7 +94,7 @@ def get_my_match_list():
     try:
         # Chiama il Game Engine filtrando per user_id
         resp = requests.get(
-            f"{GAME_ENGINE_URL}/matches", 
+            f"{_game_engine_url()}/matches", 
             params={"user_id": current_user_id}, 
             timeout=5
         )
@@ -116,7 +115,7 @@ def get_match_details(match_id: int):
     # Qui verifichiamo solo che l'utente sia loggato.
     
     try:
-        target_url = f"{GAME_ENGINE_URL}/matches/{match_id}/history"
+        target_url = f"{_game_engine_url}/matches/{match_id}/history"
         resp = requests.get(target_url, timeout=5)
         
         if resp.status_code == 404:
@@ -134,7 +133,7 @@ def get_match_details(match_id: int):
 @bp.get("/leaderboard")
 def get_leaderboard():
     try:
-        resp = requests.get(f"{GAME_ENGINE_URL}/leaderboard", timeout=5)
+        resp = requests.get(f"{_game_engine_url}/leaderboard", timeout=5)
         if resp.status_code != 200:
             return jsonify({"msg": "Error fetching leaderboard"}), resp.status_code
             
@@ -147,7 +146,7 @@ def get_leaderboard():
         user_ids = [entry['user_id'] for entry in leaderboard_data]
 
         # Query locale per ottenere gli username
-        stmt = db.select(PlayerProfile).filter(PlayerProfile.user_id.in_(user_ids))
+        stmt = db.select(Player).filter(Player.user_id.in_(user_ids))
         profiles = db.session.execute(stmt).scalars().all()
 
         # Mappa ID -> Username
