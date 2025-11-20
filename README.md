@@ -93,22 +93,12 @@ A single match goes through several services and HTTP endpoints:
 
 ### Compilation instructions
 
-**Docker Compose (full stack)**
+1. Install Docker and Docker Compose.
+2. Place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). The keys can be generated using the script in `scripts/genkeys.sh`. Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
+3. From the repository root execute `docker compose up --build`.
+4. Once the stack is up, you may access the API Gateway at port `80`. You can access endpoint `/health` for a general service overview.
+5. You can simulate a client using the script in `scripts/client.sh`. In order to play a game, you need to execute two instances of the client scripts. They will send random moves at predefined time intervals.
 
-1. Install Docker and Docker Compose, then place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
-2. From the repository root execute `docker compose up --build`. Compose builds every microservice image, provisions PostgreSQL/Redis sidecars for Auth, Catalogue, Players, Matchmaking, and the Game Engine, and connects them on a shared network so they can reach each other through hostnames such as `auth`, `catalogue`, or `game-engine`.
-3. Once the stack is up, inspect `http://localhost/health` for the gateway view. Only the gateway is exposed on port 80; all internal services listen on port 5000 and are reachable only from inside the Compose network. Logs show when Matchmaking pairs players and when a match transitions through its life cycle.
-
-**Running individual services for development**
-
-1. Create a virtual environment (Python 3.13 matches the Docker image) and install dependencies:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-2. Export service-specific settings. The default configs use in-memory SQLite databases and expect Redis; to avoid external dependencies set `FAKE_REDIS=1` for Auth or Matchmaking, or point `*_DATABASE_URL`/`*_REDIS_URL` to your own instances.
-3. Start the service you need, e.g. `flask --app=auth.app run --port=5000`, `python src/catalogue/app.py`, `python src/players/app.py`, `flask --app=matchmaking.app run --port=5000`, or `python src/game_engine/app.py`. Run them from the repository root (or export `PYTHONPATH=src`) so imports like `common.extensions` resolve correctly.
 
 ### Tests
 
@@ -120,10 +110,16 @@ Run the full suite with:
 pytest
 ```
 
+Run the single tests with logs with:
+
+```bash
+pytest -v tests/<test_module>
+```
+
 Key suites:
 
-- `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis and that CSRF-protected cookies behave as expected.
-- `tests/test_catalogue.py` loads the data from `cards/cards.json`, checks the `/cards` and `/cards/<id>` contracts, and exercises the `/cards/validation` rule set.
+- `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis.
+- `tests/test_catalogue.py` checks cards and card by id, and validates deck.
 - `tests/test_matchmaking.py` uses `fakeredis` to populate the lobby, ensures `_enqueue_atomic` pairs players fairly, and validates `/dequeue` when players leave or were already matched.
 - `tests/test_game_engine.py` covers the pure business logic in `game_engine/GameEngine`—score calculation, per-round winners, match finalization, and round advancement.
 - `tests/test_game_engine_api.py` drives the `/game/**` endpoints end-to-end by creating a match, monkeypatching the catalogue lookup, submitting decks/moves for both players, and confirming that the match history records every move until `FINISHED`.
