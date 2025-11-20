@@ -8,7 +8,7 @@ import random
 from typing import Any, Dict, Optional, Tuple, List
 from enum import Enum
 
-from .models import Match, MatchStatus, Move, CARD_CATEGORIES
+from .models import Match, MatchStatus, Round, CARD_CATEGORIES
 
 # --- Constants ---
 
@@ -112,11 +112,18 @@ class GameEngine:
         player_id: Any, 
         card_id: Any, 
         match: Match, 
-        moves_this_round: List[Move], 
-        all_player_moves: List[Move]
+        current_round: Optional[Round],
+        all_rounds: List[Round]
     ) -> Tuple[bool, Optional[Dict[str, str]]]:
         """
         Validate a move submission with all business rules.
+        
+        Args:
+            player_id: ID of the player submitting the move
+            card_id: ID of the card being played
+            match: The Match object
+            current_round: The current Round object (may be None if just created)
+            all_rounds: List of all completed rounds in this match
         
         Returns:
             Tuple of (is_valid, error_dict with msg and code)
@@ -158,30 +165,38 @@ class GameEngine:
             }
         
         # Already submitted this round validation
-        if player_id in [m.player_id for m in moves_this_round]:
-            return False, {
-                "msg": "Player has already submitted a move for this round",
-                "code": ValidationError.ALREADY_MOVED_THIS_ROUND.value
-            }
+        if current_round:
+            is_player1 = player_id == match.player1_id
+            if is_player1 and current_round.player1_card_id is not None:
+                return False, {
+                    "msg": "Player has already submitted a move for this round",
+                    "code": ValidationError.ALREADY_MOVED_THIS_ROUND.value
+                }
+            if not is_player1 and current_round.player2_card_id is not None:
+                return False, {
+                    "msg": "Player has already submitted a move for this round",
+                    "code": ValidationError.ALREADY_MOVED_THIS_ROUND.value
+                }
         
-        # Card already played validation
-        if card_id in [m.card_id for m in all_player_moves]:
-            return False, {
-                "msg": f"Card {card_id} has already been played",
-                "code": ValidationError.CARD_ALREADY_PLAYED.value
-            }
+        # Card already played validation (check all previous rounds)
+        for round_obj in all_rounds:
+            if card_id in [round_obj.player1_card_id, round_obj.player2_card_id]:
+                return False, {
+                    "msg": f"Card {card_id} has already been played",
+                    "code": ValidationError.CARD_ALREADY_PLAYED.value
+                }
         
         return True, None
     
     @staticmethod
-    def should_process_round(moves_this_round: List[Move]) -> bool:
+    def should_process_round(current_round: Round) -> bool:
         """
         Determine if the round should be processed (both players have moved).
 
         Returns:
-            True if we now have 2 moves (second move just submitted)
+            True if both players have submitted cards
         """
-        return len(moves_this_round) == 2 
+        return current_round.is_complete()
     
     @staticmethod
     def get_card_stats(match: Match, player_id: int, card_id: str) -> Dict[str, float]:
@@ -205,9 +220,7 @@ class GameEngine:
     @staticmethod
     def calculate_round_scores(
         match: Match, 
-        move_p1: Move, 
-        move_p2: Move, 
-        category: str
+        current_round: Round
     ) -> Tuple[float, float]:
         """
         Calculate the scores for both players in a round.
@@ -215,9 +228,10 @@ class GameEngine:
         Returns:
             Tuple of (score_p1, score_p2)
         """
-        p1_card_stats = GameEngine.get_card_stats(match, move_p1.player_id, move_p1.card_id)
-        p2_card_stats = GameEngine.get_card_stats(match, move_p2.player_id, move_p2.card_id)
+        p1_card_stats = GameEngine.get_card_stats(match, match.player1_id, current_round.player1_card_id)
+        p2_card_stats = GameEngine.get_card_stats(match, match.player2_id, current_round.player2_card_id)
         
+        category = current_round.category
         score_p1 = p1_card_stats[category]
         score_p2 = p2_card_stats[category]
         
@@ -259,9 +273,9 @@ class GameEngine:
     @staticmethod
     def should_end_match(match: Match) -> bool:
         """
-        Determine if the match should end.
+        Determine if the match should end based on number of completed rounds.
         """
-        return match.current_round >= MAX_ROUNDS
+        return len([r for r in match.rounds if r.is_complete()]) >= MAX_ROUNDS
     
     @staticmethod
     def determine_match_winner(
@@ -286,7 +300,7 @@ class GameEngine:
     @staticmethod
     def finalize_match(match: Match) -> None:
         """
-        Finalize match by setting status, winner, and clearing category.
+        Finalize match by setting status and winner.
         Mutates the match object.
         """
         match.status = MatchStatus.FINISHED
@@ -294,25 +308,25 @@ class GameEngine:
             match.player1_score, match.player2_score,
             match.player1_id, match.player2_id
         )
-        match.current_round_category = None
     
     @staticmethod
-    def advance_to_next_round(match: Match) -> None:
+    def get_next_round_number(match: Match) -> int:
         """
-        Advance match to the next round.
-        Mutates the match object.
+        Get the round number for the next round.
         """
-        match.current_round += 1
-        match.current_round_category = random.choice(CARD_CATEGORIES)
+        return len([r for r in match.rounds if r.is_complete()]) + 1
     
     @staticmethod
-    def get_round_status(moves_count: int) -> RoundStatus:
+    def get_round_status(current_round: Optional[Round]) -> RoundStatus:
         """
-        Get the current round status based on number of moves.
+        Get the current round status.
         """
-        if moves_count == 0:
+        if not current_round:
             return RoundStatus.WAITING_FOR_BOTH_PLAYERS
-        elif moves_count == 1:
+        
+        if current_round.player1_card_id is None and current_round.player2_card_id is None:
+            return RoundStatus.WAITING_FOR_BOTH_PLAYERS
+        elif not current_round.is_complete():
             return RoundStatus.WAITING_FOR_ONE_PLAYER
         else:
             return RoundStatus.ROUND_COMPLETE

@@ -8,7 +8,6 @@ from werkzeug.exceptions import NotFound
 
 from common.extensions import db
 from .services import MatchService
-from .repositories import MoveRepository
 
 game_engine = Blueprint("game_engine", __name__, url_prefix="/game")
 
@@ -52,7 +51,7 @@ def create_match():
     
     try:
         match = match_service.create_match(player1_id, player2_id)
-        return jsonify(match.to_dict(include_moves=False)), 201
+        return jsonify(match.to_dict(include_rounds=False)), 201
     except Exception as e:
         db.session.rollback()
         return _handle_service_error(e)
@@ -70,7 +69,7 @@ def choose_deck(match_id: int):
     
     try:
         match = match_service.submit_deck(match_id, player_id, deck_card_ids)
-        return jsonify(match.to_dict(include_moves=False)), 200
+        return jsonify(match.to_dict(include_rounds=False)), 200
     except Exception as e:
         db.session.rollback()
         return _handle_service_error(e)
@@ -95,34 +94,20 @@ def submit_move(match_id: int):
 def get_current_round_status(match_id: int):
     """Get the status of the current round, including the active category."""
     try:
-        match = match_service.get_match(match_id)
-        
-        moves_this_round = MoveRepository.find_for_match_and_round(
-            match_id, match.current_round
-        )
-        
-        status = match_service.game_engine.get_round_status(len(moves_this_round))
-        current_app.logger.debug(f"Round status check for match {match_id}: {status.value}")
-        
-        return jsonify({
-            "match_id": match.id,
-            "current_round": match.current_round,
-            "current_round_category": match.current_round_category,
-            "round_status": status.value,
-            "moves_submitted_count": len(moves_this_round),
-            "moves": [m.to_dict() for m in moves_this_round]
-        }), 200
+        result = match_service.get_current_round_status(match_id)
+        current_app.logger.debug(f"Round status check for match {match_id}: {result['round_status']}")
+        return jsonify(result), 200
     except Exception as e:
         return _handle_service_error(e)
 
 
 @game_engine.get("/matches/<int:match_id>")
 def get_match(match_id: int):
-    """Get the match info (without moves)."""
+    """Get the match info (without rounds)."""
     try:
-        match = match_service.get_match(match_id, include_moves=False)
+        match = match_service.get_match(match_id, include_rounds=False)
         current_app.logger.debug(f"Fetching match {match_id} info")
-        return jsonify(match.to_dict(include_moves=False)), 200
+        return jsonify(match.to_dict(include_rounds=False)), 200
     except Exception as e:
         return _handle_service_error(e)
 
@@ -130,13 +115,13 @@ def get_match(match_id: int):
 @game_engine.get("/matches/<int:match_id>/history")
 def get_match_with_history(match_id: int):
     """
-    Get the match info with all moves.
+    Get the match info with all rounds.
     Uses eager loading to avoid N+1 queries.
     """
     try:
-        match = match_service.get_match(match_id, include_moves=True)
-        current_app.logger.debug(f"Fetching match {match_id} history with {len(match.moves)} moves")
-        return jsonify(match.to_dict(include_moves=True)), 200
+        match = match_service.get_match(match_id, include_rounds=True)
+        current_app.logger.debug(f"Fetching match {match_id} history with {len(match.rounds)} rounds")
+        return jsonify(match.to_dict(include_rounds=True)), 200
     except Exception as e:
         return _handle_service_error(e)
 
@@ -164,7 +149,7 @@ def get_leaderboard():
 @game_engine.get("/players/<int:player_id>/history")
 def get_player_history(player_id: int):
     """
-    Get match history for a specific player with all moves.
+    Get match history for a specific player with all rounds.
     
     Query params:
     - limit: Number of matches to return (default: 20, max: 100)

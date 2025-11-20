@@ -3,20 +3,22 @@ Service layer for business logic.
 
 Coordinates between repositories and game engine logic.
 """
-from typing import Dict, List, Optional, Tuple
+import random
+from typing import Dict, List, Optional
 from flask import current_app
 
 from common.extensions import db
-from .game_engine import GameEngine, MoveSubmissionStatus
-from .repositories import MatchRepository, MoveRepository
-from .models import Match, Move, MatchStatus
+from .game_engine import GameEngine, MoveSubmissionStatus, CARD_CATEGORIES
+from .repositories import MatchRepository, RoundRepository
+from .models import Match, Round, MatchStatus
+
 
 class MatchService:
     """Service for match-related business operations."""
     
     def __init__(self):
         self.match_repo = MatchRepository()
-        self.move_repo = MoveRepository()
+        self.round_repo = RoundRepository()
         self.game_engine = GameEngine()
     
     def create_match(self, player1_id: int, player2_id: int) -> Match:
@@ -73,6 +75,8 @@ class MatchService:
         # Start match if both decks submitted
         if self.game_engine.should_start_match(match):
             match.status = MatchStatus.IN_PROGRESS
+            # Create first round
+            self._create_new_round(match)
             current_app.logger.info(f"Match {match_id} starting - both decks submitted")
         
         db.session.commit()
@@ -94,59 +98,59 @@ class MatchService:
         if not match:
             raise LookupError("Match not found")
         
-        # Get moves for validation
-        moves_this_round = self.move_repo.find_for_match_and_round(
-            match_id, match.current_round
-        )
-        all_player_moves = self.move_repo.find_for_player_in_match(
-            match_id, player_id
-        )
+        # Get or find current round
+        current_round = self.round_repo.find_current_incomplete_round(match_id)
+        
+        # Get all completed rounds for validation
+        all_rounds = self.round_repo.find_completed_rounds(match_id)
         
         # Validate move
         is_valid, err = self.game_engine.validate_move_submission(
-            player_id, card_id, match, moves_this_round, all_player_moves
+            player_id, card_id, match, current_round, all_rounds
         )
         if not is_valid:
             raise ValueError(err)
         
-        # Create move
-        move = self.move_repo.create(match, player_id, match.current_round, card_id)
+        # Record the move in the round
+        is_player1 = player_id == match.player1_id
+        if is_player1:
+            current_round.player1_card_id = card_id
+        else:
+            current_round.player2_card_id = card_id
+        
         current_app.logger.info(
-            f"Move submitted: Player {player_id} played {card_id} in round {match.current_round}"
+            f"Move submitted: Player {player_id} played {card_id} in round {current_round.round_number}"
         )
         
-        # Add to list for processing
-        moves_this_round.append(move)
-        
         # Check if round should be processed
-        is_second_move = self.game_engine.should_process_round(moves_this_round)
+        is_second_move = self.game_engine.should_process_round(current_round)
         
         if not is_second_move:
             # First move - wait for opponent
             db.session.commit()
             current_app.logger.info(
-                f"First move of round {match.current_round} submitted, waiting for opponent."
+                f"First move of round {current_round.round_number} submitted, waiting for opponent."
             )
             return {
                 "status": MoveSubmissionStatus.WAITING_FOR_OPPONENT.value,
-                "move_submitted": move.to_dict()
+                "round": current_round.to_dict()
             }
         
         # Second move - process round
-        result = self._process_round(match, moves_this_round)
+        result = self._process_round(match, current_round)
         db.session.commit()
         
         return result
     
-    def get_match(self, match_id: int, include_moves: bool = False) -> Match:
+    def get_match(self, match_id: int, include_rounds: bool = False) -> Match:
         """
         Get a match by ID.
         
         Raises:
             LookupError: If match not found
         """
-        if include_moves:
-            match = self.match_repo.find_by_id_with_moves(match_id)
+        if include_rounds:
+            match = self.match_repo.find_by_id_with_rounds(match_id)
         else:
             match = self.match_repo.find_by_id(match_id)
         
@@ -154,6 +158,25 @@ class MatchService:
             raise LookupError("Match not found")
         
         return match
+    
+    def get_current_round_status(self, match_id: int) -> Dict:
+        """Get the status of the current round."""
+        match = self.get_match(match_id)
+        current_round = self.round_repo.find_current_incomplete_round(match_id)
+        
+        if not current_round and match.status == MatchStatus.IN_PROGRESS:
+            # All rounds complete but match still in progress (shouldn't happen)
+            current_round = None
+        
+        status = self.game_engine.get_round_status(current_round)
+        
+        return {
+            "match_id": match.id,
+            "current_round_number": current_round.round_number if current_round else None,
+            "current_category": current_round.category if current_round else None,
+            "round_status": status.value,
+            "round": current_round.to_dict() if current_round else None
+        }
     
     def get_player_history(
         self,
@@ -169,7 +192,7 @@ class MatchService:
         # Build response with player-specific info
         history = []
         for match in matches:
-            match_dict = match.to_dict(include_moves=True)
+            match_dict = match.to_dict(include_rounds=True)
             match_dict['player_won'] = match.winner_id == player_id if match.winner_id else None
             match_dict['player_was_player1'] = match.player1_id == player_id
             match_dict['opponent_id'] = match.player2_id if match.player1_id == player_id else match.player1_id
@@ -229,29 +252,31 @@ class MatchService:
             "count": len(results)
         }
     
-    def _process_round(self, match: Match, moves_this_round: List[Move]) -> Dict:
+    def _create_new_round(self, match: Match) -> Round:
+        """Create a new round for the match."""
+        round_number = self.game_engine.get_next_round_number(match)
+        category = random.choice(CARD_CATEGORIES)
+        
+        round_obj = self.round_repo.create(match, round_number, category)
+        current_app.logger.info(
+            f"Created round {round_number} for match {match.id} with category {category}"
+        )
+        return round_obj
+    
+    def _process_round(self, match: Match, current_round: Round) -> Dict:
         """
         Process a complete round with both moves.
         
         Returns:
             Dict with round results
         """
-        try:
-            p1_move = next(m for m in moves_this_round if m.player_id == match.player1_id)
-            p2_move = next(m for m in moves_this_round if m.player_id == match.player2_id)
-        except StopIteration:
-            raise Exception("Required moves for both players not found.")
-        
-        category = match.current_round_category
         current_app.logger.info(
-            f"Processing round {match.current_round} for match {match.id}, category: {category}"
+            f"Processing round {current_round.round_number} for match {match.id}, category: {current_round.category}"
         )
         
         # Calculate scores
         try:
-            p1_score, p2_score = self.game_engine.calculate_round_scores(
-                match, p1_move, p2_move, category
-            )
+            p1_score, p2_score = self.game_engine.calculate_round_scores(match, current_round)
         except KeyError as e:
             raise Exception(f"Missing card stats during round scoring: {e}")
         
@@ -260,30 +285,38 @@ class MatchService:
             p1_score, p2_score, match.player1_id, match.player2_id
         )
         
-        # Update scores
+        # Update round with winner
+        current_round.winner_id = round_winner_id
+        
+        # Update match scores
         self.game_engine.update_match_scores(match, round_winner_id)
         
         # Check if match should end
         if self.game_engine.should_end_match(match):
             self.game_engine.finalize_match(match)
             current_app.logger.info(f"Match {match.id} finished. Winner={match.winner_id}")
+            next_round = None
+            next_category = None
         else:
-            self.game_engine.advance_to_next_round(match)
+            # Create next round
+            next_round_obj = self._create_new_round(match)
+            next_round = next_round_obj.round_number
+            next_category = next_round_obj.category
             current_app.logger.info(
-                f"Advancing to round {match.current_round}, next category={match.current_round_category}"
+                f"Advancing to round {next_round}, category={next_category}"
             )
         
         return {
             "status": MoveSubmissionStatus.ROUND_PROCESSED.value,
             "round_winner_id": round_winner_id,
             "is_draw": is_draw,
-            "moves": [p1_move.to_dict(), p2_move.to_dict()],
+            "completed_round": current_round.to_dict(),
             "scores": {
                 match.player1_id: match.player1_score,
                 match.player2_id: match.player2_score
             },
-            "next_round": match.current_round,
-            "next_category": match.current_round_category,
+            "next_round": next_round,
+            "next_category": next_category,
             "game_status": match.status.name
         }
     
@@ -294,7 +327,6 @@ class MatchService:
         
         TODO: Replace with actual API call.
         """
-        import random
         deck_stats_map = {}
         for card_id in deck_card_ids:
             deck_stats_map[card_id] = {

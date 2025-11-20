@@ -8,7 +8,7 @@ from sqlalchemy import func, desc, or_
 from sqlalchemy.orm import joinedload
 
 from common.extensions import db
-from .game_engine import Match, MatchStatus
+from .models import Match, MatchStatus, Round
 
 
 class MatchRepository:
@@ -34,11 +34,11 @@ class MatchRepository:
         ).first()
     
     @staticmethod
-    def find_by_id_with_moves(match_id: int) -> Optional[Match]:
-        """Find a match by ID with all moves eagerly loaded."""
+    def find_by_id_with_rounds(match_id: int) -> Optional[Match]:
+        """Find a match by ID with all rounds eagerly loaded."""
         return db.session.scalars(
             db.select(Match)
-            .options(joinedload(Match.moves))
+            .options(joinedload(Match.rounds))
             .filter_by(id=match_id)
         ).first()
     
@@ -54,7 +54,7 @@ class MatchRepository:
         Returns matches ordered by most recent first.
         """
         query = db.select(Match).options(
-            joinedload(Match.moves)
+            joinedload(Match.rounds)
         ).filter(
             or_(
                 Match.player1_id == player_id,
@@ -129,3 +129,63 @@ class MatchRepository:
         ).limit(limit).offset(offset).all()
         
         return leaderboard
+
+
+class RoundRepository:
+    """Repository for Round entity operations."""
+    
+    @staticmethod
+    def create(match: Match, round_number: int, category: str) -> Round:
+        """Create a new round."""
+        round_obj = Round(
+            match=match,
+            round_number=round_number,
+            category=category
+        )
+        db.session.add(round_obj)
+        return round_obj
+    
+    @staticmethod
+    def find_by_match_and_number(match_id: int, round_number: int) -> Optional[Round]:
+        """Find a specific round in a match."""
+        return db.session.scalars(
+            db.select(Round).filter_by(
+                match_id=match_id,
+                round_number=round_number
+            )
+        ).first()
+    
+    @staticmethod
+    def find_current_incomplete_round(match_id: int) -> Optional[Round]:
+        """Find the current incomplete round for a match (if any)."""
+        return db.session.scalars(
+            db.select(Round)
+            .filter(Round.match_id == match_id)
+            .filter(
+                or_(
+                    Round.player1_card_id.is_(None),
+                    Round.player2_card_id.is_(None)
+                )
+            )
+            .order_by(Round.round_number)
+        ).first()
+    
+    @staticmethod
+    def find_all_for_match(match_id: int) -> List[Round]:
+        """Find all rounds for a match, ordered by round number."""
+        return db.session.scalars(
+            db.select(Round)
+            .filter_by(match_id=match_id)
+            .order_by(Round.round_number)
+        ).all()
+    
+    @staticmethod
+    def find_completed_rounds(match_id: int) -> List[Round]:
+        """Find all completed rounds for a match."""
+        return db.session.scalars(
+            db.select(Round)
+            .filter_by(match_id=match_id)
+            .filter(Round.player1_card_id.isnot(None))
+            .filter(Round.player2_card_id.isnot(None))
+            .order_by(Round.round_number)
+        ).all()
