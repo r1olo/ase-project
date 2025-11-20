@@ -9,6 +9,7 @@ from flask import Flask
 
 import json
 
+# fill the database at init
 def _init_cards_db():
     with open("cards/cards.json") as file:
         cards_data = json.load(file)
@@ -28,13 +29,14 @@ def _init_cards_db():
             db.session.add(card)
     db.session.commit()                
 
+# generic create app interface for cards
 def _create_app(config) -> Flask:
     return create_flask_app(
         name=__name__,
         config_obj=config,
-        extensions=(db),
-        blueprints=(catalogue_blueprint),
-        init_app_context_steps=(_init_cards_db)
+        extensions=(db,),
+        blueprints=(catalogue_blueprint,),
+        init_app_context_steps=(_init_cards_db,)
     )
 
 def create_app() -> Flask:
