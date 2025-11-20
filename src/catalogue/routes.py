@@ -15,7 +15,7 @@ def get_cards():
     cards = Card.query.order_by(Card.id.asc()).all()
 
     # convert to json
-    cards_json = [card.to_json() for card in cards]
+    cards_json = [card.to_json(relative=True) for card in cards]
     return jsonify({"data": cards_json})
 
 @catalogue.route("/cards/<card_id>", methods=["GET"])
@@ -29,7 +29,7 @@ def get_single_card(card_id: int):
         return jsonify({"msg": "Card not found"}), 404
 
     # convert to json
-    return jsonify(card.to_json())
+    return jsonify(card.to_json(relative=True))
 
 @catalogue.route("/cards/validation", methods=["GET"])
 def validate_deck():
@@ -41,6 +41,6 @@ def validate_deck():
         
         # case no match or match is wrong
         card_catalogue = Card.query.filter_by(id=card.get("id") or "").first()
-        if not card_catalogue or not card_catalogue.to_json() == card:
+        if not card_catalogue or not card_catalogue.to_json(relative=True) == card:
             return jsonify({"data": False})
     return jsonify({"data": True})

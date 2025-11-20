@@ -4,6 +4,8 @@ from common.extensions import db
 from sqlalchemy import Integer, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+RELATIVE_PATH = "/images/"
+
 class Card(db.Model):
     __tablename__ = 'cards'
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -32,11 +34,11 @@ class Card(db.Model):
         self.special_pts = special
         self.total_pts = total
 
-    def to_json(self) -> dict:
+    def to_json(self, relative: bool = False) -> dict:
         return {
             "id": self.id,
             "name": self.name,
-            "image": self.image,
+            "image": self.image if not relative else RELATIVE_PATH + self.image,
             "economy": self.economy_pts,
             "food": self.food_pts,
             "environment": self.environment_pts,

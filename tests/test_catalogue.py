@@ -99,7 +99,7 @@ def test_cards_validation_success(catalogue_client):
     data.append(Card.query.filter_by(name="Veneto").first())
     data.append(Card.query.filter_by(name="Trentino-Alto Adige").first())
     
-    resp = catalogue_client.get("/cards/validation", json={"data": [card.to_json() for card in data]})
+    resp = catalogue_client.get("/cards/validation", json={"data": [card.to_json(relative=True) for card in data]})
     assert resp.status_code == 200
     data = resp.get_json()
     assert data["data"] == True
