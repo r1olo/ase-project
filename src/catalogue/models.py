@@ -1,8 +1,8 @@
 """Database models for the Cards Catalogue service."""
 from __future__ import annotations
+from common.extensions import db
 from sqlalchemy import Integer, Float, String
 from sqlalchemy.orm import Mapped, mapped_column
-from .extensions import db
 
 class Card(db.Model):
     __tablename__ = 'cards'

@@ -7,7 +7,6 @@ from auth.app import create_test_app as create_auth_test_app
 from common.extensions import db, redis_manager
 
 from catalogue.app import create_test_app as create_catalogue_test_app
-from catalogue.extensions import db as catalogue_db
 from matchmaking.app import create_test_app as create_matchmaking_test_app
 from game_engine.app import create_test_app as create_game_engine_test_app
 
@@ -32,8 +31,8 @@ def catalogue_app():
     ctx = app.app_context()
     ctx.push()
     yield app
-    catalogue_db.session.remove()
-    catalogue_db.drop_all()
+    db.session.remove()
+    db.drop_all()
     ctx.pop()
 
 @pytest.fixture

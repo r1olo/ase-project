@@ -1,8 +1,8 @@
 """Application factory for the Card Catalogue microservice."""
 from __future__ import annotations
 from .config import Config, TestConfig
-from .extensions import db
 from .routes import catalogue as catalogue_blueprint
+from common.extensions import db
 from flask import Flask
 
 def _create_app(config) -> Flask:
