@@ -1,5 +1,5 @@
-from catalogue.extensions import db
 from catalogue.models import Card
+from common.extensions import db
 
 import json
 
