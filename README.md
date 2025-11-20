@@ -18,38 +18,38 @@ Each card contains an image representing the region, its total score and the cat
 The scores of Economy, Environment and Food were assigned on the basis of real data, while the Special score was assigned according to subjective criteria.
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/04-campania.png?raw=true" alt="Campania" width="100"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/07-lazio.png?raw=true" alt="Lazio" width="100"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/08-liguria.png?raw=true" alt="Liguria" width="100"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/15-sicilia.png?raw=true" alt="Sicilia" width="100"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/04-campania.png?raw=true" alt="Campania" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/07-lazio.png?raw=true" alt="Lazio" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/08-liguria.png?raw=true" alt="Liguria" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/15-sicilia.png?raw=true" alt="Sicilia" width="200"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/01-abruzzo.png?raw=true" alt="Abruzzo" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/02-basilicata.png?raw=true" alt="Basilicata" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/03-calabria.png?raw=true" alt="Calabria" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/05-emilia_romagna.png?raw=true" alt="Emilia-Romagna" width="80"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/01-abruzzo.png?raw=true" alt="Abruzzo" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/02-basilicata.png?raw=true" alt="Basilicata" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/03-calabria.png?raw=true" alt="Calabria" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/05-emilia_romagna.png?raw=true" alt="Emilia-Romagna" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/06-friuli_venezia_giulia.png?raw=true" alt="Friuli-Venezia Giulia" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/09-lombardia.png?raw=true" alt="Lombardia" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/10-marche.png?raw=true" alt="Marche" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/11-molise.png?raw=true" alt="Molise" width="80"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/06-friuli_venezia_giulia.png?raw=true" alt="Friuli-Venezia Giulia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/09-lombardia.png?raw=true" alt="Lombardia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/10-marche.png?raw=true" alt="Marche" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/11-molise.png?raw=true" alt="Molise" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/12-piemonte.png?raw=true" alt="Piemonte" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/13-puglia.png?raw=true" alt="Puglia" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/14-sardegna.png?raw=true" alt="Sardegna" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/16-toscana.png?raw=true" alt="Toscana" width="80"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/12-piemonte.png?raw=true" alt="Piemonte" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/13-puglia.png?raw=true" alt="Puglia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/14-sardegna.png?raw=true" alt="Sardegna" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/16-toscana.png?raw=true" alt="Toscana" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/17-trentino_alto_adige.png?raw=true" alt="Trentino-Alto Adige" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/18-umbria.png?raw=true" alt="Umbria" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/19-valle_aosta.png?raw=true" alt="Valle d'Aosta" width="80"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/20-veneto.png?raw=true" alt="Veneto" width="80"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/17-trentino_alto_adige.png?raw=true" alt="Trentino-Alto Adige" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/18-umbria.png?raw=true" alt="Umbria" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/19-valle_aosta.png?raw=true" alt="Valle d'Aosta" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/20-veneto.png?raw=true" alt="Veneto" width="150"/>
 </p>
 
 ### Game rules
@@ -113,7 +113,7 @@ A single match goes through several services and HTTP endpoints:
 1. Install Docker and Docker Compose.
 2. Place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). The keys can be generated using the script in `scripts/genkeys.sh`. Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
 3. From the repository root execute `docker compose up --build`.
-4. Once the stack is up, you may access the API Gateway at port `80`. You can access endpoint `/health` for a general service overview.
+4. Once the stack is up, you may access the API Gateway at port `150`. You can access endpoint `/health` for a general service overview.
 5. You can simulate a client using the script in `scripts/client.sh`. In order to play a game, you need to execute two instances of the client scripts. They will send random moves at predefined time intervals.
 
 
