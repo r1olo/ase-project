@@ -64,18 +64,19 @@ def create_match():
 def choose_deck(match_id: int):
     """
     Endpoint for a player to submit their chosen deck (subset of cards).
-    Validates the deck and fetches all card stats from the catalogue service.
+    Validates the deck.
     """
     payload = request.get_json(silent=True) or {}
     player_id = payload.get("player_id")
-    deck_card_ids = payload.get("deck")
-    
+    deck_cards = payload.get("deck")
+
     try:
-        match = match_service.submit_deck(match_id, player_id, deck_card_ids)
+        match = match_service.submit_deck(match_id, player_id, deck_cards)
         return jsonify(match.to_dict(include_rounds=False)), 200
     except Exception as e:
         db.session.rollback()
         return _handle_service_error(e)
+
 
 
 @game_engine.post("/matches/<int:match_id>/moves")

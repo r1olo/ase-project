@@ -25,6 +25,9 @@ class MatchService:
     def create_match(self, player1_id: int, player2_id: int) -> Match:
         """
         Create a new match.
+
+        Returns:
+            Match object
         
         Raises:
             ValueError: If validation fails
@@ -41,47 +44,49 @@ class MatchService:
         current_app.logger.info(f"Match {match.id} created between players {player1_id} and {player2_id}")
         return match
     
-    def submit_deck(self, match_id: int, player_id: int, deck_card_ids: List[str]) -> Match:
+    def submit_deck(self, match_id: int, player_id: int, deck_cards: List[dict]) -> Match:
         """
-        Submit a deck for a player.
-        
+        Submit a full deck and 
+        validate through catalogue.
+
+        Returns:
+            Updated Match object
+
         Raises:
-            ValueError: If validation fails
+            ValueError: If validation fails with error details
             LookupError: If match not found
         """
-        # Find match
+        
         match = self.match_repo.find_by_id(match_id)
         if not match:
             raise LookupError("Match not found")
-        
-        # Validate
+
+        # Validate business rules
         is_valid, error_msg = self.game_engine.validate_deck_submission(
-            deck_card_ids, player_id, match
+            deck_cards, player_id, match
         )
         if not is_valid:
             raise ValueError(error_msg)
-        
-        # Fetch card stats (mocked for now)
-        # TODO: Replace with actual catalogue service call
-        deck_stats_map = self._fetch_card_stats(deck_card_ids)
-        
-        # Assign deck
+
+        # Validate against catalogue
+        validated_deck = self._fetch_card_stats(deck_cards)
+
+        # Store deck
         if player_id == match.player1_id:
-            match.player1_deck = deck_stats_map
-            current_app.logger.info(f"Player 1 (ID: {player_id}) deck set for match {match_id}")
+            match.player1_deck = validated_deck
+            current_app.logger.info(f"Player 1 (ID {player_id}) submitted deck.")
         else:
-            match.player2_deck = deck_stats_map
-            current_app.logger.info(f"Player 2 (ID: {player_id}) deck set for match {match_id}")
-        
-        # Start match if both decks submitted
+            match.player2_deck = validated_deck
+            current_app.logger.info(f"Player 2 (ID {player_id}) submitted deck.")
+
+        # Start match if both submitted
         if self.game_engine.should_start_match(match):
             match.status = MatchStatus.IN_PROGRESS
-            # Create first round
             self._create_new_round(match)
-            current_app.logger.info(f"Match {match_id} starting - both decks submitted")
-        
+
         db.session.commit()
         return match
+
     
     def submit_move(self, match_id: int, player_id: int, card_id: str) -> Dict:
         """
@@ -322,78 +327,32 @@ class MatchService:
         }
     
     @staticmethod
-    def _fetch_card_stats(deck_card_ids: List[str]) -> Dict:
+    def _fetch_card_stats(deck_cards: List[dict]) -> Dict:
         """
-        Fetch card stats from catalogue service.
+        Validates full card objects with the catalogue service.
+        Return cards unchanged, indexed by ID.
         """
-        if current_app.testing and current_app.config.get("CATALOGUE_USE_STUB_DATA"):
-            return MatchService._build_stub_card_stats(deck_card_ids)
-
         base_url = current_app.config.get("CATALOGUE_URL", "http://catalogue:5000").rstrip("/")
         timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
 
+        payload = { "data": deck_cards }
+
         try:
-            response = requests.get(f"{base_url}/cards", timeout=timeout)
+            response = requests.get(
+                f"{base_url}/cards/validation",
+                json=payload,
+                timeout=timeout
+            )
         except requests.RequestException as exc:
-            current_app.logger.error(f"Failed to reach catalogue service at {base_url}: {exc}")
+            current_app.logger.error(f"Failed to reach catalogue service: {exc}")
             raise RuntimeError("Unable to reach catalogue service") from exc
 
         if response.status_code != 200:
-            message = MatchService._catalogue_error_message(response)
-            current_app.logger.error(message)
-            raise RuntimeError(message)
+            raise RuntimeError(f"Catalogue validation failed ({response.status_code})")
 
-        try:
-            payload = response.json()
-            cards = payload.get("data", [])
-        except ValueError as exc:
-            raise RuntimeError("Invalid response from catalogue service") from exc
+        body = response.json()
+        if not body.get("data"):
+            raise ValueError("Deck rejected by catalogue service (invalid cards)")
 
-        card_index = {str(card["id"]): card for card in cards if card.get("id") is not None}
-        deck_stats_map: Dict[str, Dict] = {}
-        missing_ids = []
-
-        for card_id in deck_card_ids:
-            card_key = str(card_id)
-            card_data = card_index.get(card_key)
-            if not card_data:
-                missing_ids.append(card_id)
-                continue
-            try:
-                deck_stats_map[card_key] = {
-                    category: card_data[category] for category in CARD_CATEGORIES
-                }
-            except KeyError as exc:
-                raise ValueError(
-                    f"Catalogue data for card {card_id} is missing field '{exc.args[0]}'"
-                ) from exc
-
-        if missing_ids:
-            raise ValueError(f"Cards not found in catalogue: {', '.join(map(str, missing_ids))}")
-
-        return deck_stats_map
-
-    @staticmethod
-    def _build_stub_card_stats(deck_card_ids: List[str]) -> Dict:
-        """Fallback stub for tests without the catalogue service."""
-        deck_stats_map = {}
-        for card_id in deck_card_ids:
-            deck_stats_map[str(card_id)] = {
-                "economy": random.randint(5, 15),
-                "food": random.randint(5, 15),
-                "environment": random.randint(5, 15),
-                "special": random.randint(0, 5),
-                "total": random.uniform(20.0, 40.0)
-            }
-        return deck_stats_map
-
-    @staticmethod
-    def _catalogue_error_message(response: requests.Response) -> str:
-        try:
-            payload = response.json()
-            details = payload.get("msg") or payload.get("error") or ""
-        except ValueError:
-            details = response.text
-
-        base = f"Catalogue service error ({response.status_code})"
-        return f"{base}: {details}" if details else base
+        # return deck as dict indexed by id
+        return {str(card["id"]): card for card in deck_cards}
