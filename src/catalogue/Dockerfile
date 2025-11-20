@@ -13,6 +13,9 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY src/catalogue /app/catalogue
 COPY src/common /app/common
 
+RUN mkdir -p /app/cards
+COPY cards/cards.json /app/cards/cards.json
+
 EXPOSE 5000
 
 CMD ["flask", "--app=catalogue.app", "run", "--host=0.0.0.0", "--port=5000"]
