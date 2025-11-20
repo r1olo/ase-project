@@ -16,4 +16,4 @@ def create_app(config_object=Config()) -> Flask:
 
 
 if __name__ == "__main__":  # pragma: no cover
-    create_app().run(host="0.0.0.0", port=5080)
+    create_app().run(host="0.0.0.0", port=80)

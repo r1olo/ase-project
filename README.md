@@ -97,7 +97,7 @@ A single match goes through several services and HTTP endpoints:
 
 1. Install Docker and Docker Compose, then place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
 2. From the repository root execute `docker compose up --build`. Compose builds every microservice image, provisions PostgreSQL/Redis sidecars for Auth, Catalogue, Players, Matchmaking, and the Game Engine, and connects them on a shared network so they can reach each other through hostnames such as `auth`, `catalogue`, or `game-engine`.
-3. Once the stack is up, inspect `http://localhost:5080/health` for the gateway view or hit each service directly on ports 5000-5004 to drive the APIs. Logs show when Matchmaking pairs players and when a match transitions through its life cycle.
+3. Once the stack is up, inspect `http://localhost/health` for the gateway view. Only the gateway is exposed on port 80; all internal services listen on port 5000 and are reachable only from inside the Compose network. Logs show when Matchmaking pairs players and when a match transitions through its life cycle.
 
 **Running individual services for development**
 
@@ -108,7 +108,7 @@ A single match goes through several services and HTTP endpoints:
    pip install -r requirements.txt
    ```
 2. Export service-specific settings. The default configs use in-memory SQLite databases and expect Redis; to avoid external dependencies set `FAKE_REDIS=1` for Auth or Matchmaking, or point `*_DATABASE_URL`/`*_REDIS_URL` to your own instances.
-3. Start the service you need, e.g. `flask --app=auth.app run --port=5000`, `python src/catalogue/app.py`, `python src/players/app.py`, `flask --app=matchmaking.app run --port=5004`, or `python src/game_engine/app.py`. Run them from the repository root (or export `PYTHONPATH=src`) so imports like `common.extensions` resolve correctly.
+3. Start the service you need, e.g. `flask --app=auth.app run --port=5000`, `python src/catalogue/app.py`, `python src/players/app.py`, `flask --app=matchmaking.app run --port=5000`, or `python src/game_engine/app.py`. Run them from the repository root (or export `PYTHONPATH=src`) so imports like `common.extensions` resolve correctly.
 
 ### Tests
 

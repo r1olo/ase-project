@@ -10,6 +10,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src/players /app
 
-EXPOSE 5002
+EXPOSE 5000
 
 CMD ["python", "app.py"]

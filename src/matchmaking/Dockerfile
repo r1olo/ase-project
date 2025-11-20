@@ -11,6 +11,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY src/common /app/common
 COPY src/matchmaking /app
 
-EXPOSE 5004
+EXPOSE 5000
 
 CMD ["python", "app.py"]

@@ -10,6 +10,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src/api_gateway /app
 
-EXPOSE 5080
+EXPOSE 80
 
 CMD ["python", "app.py"]

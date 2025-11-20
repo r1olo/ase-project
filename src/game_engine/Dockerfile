@@ -44,7 +44,7 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Expose port
-EXPOSE 5003
+EXPOSE 5000
 
 # Run the application
 CMD ["python", "-m", "game_engine"]

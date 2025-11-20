@@ -7,10 +7,10 @@ services:
       dockerfile: src/api_gateway/Dockerfile
     environment:
       GATEWAY_AUTH_URL: http://auth:5000
-      GATEWAY_PLAYERS_URL: http://players:5002
-      GATEWAY_CATALOGUE_URL: http://catalogue:5001
-      GATEWAY_MATCHMAKING_URL: http://matchmaking:5004
-      GATEWAY_GAME_ENGINE_URL: http://game-engine:5003
+      GATEWAY_PLAYERS_URL: http://players:5000
+      GATEWAY_CATALOGUE_URL: http://catalogue:5000
+      GATEWAY_MATCHMAKING_URL: http://matchmaking:5000
+      GATEWAY_GAME_ENGINE_URL: http://game-engine:5000
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       - auth
@@ -19,7 +19,7 @@ services:
       - matchmaking
       - game-engine
     ports:
-      - "5080:5080"
+      - "80:80"
     secrets:
       - jwt_public_key
 
@@ -35,8 +35,8 @@ services:
     depends_on:
       - auth-db
       - auth-redis
-    ports:
-      - "5000:5000"
+    expose:
+      - "5000"
     secrets:
       - jwt_private_key
       - jwt_public_key
@@ -65,8 +65,8 @@ services:
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       - catalogue-db
-    ports:
-      - "5001:5001"
+    expose:
+      - "5000"
     secrets:
       - jwt_public_key
 
@@ -88,8 +88,8 @@ services:
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       - players-db
-    ports:
-      - "5002:5002"
+    expose:
+      - "5000"
     secrets:
       - jwt_public_key
 
@@ -111,8 +111,8 @@ services:
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       - game-engine-db
-    ports:
-      - "5003:5003"
+    expose:
+      - "5000"
     secrets:
       - jwt_public_key
 
@@ -137,8 +137,8 @@ services:
     depends_on:
       - matchmaking-redis
       - game-engine
-    ports:
-      - "5004:5004"
+    expose:
+      - "5000"
     secrets:
       - jwt_public_key
 

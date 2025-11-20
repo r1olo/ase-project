@@ -10,6 +10,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src/catalogue /app
 
-EXPOSE 5001
+EXPOSE 5000
 
 CMD ["python", "app.py"]
