@@ -119,7 +119,7 @@ A single match goes through several services and HTTP endpoints:
 2. Place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). The keys can be generated using the script in `scripts/genkeys.sh`. Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
 3. From the repository root execute `docker compose up --build`.
 4. Once the stack is up, you may access the API Gateway at port `150`. You can access endpoint `/health` for a general service overview.
-5. You can simulate a client using the script in `scripts/client.py`. In order to play a game, you need to execute two instances of the client scripts to be able to enqueue and send various moves. Notice: the `requests` Python library is required to run the client script.
+5. You can simulate a client using the script in `scripts/client.py`. In order to play a game, you need to execute two instances of the client scripts to be able to enqueue and send various moves. The list of available commands can be accessed by running `python scripts/client.py --help`. Notice: the `requests` Python library is required to run the client script.
 
 
 ### Tests
