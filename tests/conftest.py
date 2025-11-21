@@ -8,7 +8,7 @@ from common.extensions import db, redis_manager
 
 from catalogue.app import create_test_app as create_catalogue_test_app
 from matchmaking.app import create_test_app as create_matchmaking_test_app
-from game_engine.app import create_test_app as create_game_engine_test_app
+# from game_engine.app import create_test_app as create_game_engine_test_app
 
 @pytest.fixture
 def auth_app():
