@@ -2,6 +2,7 @@
 from __future__ import annotations
 from .models import Card
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required
 
 catalogue = Blueprint("catalogue", __name__)
 
@@ -10,6 +11,7 @@ def health():
     return jsonify({"status": "ok"}), 200
 
 @catalogue.route("/cards", methods=["GET"])
+@jwt_required()
 def get_cards():
     # fetch all cards from the database, ordering them by ascending order on id value
     cards = Card.query.order_by(Card.id.asc()).all()
@@ -19,6 +21,7 @@ def get_cards():
     return jsonify({"data": cards_json})
 
 @catalogue.route("/cards/<card_id>", methods=["GET"])
+@jwt_required()
 def get_single_card(card_id: int):
     if not card_id.isdigit():
         return jsonify({"msg": "Invalid card ID"}), 400
@@ -31,16 +34,34 @@ def get_single_card(card_id: int):
     # convert to json
     return jsonify(card.to_json(relative=True))
 
-@catalogue.route("/cards/validation", methods=["GET"])
+@catalogue.route("/internal/cards/validation", methods=["GET"])
 def validate_deck():
     payload = request.get_json(silent=True) or {}
+    cards = []
+    
     # checks each card in the payload
-    for card in payload.get("data", []):
-        if not card:
-            return jsonify({"data": False})
+    for card_id in payload.get("data", []):
+        if not card_id:
+            return jsonify({"msg": "Empty deck"}), 400
         
         # case no match or match is wrong
-        card_catalogue = Card.query.filter_by(id=card.get("id") or "").first()
-        if not card_catalogue or not card_catalogue.to_json(relative=True) == card:
-            return jsonify({"data": False})
-    return jsonify({"data": True})
+        card = Card.query.filter_by(id=card_id.get("id") or "").first()
+        if not card:
+            return jsonify({"msg": "Invalid deck"}), 400
+        cards.append(card.to_json(relative=True))
+    return jsonify({"data": cards})
+
+# @catalogue.route("/cards/validation", methods=["GET"])
+# def validate_deck():
+#     payload = request.get_json(silent=True) or {}
+
+#     # checks each card in the payload
+#     for card in payload.get("data", []):
+#         if not card:
+#             return jsonify({"data": False})
+        
+#         # case no match or match is wrong
+#         card_catalogue = Card.query.filter_by(id=card.get("id") or "").first()
+#         if not card_catalogue or not card_catalogue.to_json(relative=True) == card:
+#             return jsonify({"data": False})
+#     return jsonify({"data": True})

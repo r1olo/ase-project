@@ -4,7 +4,7 @@ from .config import Config, TestConfig
 from .models import Card
 from .routes import catalogue as catalogue_blueprint
 from common.app_factory import create_flask_app
-from common.extensions import db
+from common.extensions import db, jwt
 from flask import Flask
 
 import json
@@ -34,7 +34,7 @@ def _create_app(config) -> Flask:
     return create_flask_app(
         name=__name__,
         config_obj=config,
-        extensions=(db,),
+        extensions=(db, jwt),
         blueprints=(catalogue_blueprint,),
         init_app_context_steps=(_init_cards_db,)
     )
