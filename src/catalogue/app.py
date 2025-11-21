@@ -11,6 +11,7 @@ import json
 
 # fill the database at init
 def _init_cards_db(_):
+    db.create_all()
     with open("cards/cards.json") as file:
         cards_data = json.load(file)
         for _, card_info in cards_data.items():
