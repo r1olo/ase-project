@@ -11,19 +11,17 @@ The script walks through:
 import argparse
 import getpass
 import os
+import requests
 import sys
 import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
-
-import requests
 
 DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:80")
 DEFAULT_REQUEST_TIMEOUT = 10.0
 DEFAULT_POLL_INTERVAL = 2.0
 DEFAULT_POLL_TIMEOUT = 180.0
 CLIENT_DECK_SIZE = 5
-
 
 @dataclass
 class ClientState:
@@ -55,19 +53,16 @@ class ClientState:
             return False
         return None
 
-
 def _full_url(state: ClientState, path: str, base_url: Optional[str] = None) -> str:
     base = base_url or state.base_url
     cleaned = path if path.startswith("/") else f"/{path}"
     return f"{base.rstrip('/')}{cleaned}"
-
 
 def _as_int(value):
     try:
         return int(value)
     except (TypeError, ValueError):
         return value
-
 
 def _api_request(
     state: ClientState,
@@ -99,7 +94,6 @@ def _api_request(
         payload = None
     return resp, payload
 
-
 def _print_error(resp: Optional[requests.Response], payload: Optional[Dict]) -> None:
     status = resp.status_code if resp else "?"
     msg = ""
@@ -109,13 +103,11 @@ def _print_error(resp: Optional[requests.Response], payload: Optional[Dict]) -> 
         msg = resp.text
     print(f"[error] ({status}) {msg}")
 
-
 def _require_login(state: ClientState) -> bool:
     if state.token:
         return True
     print("You need to login first.")
     return False
-
 
 def cmd_register(state: ClientState) -> None:
     email = input("Email: ").strip()
@@ -133,7 +125,6 @@ def cmd_register(state: ClientState) -> None:
         print("✅ Registered successfully.")
     else:
         _print_error(resp, payload)
-
 
 def cmd_login(state: ClientState) -> None:
     email = input("Email: ").strip()
@@ -154,7 +145,6 @@ def cmd_login(state: ClientState) -> None:
     else:
         _print_error(resp, payload)
 
-
 def cmd_enqueue(state: ClientState) -> None:
     if not _require_login(state):
         return
@@ -173,7 +163,6 @@ def cmd_enqueue(state: ClientState) -> None:
             return
     print("⏳ Joined queue, waiting for an opponent...")
     poll_matchmaking(state, blocking=True)
-
 
 def poll_matchmaking(state: ClientState, blocking: bool = False) -> None:
     if not _require_login(state):
@@ -212,7 +201,6 @@ def poll_matchmaking(state: ClientState, blocking: bool = False) -> None:
         print(f"\r🔍 Looking for an opponent{waiting_msgs[dots]}", end="", flush=True)
         time.sleep(state.poll_interval)
 
-
 def fetch_cards(state: ClientState) -> List[Dict]:
     if not _require_login(state):
         return []
@@ -232,7 +220,6 @@ def fetch_cards(state: ClientState) -> List[Dict]:
         )
     return cards
 
-
 def _prompt_deck(card_ids: Set[str]) -> List[str]:
     while True:
         raw = input(f"Enter {CLIENT_DECK_SIZE} card IDs separated by space (or blank to cancel): ").strip()
@@ -250,7 +237,6 @@ def _prompt_deck(card_ids: Set[str]) -> List[str]:
             print(f"Unknown card IDs: {', '.join(missing)}")
             continue
         return tokens
-
 
 def cmd_submit_deck(state: ClientState) -> None:
     if not _require_login(state):
@@ -279,7 +265,6 @@ def cmd_submit_deck(state: ClientState) -> None:
     else:
         _print_error(resp, payload)
 
-
 def fetch_match_info(state: ClientState) -> Optional[Dict]:
     if not _require_login(state) or not state.match_id:
         return None
@@ -292,12 +277,10 @@ def fetch_match_info(state: ClientState) -> Optional[Dict]:
     _print_error(resp, payload)
     return None
 
-
 def show_match(state: ClientState) -> None:
     info = fetch_match_info(state)
     if info:
         print(_format_match_summary(info, state.user_id))
-
 
 def _can_play(round_payload: Dict, state: ClientState) -> bool:
     round_obj = round_payload.get("round") or {}
@@ -307,7 +290,6 @@ def _can_play(round_payload: Dict, state: ClientState) -> bool:
     if seat:
         return round_obj.get("player1_card_id") is None
     return round_obj.get("player2_card_id") is None
-
 
 def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
     """Poll /matches/<id>/round until the player can submit a move or the match ends."""
@@ -339,7 +321,6 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
     print("Timed out waiting for a playable round.")
     return None
 
-
 def _poll_round_resolution(state: ClientState) -> None:
     """After submitting a move, keep polling until the round advances or match ends."""
     start = time.time()
@@ -362,7 +343,6 @@ def _poll_round_resolution(state: ClientState) -> None:
                 return
         time.sleep(state.poll_interval)
     print("⏱️  Stopped waiting for round resolution.")
-
 
 def _prompt_move(deck: List[str], played: Set[str], category: Optional[str], cards: Dict[str, Dict]) -> Optional[str]:
     available = [c for c in deck if c not in played] if deck else None
@@ -397,7 +377,6 @@ def _prompt_move(deck: List[str], played: Set[str], category: Optional[str], car
         if card_info and category and category in card_info:
             print(f"{card_info['name']} has {category}={card_info[category]}")
         return choice
-
 
 def cmd_play_move(state: ClientState) -> None:
     if not _require_login(state):
@@ -447,7 +426,6 @@ def cmd_play_move(state: ClientState) -> None:
     else:
         _print_error(resp, payload)
 
-
 def cmd_poll_round(state: ClientState) -> None:
     round_payload = wait_for_round_slot(state)
     if round_payload:
@@ -457,7 +435,6 @@ def cmd_poll_round(state: ClientState) -> None:
         round_info = round_payload.get("round") or {}
         if round_info.get("player1_card_id") or round_info.get("player2_card_id"):
             print("Opponent may have played already; you can submit your move.")
-
 
 def _extract_played_cards(match: Dict, user_id: Optional[int]) -> Set[str]:
     if user_id is None:
@@ -470,7 +447,6 @@ def _extract_played_cards(match: Dict, user_id: Optional[int]) -> Set[str]:
         if card_id is not None:
             cards.add(str(card_id))
     return cards
-
 
 def _format_match_summary(match: Dict, user_id: Optional[int]) -> str:
     if not match:
@@ -502,7 +478,6 @@ def _format_match_summary(match: Dict, user_id: Optional[int]) -> str:
         verdict = f"Status: {status}"
     return f"Match #{match.get('id')}: {scores}. {verdict}"
 
-
 def _describe_move_result(payload: Dict, match: Optional[Dict], user_id: Optional[int]) -> str:
     status = payload.get("status")
     if status == "WAITING_FOR_OPPONENT":
@@ -529,7 +504,6 @@ def _describe_move_result(payload: Dict, match: Optional[Dict], user_id: Optiona
             result += " Match finished."
         return result + score_line
     return "Move submitted."
-
 
 def list_active_matches(state: ClientState) -> List[Dict]:
     if not _require_login(state):
@@ -579,7 +553,6 @@ def list_active_matches(state: ClientState) -> List[Dict]:
         print(f"[{idx}] id={match.get('id')} status={status} you={score_me} opp={score_opp} vs {opp_id}")
     return matches
 
-
 def cmd_rejoin(state: ClientState) -> None:
     matches = list_active_matches(state)
     if not matches:
@@ -610,15 +583,14 @@ def cmd_rejoin(state: ClientState) -> None:
             print(_format_match_summary(info, state.user_id))
         return
 
-
 COMMANDS = {
     "register": ("Register a new user", cmd_register),
-    "login": ("Login and store JWT", cmd_login),
+    "login": ("Login", cmd_login),
     "enqueue": ("Join the matchmaking queue", cmd_enqueue),
-    "poll-match": ("Poll /status until matched", lambda s: poll_matchmaking(s, blocking=True)),
+    "poll-match": ("Poll status until matched", lambda s: poll_matchmaking(s, blocking=True)),
     "rejoin": ("List ongoing matches and reattach to one", cmd_rejoin),
     "cards": ("List available cards", fetch_cards),
-    "deck": ("Choose and submit a 10-card deck", cmd_submit_deck),
+    "deck": ("Choose and submit a deck", cmd_submit_deck),
     "match": ("Show current match summary", show_match),
     "poll-round": ("Poll round status until you can move", cmd_poll_round),
     "move": ("Submit a move for the current round", cmd_play_move),
@@ -626,7 +598,6 @@ COMMANDS = {
     "exit": ("Exit the client", None),
     "quit": ("Exit the client", None),
 }
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CLI client for the card game services")
@@ -693,7 +664,6 @@ def main() -> None:
             func(state)
         else:
             func(state)
-
 
 if __name__ == "__main__":
     sys.exit(main())
