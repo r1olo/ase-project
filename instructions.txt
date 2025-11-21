@@ -1,6 +1,3 @@
-Card Game API – Manual Flow
-===========================
-
 All requests use JSON bodies and must include the access JWT in the HTTP header:
 Authorization: Bearer <access_token>
 Content-Type: application/json
@@ -10,7 +7,6 @@ Services are exposed either via the gateway (e.g., http://localhost:80) or direc
 1) Register (Auth)
 POST /register
 Body: {"email": "<email>", "password": "<password>"}
-Notes: Idempotent on duplicate email (409 on repeat).
 
 2) Login (Auth)
 POST /login
@@ -23,7 +19,7 @@ POST /enqueue
 Headers: Authorization bearer token
 Response:
  - 202 {"status": "Waiting", "queue_token": "<token>"} if queued
- - 200/201 matched payload with "match_id" if paired immediately
+ - 200 matched payload with "match_id" if paired immediately
 
 4) Poll matchmaking status until matched (Matchmaking)
 GET /status?[token=<queue_token>]
@@ -34,16 +30,17 @@ Response:
 
 Once matched, continue with the match_id below for both players.
 
-5) Submit deck (Game Engine)
-POST /matches/<match_id>/deck
-Headers: Authorization, Content-Type: application/json
-Body: {"data": [<card_id>, ...]}  // exactly the deck size required by the engine
-Outcome: When both players submit, match status transitions to IN_PROGRESS.
-
 Optional: list cards before choosing
 GET /cards  (Catalogue)
 Headers: Authorization
 Response: {"data": [ { "id": ..., "name": ..., "economy": ..., "environment": ..., "food": ..., "special": ..., "total": ...}, ... ]}
+
+5) Submit deck (Game Engine)
+POST /matches/<match_id>/deck
+Headers: Authorization, Content-Type: application/json
+Body: {"data": [<card_id>, ...]}  // exactly the deck size required by the engine
+
+When both players submit, match status transitions to IN_PROGRESS.
 
 6) Poll current round status (Game Engine)
 GET /matches/<match_id>/round
