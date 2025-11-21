@@ -22,6 +22,7 @@ DEFAULT_REQUEST_TIMEOUT = 10.0
 DEFAULT_POLL_INTERVAL = 2.0
 DEFAULT_POLL_TIMEOUT = 180.0
 CLIENT_DECK_SIZE = 5
+GAME_MAX_ROUNDS = 5
 
 @dataclass
 class ClientState:
@@ -297,6 +298,7 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
         return None
     start = time.time()
     last_status = None
+    last_round = None
     while time.time() - start < state.poll_timeout:
         resp, payload = _api_request(state, "get", f"/matches/{state.match_id}/round")
         if resp is None:
@@ -309,6 +311,9 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
             print("Match already finished.")
             return None
         if payload:
+            round_num = payload.get("current_round_number") or (payload.get("round") or {}).get("round_number")
+            if round_num is not None and round_num != last_round:
+                last_round = round_num
             status = payload.get("round_status")
             if status != last_status:
                 print(f"Round status: {status}")
@@ -317,11 +322,14 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
                 payload, state
             ):
                 return payload
+            if round_num is not None and round_num >= GAME_MAX_ROUNDS and match and match.get("status") == "FINISHED":
+                print(_format_match_summary(match, state.user_id))
+                return None
         time.sleep(state.poll_interval)
     print("Timed out waiting for a playable round.")
     return None
 
-def _poll_round_resolution(state: ClientState) -> None:
+def _poll_round_resolution(state: ClientState, start_round: Optional[int]) -> None:
     """After submitting a move, keep polling until the round advances or match ends."""
     start = time.time()
     last_status = None
@@ -334,6 +342,16 @@ def _poll_round_resolution(state: ClientState) -> None:
             print(_format_match_summary(match, state.user_id))
             return
         if payload:
+            round_num = payload.get("current_round_number") or (payload.get("round") or {}).get("round_number")
+            if round_num is not None and round_num != start_round:
+                print(f"➡️  Moving to round {round_num}.")
+                return
+            if round_num is not None and round_num >= GAME_MAX_ROUNDS:
+                if match:
+                    print(_format_match_summary(match, state.user_id))
+                else:
+                    print(f"Match should be finished at round {round_num}.")
+                return
             status = payload.get("round_status")
             if status != last_status and status:
                 print(f"Round status: {status}")
@@ -419,7 +437,7 @@ def cmd_play_move(state: ClientState) -> None:
         match_info = fetch_match_info(state)
         print(_describe_move_result(payload or {}, match_info, state.user_id))
         if payload and payload.get("status") == "WAITING_FOR_OPPONENT":
-            _poll_round_resolution(state)
+            _poll_round_resolution(state, round_number)
         if payload and payload.get("game_status") == "FINISHED":
             if match_info:
                 print(_format_match_summary(match_info, state.user_id))
