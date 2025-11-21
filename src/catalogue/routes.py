@@ -42,7 +42,7 @@ def validate_deck():
     # checks each card in the payload
     for card_id in payload.get("data", []):
         # case no card ID or card ID is not a number
-        if not card_id or not card_id.isdigit():
+        if not card_id or not isinstance(card_id, int) or not card_id.isdigit():
             return jsonify({"msg": "Empty deck"}), 400
         
         # case no match or match is wrong

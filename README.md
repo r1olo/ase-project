@@ -142,9 +142,10 @@ Key suites:
 
 - `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis.
 - `tests/test_catalogue.py` checks cards and card by id, and validates decks submitted by players.
+<!--
 - `tests/test_matchmaking.py` uses `fakeredis` to populate the lobby, ensures `_enqueue_atomic` pairs players fairly, and validates `/dequeue` when players leave or were already matched.
 - `tests/test_game_engine.py` covers the pure business logic in `game_engine/GameEngine`—score calculation, per-round winners, match finalization, and round advancement.
 - `tests/test_game_engine_api.py` drives the `/game/**` endpoints end-to-end by creating a match, monkeypatching the catalogue lookup, submitting decks/moves for both players, and confirming that the match history records every move until `FINISHED`.
-
+ -->
 
 ## Credits
