@@ -68,7 +68,7 @@ def choose_deck(match_id: int):
     Validates the deck.
     """
     payload = request.get_json(silent=True) or {}
-    player_id = str(get_jwt_identity())
+    player_id = int(get_jwt_identity())
     deck_cards = payload.get("deck")
 
     try:
@@ -85,7 +85,7 @@ def choose_deck(match_id: int):
 def submit_move(match_id: int):
     """Submit a move (a card) for the current round."""
     payload = request.get_json(silent=True) or {}
-    player_id = str(get_jwt_identity())
+    player_id = int(get_jwt_identity())
     card_id = payload.get("card_id")
     
     try:
