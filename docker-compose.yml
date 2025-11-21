@@ -4,7 +4,7 @@ services:
   nginx:
     build:
       context: .
-      dockerfile: nginx.Dockerfile
+      dockerfile: src/api_gateway/Dockerfile
     environment:
       AUTH_URL: http://auth:5000
       PLAYERS_URL: http://players:5000
