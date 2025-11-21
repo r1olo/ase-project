@@ -75,65 +75,66 @@ class MatchService:
 
 
     
-    def submit_move(self, match_id: int, player_id: int, card_id: str) -> Dict:
+    def submit_move(self, match_id: int, player_id: int, card_id: int, round_number: int) -> Dict:
         """
-        Submit a move and process round if both players have moved.
-        
-        Returns:
-            Dict with status and game state information
-            
-        Raises:
-            ValueError: If validation fails with error details
-            LookupError: If match not found
+        Submit a move for a specific round, ensuring that the round number matches
+        the currently active round.
         """
-        # Lock match to prevent race conditions
+        # Lock match for concurrency
         match = self.match_repo.find_by_id_with_lock(match_id)
         if not match:
             raise LookupError("Match not found")
-        
-        # Get or find current round
-        current_round = self.round_repo.find_current_incomplete_round(match_id)
-        
-        # Get all completed rounds for validation
+
+        # Determine what round is currently expected
+        expected_round = self.round_repo.find_current_incomplete_round(match_id)
+
+        if not expected_round:
+            raise ValueError("No active round available")
+
+        # Validate the round number matches the expected round
+        if expected_round.round_number != round_number:
+            raise ValueError(f"Move submitted for wrong round. Expected round {expected_round.round_number}, got {round_number}")
+
+        # Now fetch that round explicitly
+        current_round = expected_round
+
+        # Fetch completed rounds for validation
         all_rounds = self.round_repo.find_completed_rounds(match_id)
-        
+
         # Validate move
         is_valid, err = self.game_engine.validate_move_submission(
             player_id, card_id, match, current_round, all_rounds
         )
         if not is_valid:
             raise ValueError(err)
-        
-        # Record the move in the round
+
+        # Record move
         is_player1 = player_id == match.player1_id
         if is_player1:
             current_round.player1_card_id = card_id
         else:
             current_round.player2_card_id = card_id
-        
+
         current_app.logger.info(
-            f"Move submitted: Player {player_id} played {card_id} in round {current_round.round_number}"
+            f"Player {player_id} played card {card_id} in round {current_round.round_number}"
         )
-        
-        # Check if round should be processed
+
+        # Check if the round is now complete
         is_second_move = self.game_engine.should_process_round(current_round)
-        
+
         if not is_second_move:
-            # First move - wait for opponent
             db.session.commit()
-            current_app.logger.info(
-                f"First move of round {current_round.round_number} submitted, waiting for opponent."
-            )
             return {
                 "status": MoveSubmissionStatus.WAITING_FOR_OPPONENT.value,
                 "round": current_round.to_dict()
             }
-        
-        # Second move - process round
+
+        # Process completed round
         result = self._process_round(match, current_round)
         db.session.commit()
-        
+
         return result
+
     
     def get_match(self, match_id: int, include_rounds: bool = False) -> Match:
         """

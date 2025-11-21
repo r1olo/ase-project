@@ -130,9 +130,9 @@ class GameEngine:
             Tuple of (is_valid, error_dict with msg and code)
         """
         # Type validation
-        if not isinstance(player_id, int) or not isinstance(card_id, str):
+        if not isinstance(player_id, int) or not isinstance(card_id, int):
             return False, {
-                "msg": "player_id (int) and card_id (str) are required",
+                "msg": "player_id (int) and card_id (int) are required",
                 "code": ValidationError.INVALID_TYPES.value
             }
         

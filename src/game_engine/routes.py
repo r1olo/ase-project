@@ -80,16 +80,16 @@ def choose_deck(match_id: int):
 
 
 
-@game_engine.post("/matches/<int:match_id>/moves")
+@game_engine.post("/matches/<int:match_id>/moves/<int:round_number>")
 @jwt_required()
-def submit_move(match_id: int):
+def submit_move(match_id: int, round_number: int):
     """Submit a move (a card) for the current round."""
     payload = request.get_json(silent=True) or {}
     player_id = int(get_jwt_identity())
     card_id = payload.get("card_id")
     
     try:
-        result = match_service.submit_move(match_id, player_id, card_id)
+        result = match_service.submit_move(match_id, player_id, card_id, round_number)
         return jsonify(result), 200
     except Exception as e:
         db.session.rollback()
