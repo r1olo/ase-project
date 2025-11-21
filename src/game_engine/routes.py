@@ -170,7 +170,7 @@ def get_leaderboard():
 
 @game_engine.get("/players/<int:player_id>/history")
 @jwt_required()
-def get_player_history():
+def get_player_history(player_id: int):
     """
     Get match history for a specific player with all rounds.
     
@@ -182,7 +182,11 @@ def get_player_history():
     limit = min(int(request.args.get('limit', 20)), 100)
     offset = int(request.args.get('offset', 0))
     status_filter = request.args.get('status', '').upper()
-    player_id = int(get_jwt_identity())
+    requester_id = int(get_jwt_identity())
+    
+    # Ensure the requester is fetching their own history
+    if requester_id != player_id:
+        return jsonify({"msg": "Forbidden"}), 403
 
     try:
         from .models import MatchStatus

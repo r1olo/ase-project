@@ -22,11 +22,13 @@ DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:80")
 DEFAULT_REQUEST_TIMEOUT = 10.0
 DEFAULT_POLL_INTERVAL = 2.0
 DEFAULT_POLL_TIMEOUT = 180.0
+CLIENT_DECK_SIZE = 5
 
 
 @dataclass
 class ClientState:
     base_url: str
+    game_engine_url: Optional[str] = None
     request_timeout: float = DEFAULT_REQUEST_TIMEOUT
     poll_interval: float = DEFAULT_POLL_INTERVAL
     poll_timeout: float = DEFAULT_POLL_TIMEOUT
@@ -54,9 +56,10 @@ class ClientState:
         return None
 
 
-def _full_url(state: ClientState, path: str) -> str:
+def _full_url(state: ClientState, path: str, base_url: Optional[str] = None) -> str:
+    base = base_url or state.base_url
     cleaned = path if path.startswith("/") else f"/{path}"
-    return f"{state.base_url.rstrip('/')}{cleaned}"
+    return f"{base.rstrip('/')}{cleaned}"
 
 
 def _as_int(value):
@@ -72,6 +75,7 @@ def _api_request(
     path: str,
     *,
     use_auth: bool = True,
+    base_url: Optional[str] = None,
     **kwargs,
 ) -> Tuple[Optional[requests.Response], Optional[Dict]]:
     headers = kwargs.pop("headers", {})
@@ -80,7 +84,7 @@ def _api_request(
     try:
         resp = requests.request(
             method,
-            _full_url(state, path),
+            _full_url(state, path, base_url),
             headers=headers,
             timeout=state.request_timeout,
             **kwargs,
@@ -221,14 +225,14 @@ def fetch_cards(state: ClientState) -> List[Dict]:
 
 def _prompt_deck(card_ids: Set[str]) -> List[str]:
     while True:
-        raw = input("Enter 10 card IDs separated by space (or blank to cancel): ").strip()
+        raw = input(f"Enter {CLIENT_DECK_SIZE} card IDs separated by space (or blank to cancel): ").strip()
         if not raw:
             return []
         tokens = [part for part in raw.replace(",", " ").split() if part]
-        if len(tokens) != 10:
-            print("Deck must contain exactly 10 unique cards.")
+        if len(tokens) != CLIENT_DECK_SIZE:
+            print(f"Deck must contain exactly {CLIENT_DECK_SIZE} unique cards.")
             continue
-        if len(set(tokens)) != 10:
+        if len(set(tokens)) != CLIENT_DECK_SIZE:
             print("Cards must be unique.")
             continue
         missing = [c for c in tokens if c not in card_ids]
@@ -251,8 +255,9 @@ def cmd_submit_deck(state: ClientState) -> None:
     if not selection:
         print("Deck selection cancelled.")
         return
+    payload_deck = [_as_int(card_id) for card_id in selection]
     resp, payload = _api_request(
-        state, "post", f"/matches/{state.match_id}/deck", json={"data": selection}
+        state, "post", f"/matches/{state.match_id}/deck", json={"data": payload_deck}
     )
     if resp is None:
         return
@@ -325,18 +330,21 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
 
 
 def _prompt_move(deck: List[str], played: Set[str], category: Optional[str], cards: Dict[str, Dict]) -> Optional[str]:
-    available = [c for c in deck if c not in played]
-    if not available:
+    available = [c for c in deck if c not in played] if deck else None
+    if available is not None and not available:
         print("No cards left to play.")
         return None
     if category:
         print(f"Category this round: {category}")
-    print(f"Available cards: {' '.join(available)}")
+    if available is not None:
+        print(f"Available cards: {' '.join(available)}")
+    else:
+        print("Deck unknown locally; type the card ID you want to play.")
     while True:
         choice = input("Card to play (blank to cancel): ").strip()
         if not choice:
             return None
-        if choice not in available:
+        if available is not None and choice not in available:
             print("Choose a card from your remaining deck.")
             continue
         card_info = cards.get(choice)
@@ -351,9 +359,6 @@ def cmd_play_move(state: ClientState) -> None:
     if not state.match_id:
         print("No active match. Enqueue and poll first.")
         return
-    if len(state.deck) != 10:
-        print("Submit your deck before playing.")
-        return
     if not state.cards_cache:
         fetch_cards(state)
     round_payload = wait_for_round_slot(state)
@@ -364,8 +369,19 @@ def cmd_play_move(state: ClientState) -> None:
     if not card_id:
         print("Move cancelled.")
         return
+    round_number = _as_int(
+        round_payload.get("current_round_number")
+        or (round_payload.get("round") or {}).get("round_number")
+    )
+    if round_number is None:
+        print("Could not determine round number; try polling again.")
+        return
+    card_id_int = _as_int(card_id)
     resp, payload = _api_request(
-        state, "post", f"/matches/{state.match_id}/moves", json={"card_id": card_id}
+        state,
+        "post",
+        f"/matches/{state.match_id}/moves/{round_number}",
+        json={"card_id": card_id_int},
     )
     if resp is None:
         return
@@ -382,11 +398,103 @@ def cmd_poll_round(state: ClientState) -> None:
         print(round_payload)
 
 
+def _extract_played_cards(match: Dict, user_id: Optional[int]) -> Set[str]:
+    if user_id is None:
+        return set()
+    cards = set()
+    rounds = match.get("rounds") or []
+    is_p1 = match.get("player1_id") == user_id
+    for rnd in rounds:
+        card_id = rnd.get("player1_card_id") if is_p1 else rnd.get("player2_card_id")
+        if card_id is not None:
+            cards.add(str(card_id))
+    return cards
+
+
+def list_active_matches(state: ClientState) -> List[Dict]:
+    if not _require_login(state):
+        return []
+    if state.user_id is None:
+        print("User id not set; please login again.")
+        return []
+    params = {"status": "IN_PROGRESS", "limit": 20, "offset": 0}
+
+    def _try_fetch(base: Optional[str]) -> Tuple[Optional[requests.Response], Optional[Dict]]:
+        return _api_request(
+            state,
+            "get",
+            f"/players/{state.user_id}/history",
+            params=params,
+            base_url=base,
+        )
+
+    resp, payload = _try_fetch(None)
+    if resp is None or resp.status_code == 404:
+        # Gateway might not expose this route; hit game-engine directly if configured
+        if state.game_engine_url:
+            resp, payload = _try_fetch(state.game_engine_url)
+    if resp is None:
+        return []
+    if not (200 <= resp.status_code < 300):
+        _print_response(resp, payload)
+        return []
+    matches = payload.get("matches") or []
+    if not matches and params.get("status"):
+        # Try again without status filter as a fallback
+        params.pop("status", None)
+        resp, payload = _try_fetch(None)
+        if resp is None or (resp.status_code == 404 and state.game_engine_url):
+            resp, payload = _try_fetch(state.game_engine_url)
+        if resp and 200 <= resp.status_code < 300:
+            matches = payload.get("matches") or []
+    if not matches:
+        print("No ongoing matches found.")
+        return []
+    print("Ongoing matches:")
+    for idx, match in enumerate(matches, start=1):
+        opp_id = match.get("opponent_id")
+        status = match.get("status")
+        score_me = match.get("player_score")
+        score_opp = match.get("opponent_score")
+        print(f"[{idx}] id={match.get('id')} status={status} you={score_me} opp={score_opp} vs {opp_id}")
+    return matches
+
+
+def cmd_rejoin(state: ClientState) -> None:
+    matches = list_active_matches(state)
+    if not matches:
+        return
+    while True:
+        choice = input("Select match number or ID to rejoin (blank to cancel): ").strip()
+        if not choice:
+            return
+        selected = None
+        if choice.isdigit():
+            idx = int(choice)
+            if 1 <= idx <= len(matches):
+                selected = matches[idx - 1]
+        if selected is None:
+            for match in matches:
+                if str(match.get("id")) == choice:
+                    selected = match
+                    break
+        if not selected:
+            print("Invalid selection.")
+            continue
+        state.match_id = _as_int(selected.get("id"))
+        state.match_info = selected
+        state.played_cards = _extract_played_cards(selected, state.user_id)
+        fetch_match_info(state)
+        print(f"Rejoined match {state.match_id}.")
+        return
+
+
 COMMANDS = {
     "register": ("Register a new user", cmd_register),
     "login": ("Login and store JWT", cmd_login),
     "enqueue": ("Join the matchmaking queue", cmd_enqueue),
     "poll-match": ("Poll /status until matched", poll_matchmaking),
+    "rejoin": ("List ongoing matches and reattach to one", cmd_rejoin),
     "cards": ("List available cards", fetch_cards),
     "deck": ("Choose and submit a 10-card deck", cmd_submit_deck),
     "match": ("Show current match summary", show_match),
@@ -404,6 +512,11 @@ def main() -> None:
         "--base-url",
         default=DEFAULT_BASE_URL,
         help=f"Gateway base URL (default: {DEFAULT_BASE_URL})",
+    )
+    parser.add_argument(
+        "--engine-url",
+        default=os.getenv("GAME_ENGINE_URL"),
+        help="Direct Game Engine URL for routes not proxied by the gateway (optional)",
     )
     parser.add_argument(
         "--poll-interval",
@@ -427,6 +540,7 @@ def main() -> None:
 
     state = ClientState(
         base_url=args.base_url,
+        game_engine_url=args.engine_url,
         request_timeout=args.request_timeout,
         poll_interval=args.poll_interval,
         poll_timeout=args.poll_timeout,
