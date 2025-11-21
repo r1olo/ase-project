@@ -4,7 +4,7 @@ Game engine HTTP routes for the card game
 This blueprint handles all game logic through the service layer.
 """
 from flask import Blueprint, jsonify, request, current_app
-from werkzeug.exceptions import NotFound
+from flask_jwt_extended import get_jwt_identity, jwt_required
 
 from common.extensions import db
 from .services import MatchService
@@ -61,13 +61,14 @@ def create_match():
 
 
 @game_engine.post("/matches/<int:match_id>/deck")
+@jwt_required()
 def choose_deck(match_id: int):
     """
     Endpoint for a player to submit their chosen deck (subset of cards).
     Validates the deck.
     """
     payload = request.get_json(silent=True) or {}
-    player_id = payload.get("player_id")
+    player_id = str(get_jwt_identity())
     deck_cards = payload.get("deck")
 
     try:
@@ -80,10 +81,11 @@ def choose_deck(match_id: int):
 
 
 @game_engine.post("/matches/<int:match_id>/moves")
+@jwt_required()
 def submit_move(match_id: int):
     """Submit a move (a card) for the current round."""
     payload = request.get_json(silent=True) or {}
-    player_id = payload.get("player_id")
+    player_id = str(get_jwt_identity())
     card_id = payload.get("card_id")
     
     try:
@@ -95,9 +97,14 @@ def submit_move(match_id: int):
 
 
 @game_engine.get("/matches/<int:match_id>/round")
+@jwt_required()
 def get_current_round_status(match_id: int):
     """Get the status of the current round, including the active category."""
     try:
+        '''
+        TODO: View the match only if the player's id is part of it
+        by retrieving the identity from the JWT token.
+        '''
         result = match_service.get_current_round_status(match_id)
         current_app.logger.debug(f"Round status check for match {match_id}: {result['round_status']}")
         return jsonify(result), 200
@@ -106,9 +113,14 @@ def get_current_round_status(match_id: int):
 
 
 @game_engine.get("/matches/<int:match_id>")
+@jwt_required()
 def get_match(match_id: int):
     """Get the match info (without rounds)."""
     try:
+        '''
+        TODO: View the match only if the player's id is part of it
+        by retrieving the identity from the JWT token.
+        '''
         match = match_service.get_match(match_id, include_rounds=False)
         current_app.logger.debug(f"Fetching match {match_id} info")
         return jsonify(match.to_dict(include_rounds=False)), 200
@@ -117,12 +129,17 @@ def get_match(match_id: int):
 
 
 @game_engine.get("/matches/<int:match_id>/history")
+@jwt_required()
 def get_match_with_history(match_id: int):
     """
     Get the match info with all rounds.
     Uses eager loading to avoid N+1 queries.
     """
     try:
+        '''
+        TODO: View the match only if the player's id is part of it
+        by retrieving the identity from the JWT token.
+        '''
         match = match_service.get_match(match_id, include_rounds=True)
         current_app.logger.debug(f"Fetching match {match_id} history with {len(match.rounds)} rounds")
         return jsonify(match.to_dict(include_rounds=True)), 200
@@ -131,6 +148,7 @@ def get_match_with_history(match_id: int):
 
 
 @game_engine.get("/leaderboard")
+@jwt_required()
 def get_leaderboard():
     """
     Get the global leaderboard based on match wins.
@@ -151,7 +169,8 @@ def get_leaderboard():
 
 
 @game_engine.get("/players/<int:player_id>/history")
-def get_player_history(player_id: int):
+@jwt_required()
+def get_player_history():
     """
     Get match history for a specific player with all rounds.
     
@@ -163,7 +182,8 @@ def get_player_history(player_id: int):
     limit = min(int(request.args.get('limit', 20)), 100)
     offset = int(request.args.get('offset', 0))
     status_filter = request.args.get('status', '').upper()
-    
+    player_id = int(get_jwt_identity())
+
     try:
         from .models import MatchStatus
         
