@@ -1,0 +1,80 @@
+Card Game API – Manual Flow
+===========================
+
+All requests use JSON bodies and must include the access JWT in the HTTP header:
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+Services are exposed either via the gateway (e.g., http://localhost:80) or directly to each microservice (auth, matchmaking, catalogue, game-engine). Replace base URLs as needed.
+
+1) Register (Auth)
+POST /register
+Body: {"email": "<email>", "password": "<password>"}
+Notes: Idempotent on duplicate email (409 on repeat).
+
+2) Login (Auth)
+POST /login
+Body: {"email": "<email>", "password": "<password>"}
+Response: {"access_token": "...", "user_id": <int>}
+Use access_token for all subsequent calls.
+
+3) Enqueue for matchmaking (Matchmaking)
+POST /enqueue
+Headers: Authorization bearer token
+Response:
+ - 202 {"status": "Waiting", "queue_token": "<token>"} if queued
+ - 200/201 matched payload with "match_id" if paired immediately
+
+4) Poll matchmaking status until matched (Matchmaking)
+GET /status?[token=<queue_token>]
+Headers: Authorization
+Response:
+ - {"status": "Waiting", "queue_token": "...", "in_queue": true}
+ - {"status": "Matched", "match_id": <int>, "opponent_id": "<id>"} when paired
+
+Once matched, continue with the match_id below for both players.
+
+5) Submit deck (Game Engine)
+POST /matches/<match_id>/deck
+Headers: Authorization, Content-Type: application/json
+Body: {"data": [<card_id>, ...]}  // exactly the deck size required by the engine
+Outcome: When both players submit, match status transitions to IN_PROGRESS.
+
+Optional: list cards before choosing
+GET /cards  (Catalogue)
+Headers: Authorization
+Response: {"data": [ { "id": ..., "name": ..., "economy": ..., "environment": ..., "food": ..., "special": ..., "total": ...}, ... ]}
+
+6) Poll current round status (Game Engine)
+GET /matches/<match_id>/round
+Headers: Authorization
+Response includes:
+ - current_round_number
+ - current_category
+ - round_status (WAITING_FOR_BOTH_PLAYERS | WAITING_FOR_ONE_PLAYER | ROUND_COMPLETE)
+ - round { round_number, player1_card_id, player2_card_id, winner_id, ... }
+Use this to know when you can play or when a round has resolved.
+
+7) Submit a move for the active round (Game Engine)
+POST /matches/<match_id>/moves/<round_number>
+Headers: Authorization, Content-Type: application/json
+Body: {"card_id": <card_id>}  // an unused card from your submitted deck for this match
+Responses:
+ - { "status": "WAITING_FOR_OPPONENT", "round": {...} } if you played first
+ - { "status": "ROUND_PROCESSED", "round_winner_id": ..., "is_draw": ..., "scores": {<p1_id>: score, <p2_id>: score}, "next_round": <n>|null, "game_status": "IN_PROGRESS"|"FINISHED" } if both moves are in
+
+Repeat steps 6–7 each round until the match finishes.
+
+8) Check match status / winner (Game Engine)
+GET /matches/<match_id>
+Headers: Authorization
+Response: { "status": "SETUP"|"IN_PROGRESS"|"FINISHED", "winner_id": <id|null>, "player1_score": ..., "player2_score": ... }
+
+Optionally fetch full history:
+GET /matches/<match_id>/history
+Headers: Authorization
+Response includes all rounds with cards and winners.
+
+Notes
+- Always include Authorization: Bearer <access_token> and Content-Type: application/json on POSTs.
+- Use /status and /matches/<match_id>/round for polling; they are safe to call repeatedly while waiting.
