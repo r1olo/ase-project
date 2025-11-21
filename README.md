@@ -82,6 +82,9 @@ The game is played between two players.
 The card game is implemented as a collection of Flask microservices, which are barely coupled with each other only for the minimum interactions.
 All microservices live under their own modules, each one of which has its own `Dockerfile`, while `docker-compose.yml` provisions per-service PostgreSQL databases plus Redis instances for the components that need ephemeral state (such as the matchmaking queue).
 The `src/common` package contains shared functionality needed by the modules, including a custom-made Flask extension (`RedisManager`) and a generic app factory function.
+
+<img src="https://github.com/r1olo/ase-project/blob/master/architecture.png?raw=true" alt="Architecture" width="500"/>
+
 The main components are:
 
 - **API Gateway (`src/api_gateway`)** &ndash; the main application entrypoint, which exposes all the RESTful API methods as specified in `spec.yaml`. It reads internal components' upstream URLs from `Config.SERVICE_DEFAULTS`. Requests are routed to the appropriate service based on the path prefix.
