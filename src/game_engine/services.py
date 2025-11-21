@@ -44,40 +44,26 @@ class MatchService:
         current_app.logger.info(f"Match {match.id} created between players {player1_id} and {player2_id}")
         return match
     
-    def submit_deck(self, match_id: int, player_id: int, deck_cards: List[dict]) -> Match:
-        """
-        Submit a full deck and 
-        validate through catalogue.
-
-        Returns:
-            Updated Match object
-
-        Raises:
-            ValueError: If validation fails with error details
-            LookupError: If match not found
-        """
-        
+    def submit_deck(self, match_id: int, player_id: int, deck_card_ids: List[str]) -> Match:
         match = self.match_repo.find_by_id(match_id)
         if not match:
             raise LookupError("Match not found")
 
-        # Validate business rules
+        # Validate business rules (still checks duplicates, size, etc.)
         is_valid, error_msg = self.game_engine.validate_deck_submission(
-            deck_cards, player_id, match
+            deck_card_ids, player_id, match
         )
         if not is_valid:
             raise ValueError(error_msg)
 
-        # Validate against catalogue
-        validated_deck = self._fetch_card_stats(deck_cards)
+        # Fetch card stats instead of validating input
+        validated_deck = self._fetch_card_stats_from_ids(deck_card_ids)
 
         # Store deck
         if player_id == match.player1_id:
             match.player1_deck = validated_deck
-            current_app.logger.info(f"Player 1 (ID {player_id}) submitted deck.")
         else:
             match.player2_deck = validated_deck
-            current_app.logger.info(f"Player 2 (ID {player_id}) submitted deck.")
 
         # Start match if both submitted
         if self.game_engine.should_start_match(match):
@@ -86,6 +72,7 @@ class MatchService:
 
         db.session.commit()
         return match
+
 
     
     def submit_move(self, match_id: int, player_id: int, card_id: str) -> Dict:
@@ -327,19 +314,20 @@ class MatchService:
         }
     
     @staticmethod
-    def _fetch_card_stats(deck_cards: List[dict]) -> Dict:
+    def _fetch_card_stats_from_ids(card_ids: List[str]) -> Dict:
         """
-        Validates full card objects with the catalogue service.
-        Return cards unchanged, indexed by ID.
+        Fetch full card objects using only their IDs.
+        Calls catalogue service endpoint: /catalogue/get_deck
+        Returns dict keyed by card_id.
         """
         base_url = current_app.config.get("CATALOGUE_URL", "http://catalogue:5000").rstrip("/")
         timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
 
-        payload = { "data": deck_cards }
+        payload = {"deck": card_ids}
 
         try:
-            response = requests.get(
-                f"{base_url}/cards/validation",
+            response = requests.post(
+                f"{base_url}/catalogue/get_deck",
                 json=payload,
                 timeout=timeout
             )
@@ -348,11 +336,12 @@ class MatchService:
             raise RuntimeError("Unable to reach catalogue service") from exc
 
         if response.status_code != 200:
-            raise RuntimeError(f"Catalogue validation failed ({response.status_code})")
+            raise RuntimeError(f"Catalogue service returned HTTP {response.status_code}")
 
-        body = response.json()
-        if not body.get("data"):
-            raise ValueError("Deck rejected by catalogue service (invalid cards)")
+        data = response.json().get("data")
+        if not data or not isinstance(data, list):
+            raise ValueError("Catalogue service returned invalid deck data")
 
-        # return deck as dict indexed by id
-        return {str(card["id"]): card for card in deck_cards}
+        # Convert to dict: { card_id: card_data }
+        return {str(card["id"]): card for card in data}
+

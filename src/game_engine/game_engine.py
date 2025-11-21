@@ -68,7 +68,8 @@ class GameEngine:
         return True, None
     
     @staticmethod
-    def validate_deck_submission(deck_card_ids: Any, player_id: Any, match: Match) -> Tuple[bool, Optional[str]]:
+    def validate_deck_submission(deck_card_ids: List[str], player_id: int, match: Match) -> Tuple[bool, Optional[str]]:
+
         """
         Validate a deck submission with all business rules.
         
