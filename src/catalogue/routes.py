@@ -34,7 +34,7 @@ def get_single_card(card_id: int):
     # convert to json
     return jsonify(card.to_json(relative=True))
 
-@catalogue.route("/internal/cards/validation", methods=["GET"])
+@catalogue.route("/internal/cards/validation", methods=["POST"])
 def validate_deck():
     payload = request.get_json(silent=True) or {}
     cards = []
