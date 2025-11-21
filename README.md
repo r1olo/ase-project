@@ -83,7 +83,7 @@ The card game is implemented as a collection of Flask microservices, which are b
 All microservices live under their own modules, each one of which has its own `Dockerfile`, while `docker-compose.yml` provisions per-service PostgreSQL databases plus Redis instances for the components that need ephemeral state (such as the matchmaking queue).
 The `src/common` package contains shared functionality needed by the modules, including a custom-made Flask extension (`RedisManager`) and a generic app factory function.
 
-<img src="https://github.com/r1olo/ase-project/blob/master/architecture.png" alt="Architecture" width="500"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/architecture.png?raw=true" alt="Architecture" width="500"/>
 
 The main components are:
 
