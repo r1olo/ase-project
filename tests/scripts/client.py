@@ -5,7 +5,7 @@ CLI helper for playing the card game against the running services.
 The script walks through:
 - Registering and logging in to obtain a JWT
 - Enqueuing for matchmaking and polling /status until a match is found
-- Browsing the catalogue and submitting a 10-card deck
+- Browsing the catalogue and submitting a deck
 - Polling the current round and submitting moves
 """
 import argparse
@@ -100,13 +100,14 @@ def _api_request(
     return resp, payload
 
 
-def _print_response(resp: requests.Response, payload: Optional[Dict]) -> None:
+def _print_error(resp: Optional[requests.Response], payload: Optional[Dict]) -> None:
     status = resp.status_code if resp else "?"
-    if payload is None:
-        body = resp.text if resp else ""
-    else:
-        body = payload
-    print(f"[server] HTTP {status}: {body}")
+    msg = ""
+    if payload and isinstance(payload, dict):
+        msg = payload.get("msg") or payload.get("error") or str(payload)
+    elif resp is not None:
+        msg = resp.text
+    print(f"[error] ({status}) {msg}")
 
 
 def _require_login(state: ClientState) -> bool:
@@ -129,8 +130,9 @@ def cmd_register(state: ClientState) -> None:
     if resp is None:
         return
     if 200 <= resp.status_code < 300:
-        print("Registered.")
-    _print_response(resp, payload)
+        print("✅ Registered successfully.")
+    else:
+        _print_error(resp, payload)
 
 
 def cmd_login(state: ClientState) -> None:
@@ -148,8 +150,9 @@ def cmd_login(state: ClientState) -> None:
             state.user_id = int(user_id_raw)
         except (TypeError, ValueError):
             state.user_id = None
-        print(f"Logged in as user {state.user_id}.")
-    _print_response(resp, payload)
+        print(f"🔑 Logged in as user {state.user_id}.")
+    else:
+        _print_error(resp, payload)
 
 
 def cmd_enqueue(state: ClientState) -> None:
@@ -165,42 +168,49 @@ def cmd_enqueue(state: ClientState) -> None:
         if match_id is not None:
             state.match_id = _as_int(match_id)
             state.match_info = payload
-            print(f"Matched immediately with match_id={state.match_id}.")
-    elif resp.status_code == 202:
-        print("Enqueued; waiting for a match.")
-    _print_response(resp, payload)
+            print(f"🎲 Matched immediately! Match #{state.match_id}.")
+            fetch_match_info(state)
+            return
+    print("⏳ Joined queue, waiting for an opponent...")
+    poll_matchmaking(state, blocking=True)
 
 
-def poll_matchmaking(state: ClientState) -> None:
+def poll_matchmaking(state: ClientState, blocking: bool = False) -> None:
     if not _require_login(state):
         return
-    print("Polling /status for a match...")
+    print("🔍 Looking for an opponent...", end="", flush=True)
     start = time.time()
     last_status = None
-    while time.time() - start < state.poll_timeout:
+    waiting_msgs = ["", ".", "..", "..."]
+    dots = 0
+    while True:
         params = {"token": state.queue_token} if state.queue_token else None
         resp, payload = _api_request(state, "get", "/status", params=params)
         if resp is None:
             return
         if resp.status_code == 404:
-            print("Not queued anymore.")
+            print("\n⚠️  You are no longer in the queue.")
             return
         if payload:
             status = payload.get("status")
-            if status != last_status:
-                print(f"Queue status: {status}")
+            if status != last_status and status:
+                print(f"\nQueue status: {status}")
                 last_status = status
             if status == "Matched":
                 state.match_id = _as_int(payload.get("match_id"))
                 if payload.get("queue_token"):
                     state.queue_token = payload["queue_token"]
-                print(
-                    f"Match found! match_id={state.match_id}, opponent_id={payload.get('opponent_id')}"
-                )
-                fetch_match_info(state)
+                print(f"\n🎯 Match found! Match #{state.match_id} vs {payload.get('opponent_id')}")
+                info = fetch_match_info(state)
+                if info:
+                    print(_format_match_summary(info, state.user_id))
                 return
+        if not blocking and time.time() - start >= state.poll_timeout:
+            print("\n⏱️  Stopped polling; try again soon.")
+            return
+        dots = (dots + 1) % len(waiting_msgs)
+        print(f"\r🔍 Looking for an opponent{waiting_msgs[dots]}", end="", flush=True)
         time.sleep(state.poll_interval)
-    print("Timed out waiting for a match.")
 
 
 def fetch_cards(state: ClientState) -> List[Dict]:
@@ -210,7 +220,7 @@ def fetch_cards(state: ClientState) -> List[Dict]:
     if resp is None:
         return []
     if not (200 <= resp.status_code < 300):
-        _print_response(resp, payload)
+        _print_error(resp, payload)
         return []
     cards = payload.get("data") if payload else []
     state.cards_cache = {str(card["id"]): card for card in cards}
@@ -265,8 +275,9 @@ def cmd_submit_deck(state: ClientState) -> None:
         state.deck = selection
         state.played_cards.clear()
         fetch_match_info(state)
-        print("Deck submitted.")
-    _print_response(resp, payload)
+        print(f"🃏 Deck submitted with {len(selection)} cards.")
+    else:
+        _print_error(resp, payload)
 
 
 def fetch_match_info(state: ClientState) -> Optional[Dict]:
@@ -278,14 +289,14 @@ def fetch_match_info(state: ClientState) -> Optional[Dict]:
     if 200 <= resp.status_code < 300 and payload:
         state.match_info = payload
         return payload
-    _print_response(resp, payload)
+    _print_error(resp, payload)
     return None
 
 
 def show_match(state: ClientState) -> None:
     info = fetch_match_info(state)
     if info:
-        print(info)
+        print(_format_match_summary(info, state.user_id))
 
 
 def _can_play(round_payload: Dict, state: ClientState) -> bool:
@@ -329,6 +340,30 @@ def wait_for_round_slot(state: ClientState) -> Optional[Dict]:
     return None
 
 
+def _poll_round_resolution(state: ClientState) -> None:
+    """After submitting a move, keep polling until the round advances or match ends."""
+    start = time.time()
+    last_status = None
+    while time.time() - start < state.poll_timeout:
+        resp, payload = _api_request(state, "get", f"/matches/{state.match_id}/round")
+        if resp is None:
+            return
+        match = fetch_match_info(state)
+        if match and match.get("status") == "FINISHED":
+            print(_format_match_summary(match, state.user_id))
+            return
+        if payload:
+            status = payload.get("round_status")
+            if status != last_status and status:
+                print(f"Round status: {status}")
+                last_status = status
+            if status == "ROUND_COMPLETE":
+                print("✅ Round resolved. Check scores above.")
+                return
+        time.sleep(state.poll_interval)
+    print("⏱️  Stopped waiting for round resolution.")
+
+
 def _prompt_move(deck: List[str], played: Set[str], category: Optional[str], cards: Dict[str, Dict]) -> Optional[str]:
     available = [c for c in deck if c not in played] if deck else None
     if available is not None and not available:
@@ -337,7 +372,18 @@ def _prompt_move(deck: List[str], played: Set[str], category: Optional[str], car
     if category:
         print(f"Category this round: {category}")
     if available is not None:
-        print(f"Available cards: {' '.join(available)}")
+        print("Available cards:")
+        for cid in available:
+            card_info = cards.get(cid) or cards.get(str(cid))
+            if card_info:
+                print(
+                    f"- {cid}: {card_info.get('name', '')} "
+                    f"(E:{card_info.get('economy')} Env:{card_info.get('environment')} "
+                    f"Food:{card_info.get('food')} Spec:{card_info.get('special')} "
+                    f"Tot:{card_info.get('total')})"
+                )
+            else:
+                print(f"- {cid}")
     else:
         print("Deck unknown locally; type the card ID you want to play.")
     while True:
@@ -358,6 +404,10 @@ def cmd_play_move(state: ClientState) -> None:
         return
     if not state.match_id:
         print("No active match. Enqueue and poll first.")
+        return
+    match_info = fetch_match_info(state)
+    if match_info and match_info.get("status") == "SETUP":
+        print("⚠️  Match is still in SETUP. Submit your deck before playing.")
         return
     if not state.cards_cache:
         fetch_cards(state)
@@ -387,15 +437,26 @@ def cmd_play_move(state: ClientState) -> None:
         return
     if resp.status_code == 200:
         state.played_cards.add(card_id)
-    _print_response(resp, payload)
-    if payload and payload.get("game_status") == "FINISHED":
-        fetch_match_info(state)
+        match_info = fetch_match_info(state)
+        print(_describe_move_result(payload or {}, match_info, state.user_id))
+        if payload and payload.get("status") == "WAITING_FOR_OPPONENT":
+            _poll_round_resolution(state)
+        if payload and payload.get("game_status") == "FINISHED":
+            if match_info:
+                print(_format_match_summary(match_info, state.user_id))
+    else:
+        _print_error(resp, payload)
 
 
 def cmd_poll_round(state: ClientState) -> None:
     round_payload = wait_for_round_slot(state)
     if round_payload:
-        print(round_payload)
+        category = round_payload.get("current_category")
+        round_num = round_payload.get("current_round_number")
+        print(f"Round {round_num} | Category: {category}")
+        round_info = round_payload.get("round") or {}
+        if round_info.get("player1_card_id") or round_info.get("player2_card_id"):
+            print("Opponent may have played already; you can submit your move.")
 
 
 def _extract_played_cards(match: Dict, user_id: Optional[int]) -> Set[str]:
@@ -409,6 +470,65 @@ def _extract_played_cards(match: Dict, user_id: Optional[int]) -> Set[str]:
         if card_id is not None:
             cards.add(str(card_id))
     return cards
+
+
+def _format_match_summary(match: Dict, user_id: Optional[int]) -> str:
+    if not match:
+        return "No match info."
+    p1 = match.get("player1_id")
+    p2 = match.get("player2_id")
+    me = user_id
+    status = match.get("status")
+    p1_score = match.get("player1_score")
+    p2_score = match.get("player2_score")
+    if me is not None:
+        if p1 == me:
+            scores = f"You {p1_score} - {p2_score} Opponent({p2})"
+        elif p2 == me:
+            scores = f"You {p2_score} - {p1_score} Opponent({p1})"
+        else:
+            scores = f"P1 {p1_score} - {p2_score} P2"
+    else:
+        scores = f"P1 {p1_score} - {p2_score} P2"
+    winner = match.get("winner_id")
+    if status == "FINISHED":
+        if winner is None:
+            verdict = "It was a tie."
+        elif winner == me:
+            verdict = "You won! 🎉"
+        else:
+            verdict = f"Opponent {winner} won."
+    else:
+        verdict = f"Status: {status}"
+    return f"Match #{match.get('id')}: {scores}. {verdict}"
+
+
+def _describe_move_result(payload: Dict, match: Optional[Dict], user_id: Optional[int]) -> str:
+    status = payload.get("status")
+    if status == "WAITING_FOR_OPPONENT":
+        return "Move submitted. Waiting for the opponent..."
+    if status == "ROUND_PROCESSED":
+        winner = payload.get("round_winner_id")
+        is_draw = payload.get("is_draw")
+        if is_draw:
+            result = "Round ended in a tie."
+        elif user_id is not None and winner == user_id:
+            result = "You won this round! ✅"
+        elif winner is None:
+            result = "Round complete."
+        else:
+            result = f"Opponent {winner} won the round."
+        scores = payload.get("scores") or {}
+        score_line = ""
+        if match and scores:
+            p1 = match.get("player1_id")
+            p2 = match.get("player2_id")
+            score_line = f" | {p1}:{scores.get(p1)} {p2}:{scores.get(p2)}"
+        game_status = payload.get("game_status")
+        if game_status == "FINISHED":
+            result += " Match finished."
+        return result + score_line
+    return "Move submitted."
 
 
 def list_active_matches(state: ClientState) -> List[Dict]:
@@ -436,7 +556,7 @@ def list_active_matches(state: ClientState) -> List[Dict]:
     if resp is None:
         return []
     if not (200 <= resp.status_code < 300):
-        _print_response(resp, payload)
+        _print_error(resp, payload)
         return []
     matches = payload.get("matches") or []
     if not matches and params.get("status"):
@@ -484,8 +604,10 @@ def cmd_rejoin(state: ClientState) -> None:
         state.match_id = _as_int(selected.get("id"))
         state.match_info = selected
         state.played_cards = _extract_played_cards(selected, state.user_id)
-        fetch_match_info(state)
+        info = fetch_match_info(state)
         print(f"Rejoined match {state.match_id}.")
+        if info:
+            print(_format_match_summary(info, state.user_id))
         return
 
 
@@ -493,7 +615,7 @@ COMMANDS = {
     "register": ("Register a new user", cmd_register),
     "login": ("Login and store JWT", cmd_login),
     "enqueue": ("Join the matchmaking queue", cmd_enqueue),
-    "poll-match": ("Poll /status until matched", poll_matchmaking),
+    "poll-match": ("Poll /status until matched", lambda s: poll_matchmaking(s, blocking=True)),
     "rejoin": ("List ongoing matches and reattach to one", cmd_rejoin),
     "cards": ("List available cards", fetch_cards),
     "deck": ("Choose and submit a 10-card deck", cmd_submit_deck),
