@@ -69,7 +69,7 @@ def choose_deck(match_id: int):
     """
     payload = request.get_json(silent=True) or {}
     player_id = int(get_jwt_identity())
-    deck_cards = payload.get("deck")
+    deck_cards = payload.get("data")
 
     try:
         match = match_service.submit_deck(match_id, player_id, deck_cards)

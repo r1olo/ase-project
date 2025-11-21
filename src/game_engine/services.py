@@ -323,11 +323,11 @@ class MatchService:
         base_url = current_app.config.get("CATALOGUE_URL", "http://catalogue:5000").rstrip("/")
         timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
 
-        payload = {"deck": card_ids}
+        payload = {"data": card_ids}
 
         try:
             response = requests.post(
-                f"{base_url}/cards/validation",
+                f"{base_url}/internal/cards/validation",
                 json=payload,
                 timeout=timeout
             )
