@@ -327,7 +327,7 @@ class MatchService:
 
         try:
             response = requests.post(
-                f"{base_url}/catalogue/get_deck",
+                f"{base_url}/cards/validation",
                 json=payload,
                 timeout=timeout
             )
