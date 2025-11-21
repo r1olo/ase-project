@@ -31,8 +31,10 @@ services:
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
       AUTH_PRIVATE_KEY: /run/secrets/jwt_private_key
     depends_on:
-      - auth-db
-      - auth-redis
+      auth-db:
+        condition: service_healthy
+      auth-redis:
+        condition: service_started
     expose:
       - "5000"
     secrets:
@@ -47,6 +49,11 @@ services:
       POSTGRES_PASSWORD: auth_password
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   auth-redis:
     image: redis:7-alpine
@@ -62,7 +69,8 @@ services:
       CATALOGUE_DATABASE_URL: postgresql+psycopg://catalogue_user:catalogue_password@catalogue-db:5432/catalogue_db
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
-      - catalogue-db
+      catalogue-db:
+        condition: service_healthy
     expose:
       - "5000"
     secrets:
@@ -76,6 +84,11 @@ services:
       POSTGRES_PASSWORD: catalogue_password
     volumes:
       - catalogue-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalogue_user -d catalogue_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   players:
     build:
@@ -85,7 +98,8 @@ services:
       PLAYERS_DATABASE_URL: postgresql+psycopg://players_user:players_password@players-db:5432/players_db
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
-      - players-db
+      players-db:
+        condition: service_healthy
     expose:
       - "5000"
     secrets:
@@ -99,6 +113,11 @@ services:
       POSTGRES_PASSWORD: players_password
     volumes:
       - players-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U players_user -d players_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   game-engine:
     build:
@@ -109,7 +128,8 @@ services:
       GAME_ENGINE_DATABASE_URL: postgresql+psycopg://engine_user:engine_password@game-engine-db:5432/game_engine_db
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
-      - game-engine-db
+      game-engine-db:
+        condition: service_healthy
     expose:
       - "5000"
     secrets:
@@ -123,6 +143,11 @@ services:
       POSTGRES_PASSWORD: engine_password
     volumes:
       - game-engine-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engine_user -d game_engine_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   matchmaking:
     build:
@@ -135,8 +160,10 @@ services:
       MATCHMAKING_MAX_QUEUE_SIZE: 500
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
-      - matchmaking-redis
-      - game-engine
+      matchmaking-redis:
+        condition: service_started
+      game-engine:
+        condition: service_started
     expose:
       - "5000"
     secrets:
