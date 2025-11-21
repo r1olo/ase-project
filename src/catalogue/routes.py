@@ -45,7 +45,7 @@ def validate_deck():
             return jsonify({"msg": "Empty deck"}), 400
         
         # case no match or match is wrong
-        card = Card.query.filter_by(id=card_id.get("id") or "").first()
+        card = Card.query.filter_by(id=card_id).first()
         if not card:
             return jsonify({"msg": "Invalid deck"}), 400
         cards.append(card.to_json(relative=True))
