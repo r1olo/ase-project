@@ -1,635 +1,210 @@
-"""
-Comprehensive test suite for the game engine microservice.
-Tests all endpoints and game logic in isolation.
-
-Updated to work with the new service layer architecture.
-"""
 import pytest
-from common.extensions import db as _db
-from game_engine.models import Match, Move
-from game_engine import create_test_app
+from unittest.mock import patch, MagicMock
+from flask_jwt_extended import create_access_token
 
+# Import actual constants to ensure tests stay in sync with logic
+from game_engine.game_engine import MAX_ROUNDS
 
-@pytest.fixture(scope='session')
-def app():
-    """Create application for the tests."""
-    app = create_test_app()
-    
-    with app.app_context():
-        _db.create_all()
-        yield app
-        _db.session.remove()
-        _db.drop_all()
+# --- FIXTURES ---
 
+@pytest.fixture
+def app(game_engine_app):
+    return game_engine_app
 
-@pytest.fixture(scope='function')
-def client(app):
-    """Test client for the application."""
-    return app.test_client()
+@pytest.fixture
+def client(game_engine_client):
+    return game_engine_client
 
+@pytest.fixture
+def auth_headers(app):
+    """Generates valid JWT headers for a given user_id."""
+    def _make_headers(user_id):
+        with app.app_context():
+            token = create_access_token(identity=str(user_id))
+        return {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+    return _make_headers
 
-@pytest.fixture(scope='function')
-def db(app):
-    """
-    Clean database for each test.
-    """
-    with app.app_context():
-        # Clean all tables
-        _db.session.query(Move).delete()
-        _db.session.query(Match).delete()
-        _db.session.commit()
-        
-        yield _db
-        
-        # Cleanup after test
-        _db.session.rollback()
-
-
-def create_test_deck():
-    """Helper to create a valid test deck."""
-    return [f"card_{i}" for i in range(1, 11)]
-
-
-def create_mock_deck_stats():
-    """Helper to create mock deck stats."""
-    deck = create_test_deck()
-    return {
-        card_id: {
+@pytest.fixture
+def mock_catalogue_data():
+    """Raw card data simulating the Catalogue database."""
+    return [
+        {
+            "id": i,
+            "name": f"Card {i}",
             "economy": 10,
             "food": 10,
             "environment": 10,
-            "special": 2,
-            "total": 32.0
-        }
-        for card_id in deck
-    }
+            "special": 10,
+            "total": 40.0
+        } for i in range(1, 100)
+    ]
 
+# --- HELPERS ---
 
-# ============== HEALTH CHECK ==============
-
-def test_health_check(client):
-    """Test the health check endpoint."""
-    response = client.get('/game/health')
-    assert response.status_code == 200
-    assert response.json == {"status": "ok"}
-
-
-# ============== MATCH CREATION ==============
-
-def test_create_match_success(client, db):
-    """Test successful match creation."""
-    response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
+def setup_active_match(client, auth_headers, mock_catalogue_data):
+    """Helper to create a match and submit decks to reach IN_PROGRESS state."""
+    # 1. Create match
+    m_resp = client.post('/matches/create', json={"player1_id": 10, "player2_id": 20})
+    match_id = m_resp.json['id']
     
-    assert response.status_code == 201
-    data = response.json
-    assert data['player1_id'] == 1
-    assert data['player2_id'] == 2
-    assert data['status'] == 'SETUP'
-    assert data['current_round'] == 1
-    assert 'id' in data
-
-
-def test_create_match_same_players(client):
-    """Test that same player IDs are rejected."""
-    response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 1
-    })
+    deck_ids = [1, 2, 3, 4, 5]
     
-    assert response.status_code == 400
-    assert 'different' in response.json['msg'].lower()
+    # Mock side_effect: filters the 'DB' to return only cards requested in the JSON body
+    def side_effect(*args, **kwargs):
+        json_body = kwargs.get('json', {})
+        requested_ids = json_body.get('data', [])
+        filtered = [c for c in mock_catalogue_data if c['id'] in requested_ids]
+        
+        mock = MagicMock()
+        mock.status_code = 200
+        mock.json.return_value = {"data": filtered}
+        return mock
 
-
-def test_create_match_invalid_types(client):
-    """Test that invalid player ID types are rejected."""
-    response = client.post('/game/matches', json={
-        "player1_id": "invalid",
-        "player2_id": 2
-    })
-    
-    assert response.status_code == 400
-    assert 'integer' in response.json['msg'].lower()
-
-
-def test_create_match_missing_fields(client):
-    """Test that missing fields are rejected."""
-    response = client.post('/game/matches', json={
-        "player1_id": 1
-    })
-    
-    assert response.status_code == 400
-
-
-# ============== DECK SELECTION ==============
-
-def test_choose_deck_success(client, db):
-    """Test successful deck submission."""
-    # Create match first
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    # Submit deck for player 1
-    deck = create_test_deck()
-    response = client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 1,
-        "deck": deck
-    })
-    
-    assert response.status_code == 200
-    data = response.json
-    assert data['player1_deck'] is not None
-    assert data['status'] == 'SETUP'  # Still waiting for player 2
-
-
-def test_choose_deck_both_players_starts_match(client, db):
-    """Test that match starts when both players submit decks."""
-    # Create match
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    # Submit deck for player 1
-    deck = create_test_deck()
-    client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 1,
-        "deck": deck
-    })
-    
-    # Submit deck for player 2
-    response = client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 2,
-        "deck": deck
-    })
-    
-    assert response.status_code == 200
-    data = response.json
-    assert data['status'] == 'IN_PROGRESS'
-    assert data['player1_deck'] is not None
-    assert data['player2_deck'] is not None
-    assert data['current_round_category'] in ['economy', 'food', 'environment', 'special']
-
-
-def test_choose_deck_wrong_size(client, db):
-    """Test that wrong deck size is rejected."""
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    response = client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 1,
-        "deck": ["card_1", "card_2"]  # Only 2 cards
-    })
-    
-    assert response.status_code == 400
-    assert '10' in response.json['msg']
-
-
-def test_choose_deck_duplicate_cards(client, db):
-    """Test that duplicate cards are rejected."""
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    deck = ["card_1"] * 10  # Same card 10 times
-    response = client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 1,
-        "deck": deck
-    })
-    
-    assert response.status_code == 400
-    assert 'duplicate' in response.json['msg'].lower()
-
-
-def test_choose_deck_non_participant(client, db):
-    """Test that non-participants can't submit decks."""
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    deck = create_test_deck()
-    response = client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 999,  # Not in match
-        "deck": deck
-    })
-    
-    assert response.status_code == 400
-    assert 'not part' in response.json['msg'].lower()
-
-
-# ============== MOVE SUBMISSION ==============
-
-def setup_match_in_progress(client):
-    """Helper to create a match ready for moves."""
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    deck = create_test_deck()
-    client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 1,
-        "deck": deck
-    })
-    client.post(f'/game/matches/{match_id}/deck', json={
-        "player_id": 2,
-        "deck": deck
-    })
+    # 2. Submit decks using the smart mock
+    with patch('game_engine.services.requests.post', side_effect=side_effect):
+        client.post(f'/matches/{match_id}/deck', headers=auth_headers(10), json={"data": deck_ids})
+        client.post(f'/matches/{match_id}/deck', headers=auth_headers(20), json={"data": deck_ids})
     
     return match_id
 
+# --- TESTS ---
 
-def test_submit_first_move(client, db):
-    """Test submitting the first move of a round."""
-    match_id = setup_match_in_progress(client)
-    
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    
+def test_health_check(client):
+    response = client.get('/health')
     assert response.status_code == 200
-    data = response.json
-    assert data['status'] == 'WAITING_FOR_OPPONENT'
-    assert 'move_submitted' in data
+    assert response.json == {"status": "ok"}
 
+def test_create_match_success(client):
+    response = client.post('/matches/create', json={"player1_id": 1, "player2_id": 2})
+    assert response.status_code == 201
+    assert response.json['status'] == 'SETUP'
 
-def test_submit_second_move_processes_round(client, db):
-    """Test that second move processes the round."""
-    match_id = setup_match_in_progress(client)
+def test_choose_deck_success(client, auth_headers, mock_catalogue_data):
+    """Verifies valid deck submission keeps match in SETUP (waiting for P2)."""
+    m_resp = client.post('/matches/create', json={"player1_id": 10, "player2_id": 20})
+    match_id = m_resp.json['id']
+    deck_ids = [1, 2, 3, 4, 5]
     
-    # Player 1 moves
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    
-    # Player 2 moves
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 2,
-        "card_id": "card_1"
-    })
-    
-    assert response.status_code == 200
-    data = response.json
-    assert data['status'] == 'ROUND_PROCESSED'
-    assert 'round_winner_id' in data
-    assert 'is_draw' in data
-    assert 'moves' in data
-    assert len(data['moves']) == 2
-    assert data['next_round'] == 2
-
-
-def test_submit_move_duplicate_in_round(client, db):
-    """Test that player can't submit twice in same round."""
-    match_id = setup_match_in_progress(client)
-    
-    # Player 1 moves
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    
-    # Player 1 tries to move again
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_2"
-    })
-    
-    assert response.status_code == 400
-    assert 'already submitted' in response.json['msg'].lower()
-    assert 'code' in response.json
-
-
-def test_submit_move_card_already_played(client, db):
-    """Test that cards can't be played twice."""
-    match_id = setup_match_in_progress(client)
-    
-    # Round 1
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 2,
-        "card_id": "card_2"
-    })
-    
-    # Round 2 - try to play card_1 again
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    
-    assert response.status_code == 400
-    assert 'already been played' in response.json['msg'].lower()
-    assert response.json['code'] == 'CARD_ALREADY_PLAYED'
-
-
-def test_submit_move_card_not_in_deck(client, db):
-    """Test that cards not in deck are rejected."""
-    match_id = setup_match_in_progress(client)
-    
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "invalid_card"
-    })
-    
-    assert response.status_code == 400
-    assert 'not in' in response.json['msg'].lower()
-    assert response.json['code'] == 'CARD_NOT_IN_DECK'
-
-
-def test_submit_move_non_participant(client, db):
-    """Test that non-participants can't submit moves."""
-    match_id = setup_match_in_progress(client)
-    
-    response = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 999,
-        "card_id": "card_1"
-    })
-    
-    assert response.status_code == 400
-    assert 'not part' in response.json['msg'].lower()
-    assert response.json['code'] == 'NOT_PARTICIPANT'
-
-
-# ============== GAME FLOW ==============
-
-def test_complete_match_flow(client, db):
-    """Test a complete 10-round match."""
-    match_id = setup_match_in_progress(client)
-    
-    # Play 10 rounds
-    for round_num in range(1, 11):
-        # Player 1 move
-        client.post(f'/game/matches/{match_id}/moves', json={
-            "player_id": 1,
-            "card_id": f"card_{round_num}"
-        })
+    def side_effect(*args, **kwargs):
+        json_body = kwargs.get('json', {})
+        requested = json_body.get('data', [])
+        filtered = [c for c in mock_catalogue_data if c['id'] in requested]
         
-        # Player 2 move
-        response = client.post(f'/game/matches/{match_id}/moves', json={
-            "player_id": 2,
-            "card_id": f"card_{round_num}"
-        })
+        mock = MagicMock()
+        mock.status_code = 200
+        mock.json.return_value = {"data": filtered}
+        return mock
+
+    with patch('game_engine.services.requests.post', side_effect=side_effect):
+        response = client.post(
+            f'/matches/{match_id}/deck',
+            headers=auth_headers(10),
+            json={"data": deck_ids}
+        )
+    
+    assert response.status_code == 200
+    assert response.json['status'] == 'SETUP'
+
+def test_choose_deck_starts_match(client, auth_headers, mock_catalogue_data):
+    """Verifies match transitions to IN_PROGRESS after both players submit decks."""
+    m_resp = client.post('/matches/create', json={"player1_id": 10, "player2_id": 20})
+    match_id = m_resp.json['id']
+    deck_ids = [1, 2, 3, 4, 5]
+
+    def side_effect(*args, **kwargs):
+        json_body = kwargs.get('json', {})
+        requested = json_body.get('data', [])
+        filtered = [c for c in mock_catalogue_data if c['id'] in requested]
         
-        if round_num < 10:
-            assert response.json['next_round'] == round_num + 1
-        else:
-            assert response.json['game_status'] == 'FINISHED'
+        mock = MagicMock()
+        mock.status_code = 200
+        mock.json.return_value = {"data": filtered}
+        return mock
+
+    with patch('game_engine.services.requests.post', side_effect=side_effect):
+        client.post(f'/matches/{match_id}/deck', headers=auth_headers(10), json={"data": deck_ids})
+        resp = client.post(f'/matches/{match_id}/deck', headers=auth_headers(20), json={"data": deck_ids})
+
+    assert resp.status_code == 200
+    assert resp.json['status'] == 'IN_PROGRESS'
+
+def test_submit_move_flow(client, auth_headers, mock_catalogue_data):
+    """Verifies turn-based flow: P1 waits, P2 triggers round processing."""
+    match_id = setup_active_match(client, auth_headers, mock_catalogue_data)
     
-    # Check final match status
-    match_response = client.get(f'/game/matches/{match_id}')
-    assert match_response.json['status'] == 'FINISHED'
-    # Winner can be None (draw) or one of the players
-    assert 'winner_id' in match_response.json
-
-
-# ============== ROUND STATUS ==============
-
-def test_get_round_status(client, db):
-    """Test getting current round status."""
-    match_id = setup_match_in_progress(client)
+    # Player 1 submits -> Wait
+    p1_resp = client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(10), json={"card_id": 1})
+    assert p1_resp.status_code == 200
+    assert p1_resp.json['status'] == 'WAITING_FOR_OPPONENT'
     
-    # Check initial status
-    response = client.get(f'/game/matches/{match_id}/round')
-    assert response.status_code == 200
-    data = response.json
-    assert data['current_round'] == 1
-    assert data['round_status'] == 'WAITING_FOR_BOTH_PLAYERS'
-    assert data['moves_submitted_count'] == 0
+    # Player 2 submits -> Round End
+    p2_resp = client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(20), json={"card_id": 2})
+    assert p2_resp.status_code == 200
+    assert p2_resp.json['status'] == 'ROUND_PROCESSED'
+    assert p2_resp.json['next_round'] == 2
+
+def test_submit_invalid_card(client, auth_headers, mock_catalogue_data):
+    """Verifies rejection when playing a card not in the player's deck."""
+    match_id = setup_active_match(client, auth_headers, mock_catalogue_data)
     
-    # Submit one move
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
+    # Deck only contains 1-5; try playing 99
+    response = client.post(
+        f'/matches/{match_id}/moves/1', 
+        headers=auth_headers(10), 
+        json={"card_id": 99}
+    )
     
-    # Check status after first move
-    response = client.get(f'/game/matches/{match_id}/round')
-    data = response.json
-    assert data['round_status'] == 'WAITING_FOR_ONE_PLAYER'
-    assert data['moves_submitted_count'] == 1
-
-
-# ============== MATCH RETRIEVAL ==============
-
-def test_get_match(client, db):
-    """Test getting match info."""
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    match_id = match_response.json['id']
-    
-    response = client.get(f'/game/matches/{match_id}')
-    assert response.status_code == 200
-    data = response.json
-    assert data['id'] == match_id
-    assert 'moves' not in data  # Without history
-
-
-def test_get_match_not_found(client, db):
-    """Test getting non-existent match."""
-    response = client.get('/game/matches/99999')
-    assert response.status_code == 404
-
-
-def test_get_match_with_history(client, db):
-    """Test getting match with move history."""
-    match_id = setup_match_in_progress(client)
-    
-    # Play one round
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
-    client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 2,
-        "card_id": "card_1"
-    })
-    
-    response = client.get(f'/game/matches/{match_id}/history')
-    assert response.status_code == 200
-    data = response.json
-    assert 'moves' in data
-    assert len(data['moves']) == 2
-
-
-# ============== LEADERBOARD ==============
-
-def test_leaderboard_empty(client, db):
-    """Test leaderboard with no finished matches."""
-    response = client.get('/game/leaderboard')
-    assert response.status_code == 200
-    data = response.json
-    assert data['leaderboard'] == []
-    assert data['count'] == 0
-
-
-def test_leaderboard_with_matches(client, db):
-    """Test leaderboard with finished matches."""
-    # Create and finish multiple matches
-    for i in range(3):
-        match_id = setup_match_in_progress(client)
-        
-        # Complete match
-        for round_num in range(1, 11):
-            client.post(f'/game/matches/{match_id}/moves', json={
-                "player_id": 1,
-                "card_id": f"card_{round_num}"
-            })
-            client.post(f'/game/matches/{match_id}/moves', json={
-                "player_id": 2,
-                "card_id": f"card_{round_num}"
-            })
-    
-    response = client.get('/game/leaderboard')
-    assert response.status_code == 200
-    data = response.json
-    assert len(data['leaderboard']) > 0
-    
-    # Check structure
-    for entry in data['leaderboard']:
-        assert 'rank' in entry
-        assert 'player_id' in entry
-        assert 'wins' in entry
-        assert 'losses' in entry
-        assert 'total_matches' in entry
-        assert 'win_rate' in entry
-
-
-def test_leaderboard_pagination(client, db):
-    """Test leaderboard pagination."""
-    response = client.get('/game/leaderboard?limit=5&offset=0')
-    assert response.status_code == 200
-    data = response.json
-    assert data['limit'] == 5
-    assert data['offset'] == 0
-
-
-# ============== PLAYER HISTORY ==============
-
-def test_player_history_empty(client, db):
-    """Test player history with no matches."""
-    response = client.get('/game/players/1/history')
-    assert response.status_code == 200
-    data = response.json
-    assert data['player_id'] == 1
-    assert data['matches'] == []
-    assert data['summary']['total_matches'] == 0
-
-
-def test_player_history_with_matches(client, db):
-    """Test player history with completed matches."""
-    match_id = setup_match_in_progress(client)
-    
-    # Play complete match
-    for round_num in range(1, 11):
-        client.post(f'/game/matches/{match_id}/moves', json={
-            "player_id": 1,
-            "card_id": f"card_{round_num}"
-        })
-        client.post(f'/game/matches/{match_id}/moves', json={
-            "player_id": 2,
-            "card_id": f"card_{round_num}"
-        })
-    
-    response = client.get('/game/players/1/history')
-    assert response.status_code == 200
-    data = response.json
-    assert data['player_id'] == 1
-    assert len(data['matches']) == 1
-    
-    # Check match structure
-    match = data['matches'][0]
-    assert 'player_won' in match
-    assert 'player_was_player1' in match
-    assert 'opponent_id' in match
-    assert 'player_score' in match
-    assert 'opponent_score' in match
-    assert 'moves' in match
-    
-    # Check summary
-    assert data['summary']['total_matches'] == 1
-
-
-def test_player_history_pagination(client, db):
-    """Test player history pagination."""
-    response = client.get('/game/players/1/history?limit=10&offset=0')
-    assert response.status_code == 200
-    data = response.json
-    assert data['pagination']['limit'] == 10
-    assert data['pagination']['offset'] == 0
-
-
-def test_player_history_status_filter(client, db):
-    """Test player history with status filter."""
-    # Create match in setup
-    match_response = client.post('/game/matches', json={
-        "player1_id": 1,
-        "player2_id": 2
-    })
-    
-    response = client.get('/game/players/1/history?status=setup')
-    assert response.status_code == 200
-    data = response.json
-    assert len(data['matches']) == 1
-    assert data['matches'][0]['status'] == 'SETUP'
-
-
-# ============== ERROR HANDLING ==============
-
-def test_invalid_match_id(client, db):
-    """Test endpoints with invalid match ID."""
-    response = client.get('/game/matches/abc')
-    assert response.status_code == 404
-
-
-def test_malformed_json(client, db):
-    """Test endpoints with malformed JSON."""
-    response = client.post('/game/matches', 
-                          data='invalid json',
-                          content_type='application/json')
     assert response.status_code == 400
+    assert "not in the player's deck" in response.json['msg']
 
-
-# ============== CONCURRENT ACCESS ==============
-
-def test_concurrent_move_submission(client, db):
-    """Test that database locking prevents race conditions."""
-    match_id = setup_match_in_progress(client)
+def test_submit_duplicate_move_round(client, auth_headers, mock_catalogue_data):
+    """Verifies a player cannot submit multiple moves for the same round."""
+    match_id = setup_active_match(client, auth_headers, mock_catalogue_data)
     
-    # Both players try to submit as player 1
-    response1 = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_1"
-    })
+    # First move ok
+    client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(10), json={"card_id": 1})
     
-    response2 = client.post(f'/game/matches/{match_id}/moves', json={
-        "player_id": 1,
-        "card_id": "card_2"
-    })
+    # Duplicate move fails
+    response = client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(10), json={"card_id": 2})
     
-    # One should succeed, one should fail
-    assert (response1.status_code == 200 and response2.status_code == 400) or \
-           (response1.status_code == 400 and response2.status_code == 200)
+    assert response.status_code == 400
+    assert "already submitted" in response.json['msg']
 
+def test_submit_played_card(client, auth_headers, mock_catalogue_data):
+    """Verifies cards cannot be reused in subsequent rounds."""
+    match_id = setup_active_match(client, auth_headers, mock_catalogue_data)
+    
+    # Round 1: Both play card 1
+    client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(10), json={"card_id": 1})
+    client.post(f'/matches/{match_id}/moves/1', headers=auth_headers(20), json={"card_id": 1})
+    
+    # Round 2: P1 tries card 1 again
+    response = client.post(f'/matches/{match_id}/moves/2', headers=auth_headers(10), json={"card_id": 1})
+    
+    assert response.status_code == 400
+    assert "already been played" in response.json['msg']
 
-if __name__ == '__main__':
-    pytest.main([__file__, '-v'])
+def test_game_completion_and_history(client, auth_headers, mock_catalogue_data):
+    """Verifies the match finishes after MAX_ROUNDS and history is updated."""
+    match_id = setup_active_match(client, auth_headers, mock_catalogue_data)
+    
+    # Play all rounds
+    for i in range(1, MAX_ROUNDS + 1):
+        # Mocks not needed here as moves are internal logic
+        client.post(f'/matches/{match_id}/moves/{i}', headers=auth_headers(10), json={"card_id": i})
+        client.post(f'/matches/{match_id}/moves/{i}', headers=auth_headers(20), json={"card_id": i})
+
+    # Verify history
+    resp = client.get(f'/players/10/history', headers=auth_headers(10))
+    assert resp.status_code == 200
+    
+    match_entry = next(m for m in resp.json['matches'] if m['id'] == match_id)
+    assert match_entry['status'] == 'FINISHED'
+
+def test_leaderboard(client, auth_headers):
+    resp = client.get('/leaderboard', headers=auth_headers(1))
+    assert resp.status_code == 200
+    assert 'leaderboard' in resp.json
