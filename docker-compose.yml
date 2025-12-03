@@ -19,6 +19,9 @@ services:
       - game-engine
     ports:
       - "80:80"
+    secrets:
+      - nginx.crt
+      - nginx.key
 
   auth:
     build:
@@ -40,6 +43,8 @@ services:
     secrets:
       - jwt_private_key
       - jwt_public_key
+      - auth.crt
+      - auth.key
 
   auth-db:
     image: postgres:16-alpine
@@ -54,6 +59,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    secrets:
+      - auth-db.crt
+      - auth-db.key
 
   auth-redis:
     image: redis:7-alpine
@@ -75,6 +83,8 @@ services:
       - "5000"
     secrets:
       - jwt_public_key
+      - catalogue.crt
+      - catalogue.key
 
   catalogue-db:
     image: postgres:16-alpine
@@ -89,6 +99,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    secrets:
+      - catalogue-db.crt
+      - catalogue-db.key
 
   players:
     build:
@@ -104,6 +117,8 @@ services:
       - "5000"
     secrets:
       - jwt_public_key
+      - players.crt
+      - players.key
 
   players-db:
     image: postgres:16-alpine
@@ -118,6 +133,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    secrets:
+      - players-db.crt
+      - players-db.key
 
   game-engine:
     build:
@@ -134,6 +152,8 @@ services:
       - "5000"
     secrets:
       - jwt_public_key
+      - game-engine.crt
+      - game-engine.key
 
   game-engine-db:
     image: postgres:16-alpine
@@ -148,6 +168,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    secrets:
+      - game-engine-db.crt
+      - game-engine-db.key
 
   matchmaking:
     build:
@@ -168,12 +191,17 @@ services:
       - "5000"
     secrets:
       - jwt_public_key
+      - matchmaking.crt
+      - matchmaking.key
 
   matchmaking-redis:
     image: redis:7-alpine
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     volumes:
       - matchmaking-redis-data:/data
+    secrets:
+      - matchmaking-db.crt
+      - matchmaking-db.key
 
 volumes:
   auth-db-data:
@@ -188,3 +216,58 @@ secrets:
     file: ./secrets/jwtRS256.key
   jwt_public_key:
     file: ./secrets/jwtRS256.key.pub
+
+  nginx.crt:
+    file: ./secrets/nginx.crt
+  nginx.key:
+    file: ./secrets/nginx.key
+
+  auth.crt:
+    file: ./secrets/auth.crt
+  auth.key:
+    file: ./secrets/auth.key
+
+  auth-db.crt:
+    file: ./secrets/auth-db.crt
+  auth-db.key:
+    file: ./secrets/auth-db.key
+
+  players.crt:
+    file: ./secrets/players.crt
+  players.key:
+    file: ./secrets/players.key
+
+  players-db.crt:
+    file: ./secrets/players-db.crt
+  players-db.key:
+    file: ./secrets/players-db.key
+
+  game-engine.crt:
+    file: ./secrets/game-engine.crt
+  game-engine.key:
+    file: ./secrets/game-engine.key
+
+  game-engine-db.crt:
+    file: ./secrets/game-engine-db.crt
+  game-engine-db.key:
+    file: ./secrets/game-engine-db.key
+
+  matchmaking.crt:
+    file: ./secrets/matchmaking.crt
+  matchmaking.key:
+    file: ./secrets/matchmaking.key
+
+  matchmaking-db.crt:
+    file: ./secrets/matchmaking-db.crt
+  matchmaking-db.key:
+    file: ./secrets/matchmaking-db.key
+
+  catalogue.crt:
+    file: ./secrets/catalogue.crt
+  catalogue.key:
+    file: ./secrets/catalogue.key
+
+  catalogue-db.crt:
+    file: ./secrets/catalogue-db.crt
+  catalogue-db.key:
+    file: ./secrets/catalogue-db.key
