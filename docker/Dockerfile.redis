@@ -1,0 +1,6 @@
+FROM redis:7-alpine
+
+COPY docker/redis-entrypoint.sh /redis-entrypoint.sh
+RUN chmod +x /redis-entrypoint.sh
+
+CMD ["/redis-entrypoint.sh"]
