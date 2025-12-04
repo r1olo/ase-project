@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+TLS_CERT_SECRET=${TLS_CERT_SECRET:-/run/secrets/redis.crt}
+TLS_KEY_SECRET=${TLS_KEY_SECRET:-/run/secrets/redis.key}
+
 # 1. Define where we will copy the certs so Redis can read them
 # We use /tmp because it's usually a ramdisk (fast/secure) and writable
 DEST_CERT="/tmp/redis.crt"

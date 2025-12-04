@@ -1,7 +1,10 @@
 #!/bin/sh
+set -e
+
 POSTGRES_CERT=${POSTGRES_CERT:-/run/secrets/postgres.crt}
 POSTGRES_KEY=${POSTGRES_KEY:-/run/secrets/postgres.key}
 
+# Run Postgres with our custom SSL configuration
 cp $POSTGRES_KEY /tmp/server.key && \
     chmod 600 /tmp/server.key && \
     chown postgres:postgres /tmp/server.key && \
