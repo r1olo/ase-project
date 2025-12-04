@@ -67,6 +67,13 @@ components:
       schema:
         type: integer
       description: Round identifier
+    CardId:
+      name: cId
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Card identifier
 
   ### schemas  
   schemas:
@@ -183,7 +190,7 @@ paths:
   /register:
     post:
       tags: [Authentication]
-      summary: Register a new user.
+      summary: Register a new user
       requestBody:
         required: true
         content:
@@ -701,13 +708,7 @@ paths:
       tags: [Cards]
       summary: Get a single card by ID
       parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: object
-            properties:
-              card_id: { type: integer }
+        - $ref: '#/components/parameters/CardId'
       responses:
         '200':
           description: Requested card
