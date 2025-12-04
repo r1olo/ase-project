@@ -1,9 +1,10 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Carusi Cards Game API
   version: 1.0.0
-  summary: REST API for players, authentication, matchmaking, matches, rounds, and card catalogue.
   description: |
+    REST API for players, authentication, matchmaking, matches, rounds, and card catalogue.
+
     This specification models the endpoints and data model of the card game.
   contact:
     name: API Support
@@ -28,7 +29,7 @@ tags:
     description: Player profile, score, ranking, and match history.
   - name: Matchmaking
     description: Enqueue/dequeue players and check queue status.
-  - name: Matches
+  - name: Game Engine
     description: Manage matches, manage rounds, play cards, and handle forfeits.
   - name: Cards
     description: Card catalogue browsing.
@@ -37,7 +38,7 @@ tags:
 
 x-tagGroups:
   - name: Core
-    tags: [Authentication, Players, Matchmaking, Matches, Cards]
+    tags: [Authentication, Players, Matchmaking, Game Engine, Cards]
   - name: Operations
     tags: [Utilities]
 
@@ -70,17 +71,13 @@ components:
   ### schemas  
   schemas:
     # core resources
-    Player:
+    User:
       type: object
       properties:
         id: { type: integer }
-        username: { type: string }
         email: { type: string, format: email }
-        profilePicture: { type: string, format: uri }
-        score: { type: integer, description: "Cached" }
-        ranking: { type: integer, description: "Cached" }
-      required: [id, username, email, score, ranking]
-      description: Player profile.
+        password: { type: string }
+      required: [id, email, password]
 
     Card:
       type: object
@@ -101,34 +98,84 @@ components:
         id: { type: integer }
         player1_id: { type: integer }
         player2_id: { type: integer }
+        # TODO
         status:
           type: string
           enum: [ongoing, completed, forfeited, cancelled]
+        player1_score: { type: integer }
+        player2_score: { type: integer }
         winner_id:
-          anyOf:
-            - type: integer
-            - type: "null"
+          type: integer
+          nullable: true
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
         rounds:
           type: array
           items: { $ref: '#/components/schemas/Round' }
-      required: [id, player1_id, player2_id, status, winner_id, rounds]
+      required: [id, player1_id, player2_id, status, player1_score, player2_score, winner_id, created_at, updated_at]
 
     Round:
       type: object
       properties:
         id: { type: integer }
         match_id: { type: integer }
-        turn_number: { type: integer, minimum: 1 }
+        round_number: { type: integer, minimum: 1 }
         category:
           type: string
           enum: [economy, food, environment, special, total]
-        card1_id: { type: integer }
-        card2_id: { type: integer }
+        player1_card_id: { type: integer }
+        player2_card_id: { type: integer }
         winner_id:
-          anyOf:
-            - type: integer
-            - type: "null"
-      required: [id, match_id, turn_number, category, card1_id, card2_id]
+          type: integer
+          nullable: true
+        # TODO
+        completed: { type: boolean }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+      required: [id, match_id, round_number, category, player1_card_id, player2_card_id, winner_id, completed, created_at, updated_at]
+      
+    Player:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        email: { type: string, format: email }
+        profilePicture: { type: string, format: uri }
+        score: { type: integer, description: "Cached" }
+        ranking: { type: integer, description: "Cached" }
+      required: [id, username, email, score, ranking]
+      description: Player profile.
+
+    # utility / error messages
+    ResponseMessage:
+      type: object
+      properties:
+        msg:
+          type: string
+      required: [msg]
+      description: Standard message-only response used to share information about errors.
+
+  responses:
+    GameEngine.ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    GameEngine.NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    GameEngine.InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    GameEngine.ServiceUnavailable:
+      description: Service unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
 
 ### paths
 paths:
@@ -144,25 +191,20 @@ paths:
             schema:
               type: object
               properties:
-                username: { type: string }
                 email: { type: string, format: email }
                 password: { type: string }
-              required: [username, email, password]
-
+              required: [email, password]
       responses:
         '201':
-          description: Registered
+          description: User registered
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Player' }
+              schema: { $ref: '#/components/schemas/User' }
         '409':
           description: User already registered 
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  msg: { type: string }
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
 
   /login:
     post:
@@ -174,17 +216,11 @@ paths:
         content:
           application/json:
             schema:
-              oneOf:
-              - type: object
-                properties:
-                  username: { type: string }
-                  password: { type: string }
-                required: [username, password]
-              - type: object
-                properties:
-                  email: { type: string, format: email }
-                  password: { type: string }
-                required: [email, password]
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+              required: [email, password]
       responses:
         '200':
           description: Logged in
@@ -198,22 +234,29 @@ paths:
                 type: object
                 properties:
                   token: { type: string, description: "JWT token" }
-        '401':
-          description: User not registered or invalid password
+                  id: {type: integer, description: User ID}
+        '400':
+          description: Missing required field
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  msg: { type: string }
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
+        '401':
+          description: User not registered or invalid credentials
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
 
   /logout:
+    # TODO
     post:
       tags: [Authentication]
       summary: User log out
       responses:
-        '204':
+        '200':
           description: Logged out
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
 
   /refresh:
     post:
@@ -232,10 +275,7 @@ paths:
           description: Invalid refresh token
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  msg: { type: string }
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
 
   # players
   /players/{pId}:
@@ -302,28 +342,6 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Player' }
-
-  /leaderboard:
-    get:
-      tags: [Players]
-      summary: Get leaderboard of the game
-      responses:
-        '200':
-          description: List of all players ranked by score
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        player_id: { type: integer }
-                        username: { type: string }
-                        score: { type: integer }
-                        ranking: { type: integer }
           
   /players/{pId}/matches:
     get:
@@ -360,54 +378,190 @@ paths:
           description: Error
 
   # matchmaking
-  /queue:
+  /enqueue:
     post:
       tags: [Matchmaking]
-      summary: Enqueue current player
-      responses:
-        '202':
-          description: Enqueued
-    delete:
-      tags: [Matchmaking]
-      summary: Dequeue current player
-      responses:
-        '204':
-          description: No content error
-    get:
-      tags: [Matchmaking]
-      summary: Queue status for current player
+      summary: Enqueue player
       responses:
         '200':
-          description: Queue status
+          description: Matched
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  inQueue: { type: boolean }
-                  position: { type: integer, minimum: 0 }
-                  estimatedWaitSeconds: { type: integer, minimum: 0 }
+                  status: { type: string }
+                  match_id: { type: integer }
+                  opponent_id: { type: integer }
+                  token: { type: integer, description: "Queue token"}
+        '202':
+          description: Enqueued and waiting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  token: { type: integer, description: "Queue token"}
+        '409':
+          description: Queue full
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
+  /status:
+    get:
+      tags: [Matchmaking]
+      summary: Check player's queue status
+      responses:
+        '200':
+          description: Enqueued
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    description: Matched
+                    properties:
+                      status: { type: string }
+                      match_id: { type: integer }
+                      opponent_id: { type: integer }
+                      token: { type: integer, description: "Queue token"}
+                  # TODO
+                  - type: object
+                    description: Rematched
+                    properties:
+                      status: { type: string }
+                      match_id: { type: integer }
+                      opponent_id: { type: integer }
+                      source: { type: string}
+                  - type: object
+                    description: Waiting
+                    properties:
+                      status: { type: string }
+                      token: { type: integer, description: "Queue token"}
+        '404':
+          description: Not queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+        '409':
+          description: Stale
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  msg: { type: string }
+
+  /dequeue:
+    post:
+      tags: [Matchmaking]
+      summary: Dequeue player
+      description: Remove player from queue.
+      responses:
+        '200':
+          description: Dequeued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+        '409':
+          description: Failed
+          content:
+            application/json:
+              schema:
+                anyOf:
+                  - type: object
+                    properties:
+                      status: { type: string }
+                      match_id: { type: integer }
+                      opponent_id: { type: integer }
+                  - $ref: '#/components/schemas/ResponseMessage'
 
   # matches
   /matches/{mId}:
     get:
-      tags: [Matches]
+      tags: [Game Engine]
       summary: Get match by ID
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
         '200':
-          description: Match
+          description: Match without rounds
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
         '404':
-          description: Error
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/{mId}/history:
+    get:
+      tags: [Game Engine]
+      summary: Get match and rounds by ID
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: Match with rounds
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/create:
+    post:
+      tags: [Game Engine]
+      summary: Get match and rounds by ID
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                player1_id: { type: integer }
+                player2_id: { type: integer }
+              required: [player1_id, player2_id]
+      responses:
+        '201':
+          description: Match with rounds
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
   /matches/{mId}/deck:
     post:
-      tags: [Matches]
-      summary: Submit deck for a match
+      tags: [Game Engine]
+      summary: Submit deck for current match
       parameters:
         - $ref: '#/components/parameters/MatchId'
       requestBody:
@@ -417,57 +571,32 @@ paths:
             schema:
               type: object
               properties:
-                cardIds:
+                player_id: { type: integer }
+                # TODO
+                data:
                   type: array
                   items:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-              required: [cardIds]
+                    type: integer
+              required: [player_id, data]
       responses:
-        '202':
+        '200':
           description: Deck accepted
-    get:
-      tags: [Matches]
-      summary: Get deck submitted for a match
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-      responses:
-        '200':
-          description: Deck
           content:
             application/json:
-              schema: 
-                type: object
-                properties:
-                  cards_id:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: integer
-                required: [cards_id]
+              schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
-  /matches/{mId}/rounds/{rId}:
-    get:
-      tags: [Matches]
-      summary: Get round details
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-        - $ref: '#/components/parameters/RoundId'
-      responses:
-        '200':
-          description: Round
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Round' }
-
-  /matches/{mId}/rounds/{rId}/play:
+  /matches/{mId}/moves/{rId}:
     post:
-      tags: [Matches]
-      summary: Play a card in a round of the match
+      tags: [Game Engine]
+      summary: Submit move for current round in current match
       parameters:
         - $ref: '#/components/parameters/MatchId'
         - $ref: '#/components/parameters/RoundId'
@@ -478,15 +607,72 @@ paths:
             schema:
               type: object
               properties:
+                player_id: { type: integer }
                 card_id: { type: integer }
+              required: [player_id, data]
       responses:
-        '202':
+        '200':
           description: Move accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  winner_id : { type: integer }
+                  # TODO
+                  drawed: { type: boolean }
+                  completed: { type: boolean }
+                  scores: 
+                    type: object
+                    properties:
+                      player1_score: { type: integer }
+                      player2_score: { type: integer }
+                  next_round: { type: integer }
+                  next_category: { type: integer }
+                  game_status: { type: string } # TODO
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
-  /matches/{mId}/forfeit:
-    post:
-      tags: [Matches]
-      summary: Forfeit a match
+  /matches/{mId}/round:
+    get:
+      tags: [Game Engine]
+      summary: Get status of last round in current match
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: Bho
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  match_id: { type: integer }
+                  current_round : { type: integer }
+                  # TODO
+                  current_category: { type: string }
+                  round_status: { type: string }
+                  round: { $ref: '#/components/schemas/Round' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /leaderboard:
+    get:
+      tags: [Game Engine]
+      summary: Get leaderboard
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
@@ -532,18 +718,12 @@ paths:
           description: Invalid card
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  msg: { type: string }
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
         '404':
           description: Card not found
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  msg: { type: string }
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
   /internal/cards/validation:
     get:
       tags: [Card]
