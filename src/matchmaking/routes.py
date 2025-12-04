@@ -1,4 +1,4 @@
-# http endpoints for matchmaking
+# https endpoints for matchmaking
 import json
 import time
 import uuid
@@ -169,7 +169,7 @@ def _requeue_players_atomic(conn, queue_key, status_key, player_tokens):
 
 def _lookup_active_match(user_id):
     """Ask the game engine for an active match for this user (used if Redis state was lost)."""
-    base_url = current_app.config.get("GAME_ENGINE_URL", "http://game-engine:5000").rstrip("/")
+    base_url = current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000").rstrip("/")
     timeout = current_app.config.get("GAME_ENGINE_REQUEST_TIMEOUT", 3)
     for status in ("SETUP", "IN_PROGRESS"):
         try:
@@ -204,7 +204,7 @@ def call_game_engine(player_ids, player_tokens=None):
     player_tokens = _ensure_tokens(conn, status_key, player_ids, player_tokens)
 
     current_app.logger.info("match found for players %s", player_ids)
-    base_url = current_app.config.get("GAME_ENGINE_URL", "http://game-engine:5000").rstrip("/")
+    base_url = current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000").rstrip("/")
     timeout = current_app.config.get("GAME_ENGINE_REQUEST_TIMEOUT", 3)
 
     def _as_int(value):

@@ -15,4 +15,4 @@ COPY src/auth /app/auth
 
 EXPOSE 5000
 
-CMD ["flask", "--app=auth.app", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "--app=auth.app", "run", "--cert=/run/secrets/auth.crt", "--key=/run/secrets/auth.key", "--host=0.0.0.0", "--port=5000"]

@@ -4,13 +4,15 @@ FOLDER=secrets
 SERVICES=(
     auth{,-db}
     players{,-db}
-    game_engine{,-db}
+    game-engine{,-db}
     matchmaking{,-db}
     catalogue{,-db}
+    nginx
 )
 
 echo "Generating certificates and keys..."
 {
+    [ -d $FOLDER ] && rm -rf $FOLDER
     mkdir -p $FOLDER
 
     openssl genrsa -out $FOLDER/jwtRS256.key 2048

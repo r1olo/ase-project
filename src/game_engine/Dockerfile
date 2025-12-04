@@ -18,4 +18,4 @@ COPY src/common /app/common
 
 EXPOSE 5000
 
-CMD ["flask", "--app=game_engine.app", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "--app=game_engine.app", "run", "--cert=/run/secrets/game-engine.crt", "--key=/run/secrets/game-engine.key", "--host=0.0.0.0", "--port=5000"]

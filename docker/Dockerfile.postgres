@@ -1,0 +1,6 @@
+FROM postgres:16-alpine
+
+COPY docker/postgres-entrypoint.sh /postgres-entrypoint.sh
+RUN chmod +x /postgres-entrypoint.sh
+
+CMD ["/postgres-entrypoint.sh"]

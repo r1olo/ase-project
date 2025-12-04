@@ -11,7 +11,7 @@ from .models import Player
 bp = Blueprint("players", __name__)
 
 def _game_engine_url():
-    return current_app.config.get("GAME_ENGINE_URL", "http://game-engine:5000")
+    return current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000")
 
 @bp.get("/health")
 def health():

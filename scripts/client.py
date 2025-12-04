@@ -17,7 +17,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Set, Tuple
 
-DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:80")
+DEFAULT_BASE_URL = os.getenv("API_BASE_URL", "https://localhost:80")
 DEFAULT_REQUEST_TIMEOUT = 10.0
 DEFAULT_POLL_INTERVAL = 2.0
 DEFAULT_POLL_TIMEOUT = 180.0

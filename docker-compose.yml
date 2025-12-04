@@ -1,16 +1,14 @@
-version: "3.9"
-
 services:
   nginx:
     build:
       context: .
       dockerfile: src/api_gateway/Dockerfile
     environment:
-      AUTH_URL: http://auth:5000
-      PLAYERS_URL: http://players:5000
-      MATCHMAKING_URL: http://matchmaking:5000
-      CATALOGUE_URL: http://catalogue:5000
-      GAME_ENGINE_URL: http://game-engine:5000
+      AUTH_URL: https://auth:5000
+      PLAYERS_URL: https://players:5000
+      MATCHMAKING_URL: https://matchmaking:5000
+      CATALOGUE_URL: https://catalogue:5000
+      GAME_ENGINE_URL: https://game-engine:5000
     depends_on:
       - auth
       - players
@@ -18,7 +16,7 @@ services:
       - matchmaking
       - game-engine
     ports:
-      - "80:80"
+      - "443:443"
     secrets:
       - nginx.crt
       - nginx.key
@@ -29,8 +27,10 @@ services:
       dockerfile: src/auth/Dockerfile
     environment:
       FLASK_APP: auth.app
-      AUTH_DATABASE_URL: postgresql+psycopg://auth_user:auth_password@auth-db:5432/auth_db
-      AUTH_REDIS_URL: redis://auth-redis:6379/0
+      # Updated to require SSL for Postgres
+      AUTH_DATABASE_URL: postgresql+psycopg://auth_user:auth_password@auth-db:5432/auth_db?sslmode=require
+      # Updated to rediss:// (Secure Redis)
+      AUTH_REDIS_URL: rediss://auth-redis:6379/0?ssl_cert_reqs=none
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
       AUTH_PRIVATE_KEY: /run/secrets/jwt_private_key
     depends_on:
@@ -47,13 +47,27 @@ services:
       - auth.key
 
   auth-db:
-    image: postgres:16-alpine
+    #image: postgres:16-alpine
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.postgres
     environment:
       POSTGRES_DB: auth_db
       POSTGRES_USER: auth_user
       POSTGRES_PASSWORD: auth_password
+      POSTGRES_CERT: /run/secrets/auth-db.crt
+      POSTGRES_KEY: /run/secrets/auth-db.key
+      POSTGRES_HOST_AUTH_METHOD: cert
     volumes:
       - auth-db-data:/var/lib/postgresql/data
+    # Command to fix key permissions and start with SSL
+    #command: >
+    #  sh -c "
+    #  cp /run/secrets/auth-db.key /tmp/server.key &&
+    #  chmod 600 /tmp/server.key &&
+    #  chown postgres:postgres /tmp/server.key &&
+    #  cp /run/secrets/auth-db.crt /tmp/server.crt &&
+    #  docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
       interval: 5s
@@ -65,16 +79,30 @@ services:
 
   auth-redis:
     image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # Command to enable TLS port and use secrets
+    command: >
+      redis-server 
+      --tls-port 6379 
+      --port 0 
+      --tls-cert-file /run/secrets/auth-db.crt 
+      --tls-key-file /run/secrets/auth-db.key 
+      --tls-ca-cert-file /run/secrets/auth-db.crt
+      --save "" 
+      --appendonly "no"
     volumes:
       - auth-redis-data:/data
+    # Added secrets access for Redis
+    secrets:
+      - auth-db.crt
+      - auth-db.key
 
   catalogue:
     build:
       context: .
       dockerfile: src/catalogue/Dockerfile
     environment:
-      CATALOGUE_DATABASE_URL: postgresql+psycopg://catalogue_user:catalogue_password@catalogue-db:5432/catalogue_db
+      # Updated to require SSL
+      CATALOGUE_DATABASE_URL: postgresql+psycopg://catalogue_user:catalogue_password@catalogue-db:5432/catalogue_db?sslmode=require
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       catalogue-db:
@@ -94,6 +122,14 @@ services:
       POSTGRES_PASSWORD: catalogue_password
     volumes:
       - catalogue-db-data:/var/lib/postgresql/data
+    # Command to fix key permissions and start with SSL
+    command: >
+      sh -c "
+      cp /run/secrets/catalogue-db.key /tmp/server.key &&
+      chmod 600 /tmp/server.key &&
+      chown postgres:postgres /tmp/server.key &&
+      cp /run/secrets/catalogue-db.crt /tmp/server.crt &&
+      docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U catalogue_user -d catalogue_db"]
       interval: 5s
@@ -108,7 +144,8 @@ services:
       context: .
       dockerfile: src/players/Dockerfile
     environment:
-      PLAYERS_DATABASE_URL: postgresql+psycopg://players_user:players_password@players-db:5432/players_db
+      # Updated to require SSL
+      PLAYERS_DATABASE_URL: postgresql+psycopg://players_user:players_password@players-db:5432/players_db?sslmode=require
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       players-db:
@@ -128,6 +165,14 @@ services:
       POSTGRES_PASSWORD: players_password
     volumes:
       - players-db-data:/var/lib/postgresql/data
+    # Command to fix key permissions and start with SSL
+    command: >
+      sh -c "
+      cp /run/secrets/players-db.key /tmp/server.key &&
+      chmod 600 /tmp/server.key &&
+      chown postgres:postgres /tmp/server.key &&
+      cp /run/secrets/players-db.crt /tmp/server.crt &&
+      docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U players_user -d players_db"]
       interval: 5s
@@ -142,8 +187,9 @@ services:
       context: .
       dockerfile: src/game_engine/Dockerfile
     environment:
-      CATALOGUE_URL: http://catalogue:5000
-      GAME_ENGINE_DATABASE_URL: postgresql+psycopg://engine_user:engine_password@game-engine-db:5432/game_engine_db
+      CATALOGUE_URL: https://catalogue:5000
+      # Updated to require SSL
+      GAME_ENGINE_DATABASE_URL: postgresql+psycopg://engine_user:engine_password@game-engine-db:5432/game_engine_db?sslmode=require
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:
       game-engine-db:
@@ -163,6 +209,14 @@ services:
       POSTGRES_PASSWORD: engine_password
     volumes:
       - game-engine-db-data:/var/lib/postgresql/data
+    # Command to fix key permissions and start with SSL
+    command: >
+      sh -c "
+      cp /run/secrets/game-engine-db.key /tmp/server.key &&
+      chmod 600 /tmp/server.key &&
+      chown postgres:postgres /tmp/server.key &&
+      cp /run/secrets/game-engine-db.crt /tmp/server.crt &&
+      docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U engine_user -d game_engine_db"]
       interval: 5s
@@ -177,8 +231,9 @@ services:
       context: .
       dockerfile: src/matchmaking/Dockerfile
     environment:
-      GAME_ENGINE_URL: http://game-engine:5000
-      MATCHMAKING_REDIS_URL: redis://matchmaking-redis:6379/0
+      GAME_ENGINE_URL: https://game-engine:5000
+      # Updated to rediss:// (Secure Redis)
+      MATCHMAKING_REDIS_URL: rediss://matchmaking-redis:6379/0?ssl_cert_reqs=none
       MATCHMAKING_QUEUE_KEY: matchmaking:queue
       MATCHMAKING_MAX_QUEUE_SIZE: 500
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
@@ -196,7 +251,16 @@ services:
 
   matchmaking-redis:
     image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    # Command to enable TLS port and use secrets
+    command: >
+      redis-server 
+      --tls-port 6379 
+      --port 0 
+      --tls-cert-file /run/secrets/matchmaking-db.crt 
+      --tls-key-file /run/secrets/matchmaking-db.key 
+      --tls-ca-cert-file /run/secrets/matchmaking-db.crt
+      --save "" 
+      --appendonly "no"
     volumes:
       - matchmaking-redis-data:/data
     secrets:

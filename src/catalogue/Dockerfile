@@ -18,4 +18,4 @@ COPY cards/cards.json /app/cards/cards.json
 
 EXPOSE 5000
 
-CMD ["flask", "--app=catalogue.app", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "--app=catalogue.app", "run", "--cert=/run/secrets/catalogue.crt", "--key=/run/secrets/catalogue.key", "--host=0.0.0.0", "--port=5000"]

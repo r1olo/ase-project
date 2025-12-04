@@ -2,7 +2,7 @@ All requests use JSON bodies and must include the access JWT in the HTTP header:
 Authorization: Bearer <access_token>
 Content-Type: application/json
 
-Services are exposed either via the gateway (e.g., http://localhost:80) or directly to each microservice (auth, matchmaking, catalogue, game-engine). Replace base URLs as needed.
+Services are exposed either via the gateway (e.g., https://localhost:80) or directly to each microservice (auth, matchmaking, catalogue, game-engine). Replace base URLs as needed.
 
 1) Register (Auth)
 POST /register

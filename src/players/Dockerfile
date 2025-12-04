@@ -15,4 +15,4 @@ COPY src/common /app/common
 
 EXPOSE 5000
 
-CMD ["flask", "--app=players.app", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "--app=players.app", "run", "--cert=/run/secrets/players.crt", "--key=/run/secrets/players.key", "--host=0.0.0.0", "--port=5000"]

@@ -329,7 +329,7 @@ class MatchService:
         Calls catalogue service endpoint: /catalogue/get_deck
         Returns dict keyed by card_id.
         """
-        base_url = current_app.config.get("CATALOGUE_URL", "http://catalogue:5000").rstrip("/")
+        base_url = current_app.config.get("CATALOGUE_URL", "https://catalogue:5000").rstrip("/")
         timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
 
         payload = {"data": card_ids}
