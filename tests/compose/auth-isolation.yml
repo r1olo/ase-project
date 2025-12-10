@@ -2,76 +2,17 @@ services:
   auth:
     build:
       context: ../..
-      dockerfile: src/auth/Dockerfile
+      dockerfile: src/auth/Dockerfile_test
     environment:
-      FLASK_APP: auth.app
-      AUTH_DATABASE_URL: postgresql+psycopg://auth_user:auth_password@auth-db:5432/auth_db?sslmode=require
-      AUTH_REDIS_URL: rediss://auth-redis:6379/0?ssl_cert_reqs=none
-      AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
-      AUTH_PRIVATE_KEY: /run/secrets/jwt_private_key
-    depends_on:
-      auth-db:
-        condition: service_healthy
-      auth-redis:
-        condition: service_started
+      FLASK_APP: auth.app:create_test_app
     ports:
       - "5000:5000"
     secrets:
-      - jwt_private_key
-      - jwt_public_key
       - auth.crt
       - auth.key
 
-  auth-db:
-    image: postgres-ssl
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile.postgres
-    environment:
-      POSTGRES_DB: auth_db
-      POSTGRES_USER: auth_user
-      POSTGRES_PASSWORD: auth_password
-      POSTGRES_CERT: /run/secrets/auth-db.crt
-      POSTGRES_KEY: /run/secrets/auth-db.key
-    #volumes:
-    #  - auth-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    secrets:
-      - auth-db.crt
-      - auth-db.key
-
-  auth-redis:
-    image: redis-ssl
-    build:
-      context: ../..
-      dockerfile: docker/Dockerfile.redis
-    environment:
-      TLS_CERT_SECRET: /run/secrets/auth-db.crt
-      TLS_KEY_SECRET: /run/secrets/auth-db.key
-    volumes:
-      - auth-redis-data:/data
-    secrets:
-      - auth-db.crt
-      - auth-db.key
-
-volumes:
-  auth-db-data:
-  auth-redis-data:
-
 secrets:
-  jwt_private_key:
-    file: ../../secrets/jwtRS256.key
-  jwt_public_key:
-    file: ../../secrets/jwtRS256.key.pub
   auth.crt:
     file: ../../secrets/auth.crt
   auth.key:
     file: ../../secrets/auth.key
-  auth-db.crt:
-    file: ../../secrets/auth-db.crt
-  auth-db.key:
-    file: ../../secrets/auth-db.key

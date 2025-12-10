@@ -1,4 +1,5 @@
 # test authentication module
+import hashlib
 import re
 from auth.models import User
 from common.extensions import redis_manager as redis
@@ -9,6 +10,9 @@ JWT_PATTERN = re.compile(r"^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$")
 def _redis_refresh_keys_for_user(user_id: int):
     pattern = f"refresh:{user_id}:*"
     return list(redis.conn.scan_iter(match=pattern))
+
+def _hash(password: str) -> str:
+    return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 def _assert_refresh_cookie_set(resp):
     # verify the refresh token cookie is set with secure attributes
@@ -27,7 +31,7 @@ def test_login_success_with_username_sets_cookie_and_redis(auth_client):
     # arrange: register user
     auth_client.post("/register", json={
         "email": "charlie@example.com",
-        "password": "mypass"
+        "password": _hash("mypass")
     })
     user = User.query.filter_by(email="charlie@example.com").first()
     assert user is not None
@@ -35,7 +39,7 @@ def test_login_success_with_username_sets_cookie_and_redis(auth_client):
     # act: login using email (username no longer exists)
     resp = auth_client.post("/login", json={
         "email": "charlie@example.com",
-        "password": "mypass"
+        "password": _hash("mypass")
     })
 
     # assert: HTTP and token presence
@@ -55,14 +59,14 @@ def test_login_success_with_username_sets_cookie_and_redis(auth_client):
 def test_login_success_with_email_sets_cookie_and_redis(auth_client):
     auth_client.post("/register", json={
         "email": "dave@example.com",
-        "password": "secret"
+        "password": _hash("secret")
     })
     user = User.query.filter_by(email="dave@example.com").first()
     assert user is not None
 
     resp = auth_client.post("/login", json={
         "email": "dave@example.com",
-        "password": "secret"
+        "password": _hash("secret")
     })
     assert resp.status_code == 200
     body = resp.get_json()
@@ -76,7 +80,7 @@ def test_login_success_with_email_sets_cookie_and_redis(auth_client):
 def test_login_with_both_username_and_email_username_priority(auth_client):
     auth_client.post("/register", json={
         "email": "frank@example.com",
-        "password": "abc123"
+        "password": _hash("abc123")
     })
     user = User.query.filter_by(email="frank@example.com").first()
     assert user is not None
@@ -84,7 +88,7 @@ def test_login_with_both_username_and_email_username_priority(auth_client):
     # "username" ignored; email used
     resp = auth_client.post("/login", json={
         "email": "frank@example.com",
-        "password": "abc123"
+        "password": _hash("abc123")
     })
     assert resp.status_code == 200
     assert "access_token" in resp.get_json()
@@ -117,7 +121,7 @@ def test_login_empty_payload(auth_client):
 def test_login_invalid_user(auth_client):
     resp = auth_client.post("/login", json={
         "email": "ghost@example.com",
-        "password": "nope"
+        "password": _hash("nope")
     })
     assert resp.status_code == 401
     data = resp.get_json()
@@ -128,14 +132,14 @@ def test_login_invalid_user(auth_client):
 def test_login_wrong_password(auth_client):
     auth_client.post("/register", json={
         "email": "erin@example.com",
-        "password": "goodpass"
+        "password": _hash("goodpass")
     })
     user = User.query.filter_by(email="erin@example.com").first()
     assert user is not None
 
     resp = auth_client.post("/login", json={
         "email": "erin@example.com",
-        "password": "badpass"
+        "password": _hash("badpass")
     })
     assert resp.status_code == 401
 
@@ -149,14 +153,14 @@ def test_refresh_returns_new_access_token_and_keeps_redis_entry(auth_client):
     # register & login
     auth_client.post("/register", json={
         "email": "hank@example.com",
-        "password": "pw123"
+        "password": _hash("pw123")
     })
     user = User.query.filter_by(email="hank@example.com").first()
     assert user is not None
 
     login_resp = auth_client.post("/login", json={
         "email": "hank@example.com",
-        "password": "pw123"
+        "password": _hash("pw123")
     })
     assert login_resp.status_code == 200
     login_body = login_resp.get_json()
@@ -194,20 +198,20 @@ def test_multiple_logins_register_multiple_refresh_entries(auth_client):
     # when logging in multiple times, we expect multiple refresh tokens stored
     auth_client.post("/register", json={
         "email": "multi@example.com",
-        "password": "pw"
+        "password": _hash("pw")
     })
     user = User.query.filter_by(email="multi@example.com").first()
     assert user is not None
 
     # first login
-    r1 = auth_client.post("/login", json={"email": "multi@example.com", "password": "pw"})
+    r1 = auth_client.post("/login", json={"email": "multi@example.com", "password": _hash("pw")})
     assert r1.status_code == 200
     _assert_refresh_cookie_set(r1)
     k1 = set(_redis_refresh_keys_for_user(user.id))
     assert len(k1) == 1
 
     # second login (new session/refresh cookie + new redis key)
-    r2 = auth_client.post("/login", json={"email": "multi@example.com", "password": "pw"})
+    r2 = auth_client.post("/login", json={"email": "multi@example.com", "password": _hash("pw")})
     assert r2.status_code == 200
     _assert_refresh_cookie_set(r2)
     k2 = set(_redis_refresh_keys_for_user(user.id))
@@ -220,15 +224,15 @@ def test_logout_revokes_all_tokens_and_clears_cookie(auth_client):
     # register user
     auth_client.post("/register", json={
         "email": "logan@example.com",
-        "password": "pw"
+        "password": _hash("pw")
     })
     user = User.query.filter_by(email="logan@example.com").first()
     assert user is not None
 
     # login twice to create multiple refresh tokens (multi-session)
-    r1 = auth_client.post("/login", json={"email": "logan@example.com", "password": "pw"})
+    r1 = auth_client.post("/login", json={"email": "logan@example.com", "password": _hash("pw")})
     assert r1.status_code == 200
-    r2 = auth_client.post("/login", json={"email": "logan@example.com", "password": "pw"})
+    r2 = auth_client.post("/login", json={"email": "logan@example.com", "password": _hash("pw")})
     assert r2.status_code == 200
 
     # confirm there are >= 2 refresh token entries in Redis
@@ -258,12 +262,12 @@ def test_logout_requires_csrf_token(auth_client):
     # register & login once to set a refresh cookie
     auth_client.post("/register", json={
         "email": "laura@example.com",
-        "password": "pw"
+        "password": _hash("pw")
     })
     user = User.query.filter_by(email="laura@example.com").first()
     assert user is not None
 
-    r = auth_client.post("/login", json={"email": "laura@example.com", "password": "pw"})
+    r = auth_client.post("/login", json={"email": "laura@example.com", "password": _hash("pw")})
     assert r.status_code == 200
     assert len(_redis_refresh_keys_for_user(user.id)) == 1
 

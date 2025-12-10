@@ -10,20 +10,23 @@ from flask_jwt_extended import (
     set_refresh_cookies,
     unset_refresh_cookies,
 )
+
+import hashlib
+import secrets
 from sqlalchemy.exc import IntegrityError
 
-from common.extensions import bcrypt, db, redis_manager
+from common.extensions import db, redis_manager
 from .models import User
 
 bp = Blueprint("auth", __name__)
 
-# hash a password
-def _hash_password(password: str) -> str:
-    return bcrypt.generate_password_hash(password).decode("utf-8")
+# hash a password with a salt
+def _hash_password(password_hash: str, salt: str) -> str:
+    return hashlib.sha256((password_hash + salt).encode("utf-8")).hexdigest()
 
-# verify a password against a hash
-def _verify_password(password: str, pw_hash: str) -> bool:
-    return bcrypt.check_password_hash(pw_hash, password)
+# verify a password against a hash and salt
+def _verify_password(password_hash: str, stored_hash: str, salt: str) -> bool:
+    return _hash_password(password_hash, salt) == stored_hash
 
 # store refresh token in redis
 def _store_refresh_token(user_id: int, jti: str, expires_in: int) -> None:
@@ -53,7 +56,9 @@ def register():
             400)
 
     # create a user or fail gracefully
-    user = User(email=email, pw_hash=_hash_password(password))
+    salt = secrets.token_hex(16)
+    pw_hash = _hash_password(password, salt)
+    user = User(email=email, pw_hash=pw_hash, salt=salt)
     db.session.add(user)
     try:
         db.session.commit()
@@ -78,7 +83,7 @@ def login():
 
     # check if user exists and his password
     user = User.query.filter_by(email=email).first()
-    if not user or not _verify_password(password, user.pw_hash):
+    if not user or not _verify_password(password, user.pw_hash, user.salt):
         return jsonify({"msg": "Invalid credentials"}), 401
 
     # generate token and store it in redis

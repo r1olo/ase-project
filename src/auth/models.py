@@ -10,7 +10,9 @@ class User(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     pw_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    salt: Mapped[str] = mapped_column(String(255), nullable=False)
 
-    def __init__(self, email: str, pw_hash: str):
+    def __init__(self, email: str, pw_hash: str, salt: str):
         self.email = email
         self.pw_hash = pw_hash
+        self.salt = salt
