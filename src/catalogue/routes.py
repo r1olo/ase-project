@@ -4,13 +4,13 @@ from .models import Card
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-catalogue = Blueprint("catalogue", __name__)
+bp = Blueprint("catalogue", __name__)
 
-@catalogue.get("/health")
+@bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
-@catalogue.route("/cards", methods=["GET"])
+@bp.route("/cards", methods=["GET"])
 @jwt_required()
 def get_all_cards():
     # fetch all cards from the database, ordering them by ascending order on id value
@@ -20,7 +20,7 @@ def get_all_cards():
     cards_json = [card.to_json(relative=True) for card in cards]
     return jsonify({"data": cards_json})
 
-@catalogue.route("/cards/<card_id>", methods=["GET"])
+@bp.route("/cards/<card_id>", methods=["GET"])
 @jwt_required()
 def get_single_card(card_id: int):
     if not card_id.isdigit():
@@ -34,7 +34,7 @@ def get_single_card(card_id: int):
     # convert to json
     return jsonify(card.to_json(relative=True))
 
-@catalogue.route("/internal/cards/validation", methods=["POST"])
+@bp.route("/internal/cards/validation", methods=["POST"])
 def validate_deck():
     payload = request.get_json(silent=True) or {}
     cards = []

@@ -253,18 +253,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
 
-  /logout:
-    # TODO
-    post:
-      tags: [Authentication]
-      summary: User log out
-      responses:
-        '200':
-          description: Logged out
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage'}
-
   /refresh:
     post:
       tags: [Authentication]
@@ -280,6 +268,17 @@ paths:
                   access_token: { type: string, description: "JWT token" }
         '401':
           description: Invalid refresh token
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
+
+  /logout:
+    post:
+      tags: [Authentication]
+      summary: User log out
+      responses:
+        '200':
+          description: Logged out
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
@@ -440,7 +439,7 @@ paths:
                       status: { type: string }
                       match_id: { type: integer }
                       opponent_id: { type: integer }
-                      source: { type: string}
+                      source: { type: string }
                   - type: object
                     description: Waiting
                     properties:

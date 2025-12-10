@@ -2,7 +2,7 @@
 from __future__ import annotations
 from .config import Config, TestConfig
 from .models import Card
-from .routes import catalogue as catalogue_blueprint
+from .routes import bp as catalogue_blueprint
 from common.app_factory import create_flask_app
 from common.extensions import db, jwt
 from flask import Flask
