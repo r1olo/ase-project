@@ -1,7 +1,7 @@
 # test authentication module
 import hashlib
 import re
-from auth.models import User
+from auth.models import User, get_blind_index
 from common.extensions import redis_manager as redis
 from flask_jwt_extended import get_csrf_token
 
@@ -33,7 +33,7 @@ def test_login_success_with_username_sets_cookie_and_redis(auth_client):
         "email": "charlie@example.com",
         "password": _hash("mypass")
     })
-    user = User.query.filter_by(email="charlie@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("charlie@example.com")).first()
     assert user is not None
 
     # act: login using email (username no longer exists)
@@ -61,7 +61,7 @@ def test_login_success_with_email_sets_cookie_and_redis(auth_client):
         "email": "dave@example.com",
         "password": _hash("secret")
     })
-    user = User.query.filter_by(email="dave@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("dave@example.com")).first()
     assert user is not None
 
     resp = auth_client.post("/login", json={
@@ -82,7 +82,7 @@ def test_login_with_both_username_and_email_username_priority(auth_client):
         "email": "frank@example.com",
         "password": _hash("abc123")
     })
-    user = User.query.filter_by(email="frank@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("frank@example.com")).first()
     assert user is not None
 
     # "username" ignored; email used
@@ -134,7 +134,7 @@ def test_login_wrong_password(auth_client):
         "email": "erin@example.com",
         "password": _hash("goodpass")
     })
-    user = User.query.filter_by(email="erin@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("erin@example.com")).first()
     assert user is not None
 
     resp = auth_client.post("/login", json={
@@ -155,7 +155,7 @@ def test_refresh_returns_new_access_token_and_keeps_redis_entry(auth_client):
         "email": "hank@example.com",
         "password": _hash("pw123")
     })
-    user = User.query.filter_by(email="hank@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("hank@example.com")).first()
     assert user is not None
 
     login_resp = auth_client.post("/login", json={
@@ -200,7 +200,7 @@ def test_multiple_logins_register_multiple_refresh_entries(auth_client):
         "email": "multi@example.com",
         "password": _hash("pw")
     })
-    user = User.query.filter_by(email="multi@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("multi@example.com")).first()
     assert user is not None
 
     # first login
@@ -226,7 +226,7 @@ def test_logout_revokes_all_tokens_and_clears_cookie(auth_client):
         "email": "logan@example.com",
         "password": _hash("pw")
     })
-    user = User.query.filter_by(email="logan@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("logan@example.com")).first()
     assert user is not None
 
     # login twice to create multiple refresh tokens (multi-session)
@@ -264,7 +264,7 @@ def test_logout_requires_csrf_token(auth_client):
         "email": "laura@example.com",
         "password": _hash("pw")
     })
-    user = User.query.filter_by(email="laura@example.com").first()
+    user = User.query.filter_by(email_blind_index=get_blind_index("laura@example.com")).first()
     assert user is not None
 
     r = auth_client.post("/login", json={"email": "laura@example.com", "password": _hash("pw")})

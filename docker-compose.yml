@@ -31,6 +31,7 @@ services:
       AUTH_REDIS_URL: rediss://auth-redis:6379/0?ssl_cert_reqs=none
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
       AUTH_PRIVATE_KEY: /run/secrets/jwt_private_key
+      AUTH_ENCRYPTION_KEY: /run/secrets/auth_db_encryption_key
     depends_on:
       auth-db:
         condition: service_healthy
@@ -43,6 +44,7 @@ services:
       - jwt_public_key
       - auth.crt
       - auth.key
+      - auth_db_encryption_key
 
   auth-db:
     image: postgres-ssl
@@ -279,3 +281,5 @@ secrets:
     file: ./secrets/catalogue-db.crt
   catalogue-db.key:
     file: ./secrets/catalogue-db.key
+  auth_db_encryption_key:
+    file: ./secrets/auth_db_encryption.key

@@ -16,7 +16,7 @@ import secrets
 from sqlalchemy.exc import IntegrityError
 
 from common.extensions import db, redis_manager
-from .models import User
+from .models import User, get_blind_index
 
 bp = Blueprint("auth", __name__)
 
@@ -82,7 +82,7 @@ def login():
         return jsonify({"msg": "Missing email or password"}), 400
 
     # check if user exists and his password
-    user = User.query.filter_by(email=email).first()
+    user = User.query.filter_by(email_blind_index=get_blind_index(email)).first()
     if not user or not _verify_password(password, user.pw_hash, user.salt):
         return jsonify({"msg": "Invalid credentials"}), 401
 
