@@ -18,9 +18,34 @@ class MatchService:
     """Service for match-related business operations."""
     
     def __init__(self):
-        self.match_repo = MatchRepository()
-        self.round_repo = RoundRepository()
+        # Check if we're in testing mode
+        if self._is_testing():
+            from .test_mocks import (
+                MockMatchRepository,
+                MockRoundRepository,
+                MockDBSession
+            )
+            self.match_repo = MockMatchRepository()
+            self.round_repo = MockRoundRepository()
+            self._db_session = MockDBSession()
+        else:
+            self.match_repo = MatchRepository()
+            self.round_repo = RoundRepository()
+            self._db_session = db.session
+        
         self.game_engine = GameEngine()
+    
+    def _is_testing(self) -> bool:
+        """Check if we're in testing mode."""
+        try:
+            return current_app.config.get("TESTING", False)
+        except RuntimeError:
+            # No app context, default to False
+            return False
+    
+    def _get_db_session(self):
+        """Get appropriate DB session (real or mock)."""
+        return self._db_session
     
     def create_match(self, player1_id: int, player2_id: int) -> Match:
         """
@@ -41,7 +66,7 @@ class MatchService:
         
         # Create
         match = self.match_repo.create(p1, p2)
-        db.session.commit()
+        self._get_db_session().commit()
         
         current_app.logger.info(f"Match {match.id} created between players {p1} and {p2}")
         return match
@@ -60,7 +85,7 @@ class MatchService:
         if not is_valid:
             raise ValueError(error_msg)
 
-        # Fetch card stats instead of validating input
+        # Fetch card stats (will use mock in testing mode)
         validated_deck = self._fetch_card_stats_from_ids(normalized_ids)
 
         # Store deck
@@ -74,10 +99,8 @@ class MatchService:
             match.status = MatchStatus.IN_PROGRESS
             self._create_new_round(match)
 
-        db.session.commit()
+        self._get_db_session().commit()
         return match
-
-
     
     def submit_move(self, match_id: int, player_id: int, card_id: int, round_number: int) -> Dict:
         """
@@ -131,7 +154,7 @@ class MatchService:
         is_second_move = self.game_engine.should_process_round(current_round)
 
         if not is_second_move:
-            db.session.commit()
+            self._get_db_session().commit()
             return {
                 "status": MoveSubmissionStatus.WAITING_FOR_OPPONENT.value,
                 "round": current_round.to_dict()
@@ -139,10 +162,9 @@ class MatchService:
 
         # Process completed round
         result = self._process_round(match, current_round)
-        db.session.commit()
+        self._get_db_session().commit()
 
         return result
-
     
     def get_match(self, match_id: int, include_rounds: bool = False) -> Match:
         """
@@ -322,13 +344,17 @@ class MatchService:
             "game_status": match.status.name
         }
     
-    @staticmethod
-    def _fetch_card_stats_from_ids(card_ids: List[int]) -> Dict:
+    def _fetch_card_stats_from_ids(self, card_ids: List[int]) -> Dict:
         """
         Fetch full card objects using only their IDs.
-        Calls catalogue service endpoint: /catalogue/get_deck
-        Returns dict keyed by card_id.
+        Uses mock data in testing mode, otherwise calls catalogue service.
         """
+        # Use mock in testing mode
+        if self._is_testing():
+            from .test_mocks import mock_fetch_card_stats
+            return mock_fetch_card_stats(card_ids)
+        
+        # Normal production flow
         base_url = current_app.config.get("CATALOGUE_URL", "https://catalogue:5000").rstrip("/")
         timeout = current_app.config.get("CATALOGUE_REQUEST_TIMEOUT", 3)
 
