@@ -1,0 +1,18 @@
+services:
+  game_engine:
+    build:
+      context: ../..
+      dockerfile: src/game_engine/Dockerfile_test
+    environment:
+      FLASK_APP: game_engine.app
+    ports:
+      - "5000:5000"
+    secrets:
+      - game_engine.crt
+      - game_engine.key
+
+secrets:
+  game_engine.crt:
+    file: ../../secrets/game_engine.crt
+  game_engine.key:
+    file: ../../secrets/game_engine.key
