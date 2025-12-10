@@ -2,8 +2,7 @@
 FROM python:3.13-slim
 
 # Environment variables for Python performance and logging
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1
 
 # Set the working directory inside the container
 WORKDIR /app

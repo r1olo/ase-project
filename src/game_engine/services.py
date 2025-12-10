@@ -18,23 +18,11 @@ class MatchService:
     """Service for match-related business operations."""
     
     def __init__(self):
-        # Check if we're in testing mode
-        if self._is_testing():
-            from .test_mocks import (
-                MockMatchRepository,
-                MockRoundRepository,
-                MockDBSession
-            )
-            self.match_repo = MockMatchRepository()
-            self.round_repo = MockRoundRepository()
-            self._db_session = MockDBSession()
-        else:
-            self.match_repo = MatchRepository()
-            self.round_repo = RoundRepository()
-            self._db_session = db.session
-        
+        self.match_repo = MatchRepository()
+        self.round_repo = RoundRepository()
+        self._db_session = db.session
         self.game_engine = GameEngine()
-    
+
     def _is_testing(self) -> bool:
         """Check if we're in testing mode."""
         try:
@@ -42,10 +30,11 @@ class MatchService:
         except RuntimeError:
             # No app context, default to False
             return False
-    
+
     def _get_db_session(self):
-        """Get appropriate DB session (real or mock)."""
+        """Get DB session."""
         return self._db_session
+
     
     def create_match(self, player1_id: int, player2_id: int) -> Match:
         """
@@ -351,7 +340,7 @@ class MatchService:
         """
         # Use mock in testing mode
         if self._is_testing():
-            from .test_mocks import mock_fetch_card_stats
+            from .mock_catalogue import mock_fetch_card_stats
             return mock_fetch_card_stats(card_ids)
         
         # Normal production flow

@@ -125,9 +125,9 @@ class Round(db.Model):
     # The category used to compare cards this round
     category: Mapped[str] = mapped_column(String(50), nullable=False)
     
-    # Cards played by each player (stores card IDs like "card_name_001")
-    player1_card_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    player2_card_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # Cards played by each player
+    player1_card_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    player2_card_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     # Winner of this round (null if draw or not yet complete)
     winner_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

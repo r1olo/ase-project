@@ -48,14 +48,24 @@ def health():
 @game_engine.post("/matches/create")
 def create_match():
     """Create a new match with 2 player IDs."""
-    payload = request.get_json(silent=True) or {}
-    player1_id = payload.get("player1_id")
-    player2_id = payload.get("player2_id")
-    
     try:
+        current_app.logger.info("Received create match request")
+        payload = request.get_json(silent=True) or {}
+        current_app.logger.info(f"Payload: {payload}")
+        
+        player1_id = payload.get("player1_id")
+        player2_id = payload.get("player2_id")
+        
+        current_app.logger.info(f"Creating match: p1={player1_id}, p2={player2_id}")
         match = match_service.create_match(player1_id, player2_id)
-        return jsonify(match.to_dict(include_rounds=False)), 201
+        
+        current_app.logger.info(f"Match created: {match.id}")
+        result = match.to_dict(include_rounds=False)
+        current_app.logger.info(f"Returning: {result}")
+        
+        return jsonify(result), 201
     except Exception as e:
+        current_app.logger.error(f"Error creating match: {e}", exc_info=True)
         db.session.rollback()
         return _handle_service_error(e)
 
