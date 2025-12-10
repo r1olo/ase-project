@@ -31,23 +31,23 @@ class Player(db.Model):
     class Friendship(db.Model):
         __tablename__ = "friends"
 
-        player_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), index=True, nullable=False)
-        friend_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), nullable=False)
+        player1_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), index=True, nullable=False)
+        player2_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), index=True, nullable=False)
         accepted: Mapped[str] = mapped_column(String(20), nullable=False)
 
     def __init__(self,
-        player_id: int,
-        friend_id: int,
+        player1_id: int,
+        player2_id: int,
         accepted: bool = False
     ):
-        self.player_id = player_id
-        self.friend_id = friend_id
+        self.player1_id = player1_id
+        self.player2_id = player2_id
         self.accepted = accepted
 
     def to_dict(self) -> dict:
         return {
-            "player_id": self.player_id,
-            "friend_id": self.friend_id,
+            "player1_id": self.player_id,
+            "player2_id": self.player2_id,
             "status": "accepted" if self.accepted else "pending",
         }
     

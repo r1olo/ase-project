@@ -3,6 +3,7 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import or_
 from common.extensions import db
 from .models import Player, Friendship
 
@@ -68,22 +69,12 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. POST /players/search (Cerca profilo pubblico)
-@bp.post("/players/search")
+# 3. GET /players/<username>
+@bp.get("/players/<username>")
 @jwt_required()
-def search_player():
-    # Leggiamo il JSON dal body
-    payload = request.get_json(silent=True) or {}
-    
-    # Estraiamo lo username da cercare
-    target_username = (payload.get("username") or "").strip()
-
-    if not target_username:
-        return jsonify({"msg": "Username is required"}), 400
-
-    # Cerchiamo nel DB
+def get_player_public(username: str):
     profile = db.session.execute(
-        db.select(Player).filter_by(username=target_username)
+        db.select(Player).filter_by(username=username)
     ).scalar_one_or_none()
 
     if not profile:
@@ -123,30 +114,28 @@ def update_profile():
 
     return jsonify(profile.to_dict()), 200
 
-# 5. POST /internal/players/validation
-@bp.post("/internal/players/validation")
-def validate_player():
-    # Leggiamo il payload JSON dal body della richiesta
-    payload = request.get_json(silent=True) or {}
-
-    # Estraiamo lo user_id
-    target_user_id = payload.get("user_id")
-
-    # Validazione: user_id deve essere presente
-    if not target_user_id:
-        return jsonify({"msg": "user_id is required"}), 400
-
-    # Verifichiamo l'esistenza nel DB
-    exists = db.session.execute(
-        db.select(Player.id).filter_by(user_id=target_user_id)
-    ).first() is not None
-
-    return jsonify({"valid": exists}), 200
 
 # friendship table
 @bp.route("/players/me/friends", methods=["GET"])
-@jwt_required()
+@jwt_required
 def get_my_friends():
-    # 
     current_user_id = int(get_jwt_identity())
-    friends = Friendship.query.filter_by(player_id=current_user_id)
+    
+    player = Player.query.filter_by(user_id=current_user_id).first()
+    if not player:
+        return jsonify({"msg": "Player not found"}), 404
+
+    friends = Player.query.with_entities(Player.username, Friendship.accepted).join(
+        Friendship,
+        or_(
+            (Friendship.player1_id == player.id) & (Friendship.player2_id == Player.id),
+            (Friendship.player2_id == player.id) & (Friendship.player1_id == Player.id)
+        )
+    ).all()
+
+    result = [
+        {"username": username, "status": "accepted" if accepted else "pending"}
+        for username, accepted in friends
+    ]
+
+    return jsonify(result), 200
