@@ -248,6 +248,31 @@ def call_game_engine(player_ids, player_tokens=None):
     error_payload["status"] = "requeued"
     return jsonify(error_payload), resp.status_code
 
+
+def _validate_player_profile(user_id):
+    """Check if the user has a valid player profile."""
+    if current_app.config.get("TESTING"):
+        return True
+
+    base_url = current_app.config.get("PLAYERS_URL", "https://players:5000").rstrip("/")
+    # Using internal endpoint for validation
+    url = f"{base_url}/internal/players/validation"
+    
+    try:
+        resp = requests.post(
+            url, 
+            json={"user_id": int(user_id)}, 
+            timeout=3
+        )
+        if resp.status_code == 200:
+            data = resp.json()
+            return data.get("valid", False)
+        current_app.logger.warning("Player validation returned status %s", resp.status_code)
+        return False
+    except requests.RequestException as exc:
+        current_app.logger.error("Player service validation failed: %s", exc)
+        return False
+
 @bp.post("/enqueue")
 @jwt_required()
 def enqueue():
@@ -256,6 +281,11 @@ def enqueue():
     queue_key = _queue_key()
     status_key = _status_key()
     user_id = str(get_jwt_identity())
+    
+    # Validation Check
+    if not _validate_player_profile(user_id):
+        return jsonify({"msg": "You must create a profile first"}), 403
+
     max_size = current_app.config.get("MATCHMAKING_MAX_QUEUE_SIZE")
     status, players, queue_token, player_tokens, existing_status = _enqueue_atomic(
         conn, queue_key, status_key, user_id, max_size

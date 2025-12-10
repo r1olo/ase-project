@@ -135,3 +135,18 @@ def test_enqueue_many_players_odd_count(monkeypatch, matchmaking_app, matchmakin
         assert waiting == ["user-7"]
         status_payload = redis_manager.conn.hget(status_key, "user-7")
         assert status_payload is not None
+
+def test_enqueue_fails_if_profile_invalid(monkeypatch, matchmaking_app, matchmaking_client):
+    # Mock _validate_player_profile to return False
+    # Since we are in TESTING mode, the real code bypasses the network call.
+    # To test the failure path, we must mock the helper itself or force the code to take the validation path.
+    # But wait, the code says: if TESTING return True.
+    # So to test "False", we must patch `matchmaking.routes._validate_player_profile` 
+    # to return False, overriding the internal logic.
+    
+    monkeypatch.setattr("matchmaking.routes._validate_player_profile", lambda uid: False)
+    
+    headers = _auth_headers(matchmaking_app, "user-no-profile")
+    resp = matchmaking_client.post("/enqueue", headers=headers)
+    assert resp.status_code == 403
+    assert "create a profile" in resp.get_json()["msg"]
