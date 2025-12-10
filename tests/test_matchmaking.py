@@ -59,9 +59,19 @@ def test_enqueue_pairs_players_when_two_waiting(monkeypatch, matchmaking_app, ma
     assert status_body["match_id"] == 77
     assert status_body["opponent_id"] == "user-2"
 
+    # verify cache deletion (delete-on-read)
+    resp_status_again = matchmaking_client.get("/status", headers=headers_one, query_string={"token": token_one})
+    # depending on fallback logic, it might return 404 NotQueued or 200 Matched (via game engine fallback)
+    # But specifically the Redis entry should be gone.
     with matchmaking_app.app_context():
         queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
+        status_key = matchmaking_app.config.get("MATCHMAKING_STATUS_KEY", f"{queue_key}:status")
+        
+        # queue should be empty
         assert redis_manager.conn.zcard(queue_key) == 0
+        
+        # status entry for user-1 should be deleted
+        assert redis_manager.conn.hget(status_key, "user-1") is None
 
 def test_dequeue_removes_player_and_errors_when_missing(matchmaking_app, matchmaking_client):
     headers = _auth_headers(matchmaking_app, "user-3")

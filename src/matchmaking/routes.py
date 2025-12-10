@@ -292,6 +292,8 @@ def status():
         )
 
     if payload and payload.get("status") == MATCHED and payload.get("match_id"):
+        # delete the cache entry so it is not returned again
+        conn.hdel(status_key, user_id)
         return jsonify(
             {
                 "status": "Matched",
