@@ -64,7 +64,7 @@ class Config:
         self.JWT_ALGORITHM = "HS256"
         self.JWT_SECRET_KEY = os.getenv("SECRET_KEY", "supersecretkey")
 
-class TestConfig(Config):
+class TestConfig:
     # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
 
