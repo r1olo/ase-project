@@ -5,7 +5,7 @@ import json
 import os
 from typing import Dict, List, Optional
 from datetime import datetime
-from .models import Match, Round, MatchStatus
+from .models import MatchStatus
 
 # In-memory storage for testing
 MOCK_MATCHES = {}
