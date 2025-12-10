@@ -34,7 +34,7 @@ class Card(db.Model):
         self.special_pts = special
         self.total_pts = total
 
-    def to_json(self, relative: bool = False) -> dict:
+    def to_dict(self, relative: bool = False) -> dict:
         return {
             "id": self.id,
             "name": self.name,

@@ -48,5 +48,5 @@ def validate_deck():
         card = query_db_by_id(int(card_id))
         if not card:
             return jsonify({"msg": "Invalid deck"}), 400
-        cards.append(card.to_json(relative=True))
+        cards.append(card.to_dict(relative=True))
     return jsonify({"data": cards})

@@ -4,7 +4,8 @@ from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 from common.extensions import db
-from .models import Player
+from .models import Player, Friendship
+
 
 bp = Blueprint("players", __name__)
 
@@ -14,6 +15,7 @@ def health():
     return jsonify({"status": "ok"}), 200
 
 
+# player table
 # 1. GET /players/me
 @bp.get("/players/me")
 @jwt_required()
@@ -140,3 +142,11 @@ def validate_player():
     ).first() is not None
 
     return jsonify({"valid": exists}), 200
+
+# friendship table
+@bp.route("/players/me/friends", methods=["GET"])
+@jwt_required()
+def get_my_friends():
+    # 
+    current_user_id = int(get_jwt_identity())
+    friends = Friendship.query.filter_by(player_id=current_user_id)
