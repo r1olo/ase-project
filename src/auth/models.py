@@ -50,7 +50,7 @@ class User(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     email_blind_index: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    pw_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    pw_hash: Mapped[str] = mapped_column(EncryptedString, nullable=False)
     salt: Mapped[str] = mapped_column(String(255), nullable=False)
 
     def __init__(self, email: str, pw_hash: str, salt: str):
