@@ -111,20 +111,22 @@ def update_profile():
 
     return jsonify(profile.to_dict()), 200
 
-# 5. GET /internal/players/validation
-@bp.get("/internal/players/validation")
+# 5. POST /internal/players/validation
+@bp.post("/internal/players/validation")
 def validate_player():
-    # Recuperiamo lo user_id dai parametri GET (es. ?user_id=123)
-    target_user_id = request.args.get("user_id", type=int)
+    # Leggiamo il payload JSON dal body della richiesta
+    payload = request.get_json(silent=True) or {}
 
+    # Estraiamo lo user_id
+    target_user_id = payload.get("user_id")
+
+    # Validazione: user_id deve essere presente
     if not target_user_id:
         return jsonify({"msg": "user_id is required"}), 400
 
-    # Verifichiamo se esiste una riga nel DB con questo user_id.
-    # Usiamo db.select(Player.id) per efficienza: ci basta sapere se esiste.
+    # Verifichiamo l'esistenza nel DB
     exists = db.session.execute(
         db.select(Player.id).filter_by(user_id=target_user_id)
     ).first() is not None
 
-    # Se esiste, significa che ha completato la registrazione (ha username).
     return jsonify({"valid": exists}), 200
