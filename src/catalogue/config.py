@@ -50,7 +50,7 @@ class Config:
             "CATALOGUE_JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey")
         )
 
-class TestConfig(Config):
+class TestConfig:
     # JWT
     JWT_ALGORITHM = "HS256"
     JWT_SECRET_KEY = "test-secret"

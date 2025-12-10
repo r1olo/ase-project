@@ -1,0 +1,148 @@
+{
+	"info": {
+		"_postman_id": "1bcdc189-c4ed-4e5f-b779-df516d6d435c",
+		"name": "Card Catalogue",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49834238",
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/Rebecca-Rodi's-Workspace~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-1bcdc189-c4ed-4e5f-b779-df516d6d435c?action=share&source=collection_link&creator=49834238"
+	},
+	"item": [
+		{
+			"name": "health check",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get all cards",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/cards",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"cards"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "get single card",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/cards/:card_id",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"cards",
+						":card_id"
+					],
+					"variable": [
+						{
+							"key": "card_id",
+							"value": "8",
+							"description": "Card ID"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "validate deck",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"data\": [1, 2, 3, 4, 5, 6, 7]\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/internal/cards/validation",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"internal",
+						"cards",
+						"validation"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": ""
+		},
+		{
+			"key": "jwt_token",
+			"value": ""
+		}
+	]
+}

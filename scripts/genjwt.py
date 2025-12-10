@@ -19,7 +19,6 @@ with app.app_context():
     # create a token that never expires used for testing
     token = create_access_token(identity="test_user", expires_delta=False)
     print(token)
-    print("\n")
 
     # write the generated token in a file
     if not os.path.exists(SECRETS_DIR):
