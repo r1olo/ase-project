@@ -10,7 +10,8 @@ FILE_PATH = os.path.join(SECRETS_DIR, SECRET_FILE)
 app = Flask(__name__)
 
 # this must match the key in the actual application config
-app.config["JWT_SECRET_KEY"] = "test-secret" 
+app.config["JWT_ALGORITHM"] = "HS256"
+app.config["JWT_SECRET_KEY"] = "test-secret"
 
 jwt = JWTManager(app)
 

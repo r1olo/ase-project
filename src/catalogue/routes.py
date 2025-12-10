@@ -12,7 +12,7 @@ def health():
 
 @catalogue.route("/cards", methods=["GET"])
 @jwt_required()
-def get_cards():
+def get_all_cards():
     # fetch all cards from the database, ordering them by ascending order on id value
     cards = Card.query.order_by(Card.id.asc()).all()
 

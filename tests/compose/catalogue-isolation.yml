@@ -1,0 +1,18 @@
+services:
+  catalogue:
+    build:
+      context: ../..
+      dockerfile: src/catalogue/Dockerfile_test
+    environment:
+      FLASK_APP: catalogue.app:create_test_app
+    ports:
+      - "5000:5000"
+    secrets:
+      - catalogue.crt
+      - catalogue.key
+
+secrets:
+  catalogue.crt:
+    file: ../../secrets/catalogue.crt
+  catalogue.key:
+    file: ../../secrets/catalogue.key
