@@ -66,12 +66,22 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. GET /players/<username>
-@bp.get("/players/<username>")
+# 3. POST /players/search (Cerca profilo pubblico)
+@bp.post("/players/search")
 @jwt_required()
-def get_player_public(username: str):
+def search_player():
+    # Leggiamo il JSON dal body
+    payload = request.get_json(silent=True) or {}
+    
+    # Estraiamo lo username da cercare
+    target_username = (payload.get("username") or "").strip()
+
+    if not target_username:
+        return jsonify({"msg": "Username is required"}), 400
+
+    # Cerchiamo nel DB
     profile = db.session.execute(
-        db.select(Player).filter_by(username=username)
+        db.select(Player).filter_by(username=target_username)
     ).scalar_one_or_none()
 
     if not profile:
