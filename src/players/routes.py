@@ -171,9 +171,9 @@ def get_my_friends():
     ]
     return jsonify({"data": friends_list}), 200
 
-@bp.post("/players/me/friends")
 # add a new friend to friends list of current user
 # notice: status of new created friendship is pending by default
+@bp.post("/players/me/friends")
 @jwt_required()
 def send_friend_request():
     current_user_id = int(get_jwt_identity())
@@ -219,6 +219,7 @@ def send_friend_request():
 
     return jsonify({"msg": "Friend request sent"}), 201
 
+# check friendship status between current user 
 @bp.get("/players/me/friends/<username>")
 @jwt_required()
 def get_friendship_status(username: str):
@@ -231,12 +232,11 @@ def get_friendship_status(username: str):
     if not target_player:
         return jsonify({"msg": "Target player not found"}), 404
 
-    friendship = Friendship.query.filter(
-        or_(
-            (Friendship.player1_id == current_player.id) & (Friendship.player2_id == target_player.id),
-            (Friendship.player1_id == target_player.id) & (Friendship.player2_id == current_player.id)
-        )
-    ).first()
+    if current_player.id < target_player.id:
+        player1_id, player2_id = current_player.id, target_player.id
+    else:
+        player1_id, player2_id = target_player.id, current_player.id
+    friendship = Friendship.query.filter_by(player1_id=player1_id, player2_id=player2_id).first()
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
 
