@@ -8,7 +8,6 @@ from common.extensions import db
 from .models import Player, Friendship
 
 
-
 bp = Blueprint("players", __name__)
 
 
@@ -147,6 +146,12 @@ def validate_player():
 
 
 # friendship table
+def _get_friendship_by_ids(player1_id: int, player2_id: int) -> Friendship | None:
+    # swap values if necessary
+    if player1_id > player2_id:
+        player1_id, player2_id = player2_id, player1_id
+    return Friendship.query.filter_by(player1_id=player1_id, player2_id=player2_id).first()
+
 # get friends list of current user
 @bp.get("/players/me/friends")
 @jwt_required()
@@ -192,12 +197,7 @@ def send_friend_request():
     if current_player.id == target_player.id:
         return jsonify({"msg": "You cannot add yourself as a friend"}), 400
 
-    friendship = Friendship.query.filter(
-        or_(
-            (Friendship.player1_id == current_player.id) & (Friendship.player2_id == target_player.id),
-            (Friendship.player1_id == target_player.id) & (Friendship.player2_id == current_player.id)
-        )
-    ).first()
+    friendship = _get_friendship_by_ids(current_player.id, target_player.id)
     if friendship:
         if friendship.accepted:
             return jsonify({"msg": "You are already friends"}), 409
@@ -232,11 +232,7 @@ def get_friendship_status(username: str):
     if not target_player:
         return jsonify({"msg": "Target player not found"}), 404
 
-    if current_player.id < target_player.id:
-        player1_id, player2_id = current_player.id, target_player.id
-    else:
-        player1_id, player2_id = target_player.id, current_player.id
-    friendship = Friendship.query.filter_by(player1_id=player1_id, player2_id=player2_id).first()
+    friendship = _get_friendship_by_ids(current_player.id, target_player.id)
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
 
@@ -261,14 +257,7 @@ def respond_friend_request(username):
     if not requester_player:
         return jsonify({"msg": "Player not found"}), 404
 
-    if current_player.id < requester_player.id:
-        player1_id, player2_id = current_player.id, requester_player.id
-    else:
-        player1_id, player2_id = requester_player.id, current_player.id
-    friendship = Friendship.query.filter_by(
-        player1_id=player1_id,
-        player2_id=player2_id
-    ).first()
+    friendship = _get_friendship_by_ids(current_player.id, requester_player.id)
     if not friendship:
         return jsonify({"msg": "Friend request not found"}), 404
 
@@ -295,15 +284,7 @@ def remove_friend(username):
     if not target_player:
         return jsonify({"msg": "Target player not found"}), 404
 
-    if current_player.id < target_player.id:
-        player1_id, player2_id = current_player.id, target_player.id
-    else:
-        player1_id, player2_id = target_player.id, current_player.id
-    friendship = Friendship.query.filter_by(
-        player1_id=player1_id,
-        player2_id=player2_id
-    ).first()
-
+    friendship = _get_friendship_by_ids(current_player.id, target_player.id)
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
 
