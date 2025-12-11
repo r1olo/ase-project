@@ -219,7 +219,7 @@ def send_friend_request():
 
     return jsonify({"msg": "Friend request sent"}), 201
 
-# check friendship status between current user 
+# check friendship status between current user and user with param username
 @bp.get("/players/me/friends/<username>")
 @jwt_required()
 def get_friendship_status(username: str):
@@ -243,6 +243,7 @@ def get_friendship_status(username: str):
     status = "accepted" if friendship.accepted else "pending"
     return jsonify({"username": username, "status": status}), 200
 
+# modify friendship request status between current user and user with param username
 @bp.put("/players/me/friends/<username>")
 @jwt_required()
 def respond_friend_request(username):
@@ -281,6 +282,7 @@ def respond_friend_request(username):
     db.session.commit()
     return jsonify({"msg": msg}), 200
 
+# remove friendship between current user and user with param username
 @bp.delete("/players/me/friends/<username>")
 @jwt_required()
 def remove_friend(username):
