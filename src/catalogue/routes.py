@@ -6,10 +6,12 @@ from flask_jwt_extended import jwt_required
 
 bp = Blueprint("catalogue", __name__)
 
+# check service status
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
+# get all cards details from db
 @bp.get("/cards")
 @jwt_required()
 def get_all_cards():
@@ -20,6 +22,7 @@ def get_all_cards():
     cards_list = [card.to_dict(relative=True) for card in cards]
     return jsonify({"data": cards_list})
 
+# get card details given its identifier
 @bp.get("/cards/<card_id>")
 @jwt_required()
 def get_single_card(card_id: int):
@@ -34,6 +37,7 @@ def get_single_card(card_id: int):
     # convert to json
     return jsonify(card.to_dict(relative=True))
 
+# check if deck is valid
 @bp.post("/internal/cards/validation")
 def validate_deck():
     payload = request.get_json(silent=True) or {}
@@ -51,18 +55,3 @@ def validate_deck():
             return jsonify({"msg": "Invalid deck"}), 400
         cards.append(card.to_dict(relative=True))
     return jsonify({"data": cards})
-
-# @catalogue.get("/cards/validation")
-# def validate_deck():
-#     payload = request.get_json(silent=True) or {}
-
-#     # checks each card in the payload
-#     for card in payload.get("data", []):
-#         if not card:
-#             return jsonify({"data": False})
-        
-#         # case no match or match is wrong
-#         card_catalogue = Card.query.filter_by(id=card.get("id") or "").first()
-#         if not card_catalogue or not card_catalogue.to_dict(relative=True) == card:
-#             return jsonify({"data": False})
-#     return jsonify({"data": True})

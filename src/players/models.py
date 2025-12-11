@@ -1,7 +1,7 @@
 """Database models for the players service."""
 
 from __future__ import annotations
-from sqlalchemy import Integer, String
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 from common.extensions import db
 
@@ -34,7 +34,7 @@ class Friendship(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     player1_id: Mapped[int] = mapped_column(Integer, foreign_key="players.id", index=True, nullable=False)
     player2_id: Mapped[int] = mapped_column(Integer, foreign_key="players.id", index=True, nullable=False)
-    accepted: Mapped[str] = mapped_column(String(20), nullable=False)
+    accepted: Mapped[str] = mapped_column(Boolean, nullable=False)
 
     def __init__(self,
         player1_id: int,
@@ -47,7 +47,7 @@ class Friendship(db.Model):
 
     def to_dict(self) -> dict:
         return {
-            "player1_id": self.player_id,
+            "player1_id": self.player1_id,
             "player2_id": self.player2_id,
             "status": "accepted" if self.accepted else "pending",
         }
