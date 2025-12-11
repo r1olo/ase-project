@@ -21,13 +21,13 @@ def query_db_by_id(id: int):
             return card
     return None
 
-@mock_catalogue.route("/cards", methods=["GET"])
+@mock_catalogue.get("/cards")
 def get_cards():
     current_app.cards_db
     cards = [card for _, card in current_app.cards_db.items()]
     return jsonify({"data": cards})
 
-@mock_catalogue.route("/cards/<card_id>", methods=["GET"])
+@mock_catalogue.get("/cards/<card_id>")
 def get_single_card(card_id: int):
     if not card_id.isdigit():
         return jsonify({"msg": "Invalid card ID"}), 400
@@ -36,7 +36,7 @@ def get_single_card(card_id: int):
     return jsonify(card) if card else jsonify({"msg": "Card not found"}), 404
 
 
-@mock_catalogue.route("/internal/cards/validation", methods=["POST"])
+@mock_catalogue.post("/internal/cards/validation")
 def validate_deck():
     payload = request.get_json(silent=True) or {}
     cards = []

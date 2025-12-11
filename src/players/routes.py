@@ -116,8 +116,8 @@ def update_profile():
 
 
 # friendship table
-@bp.route("/players/me/friends", methods=["GET"])
-@jwt_required
+@bp.get("/players/me/friends")
+@jwt_required()
 def get_my_friends():
     current_user_id = int(get_jwt_identity())
     
@@ -125,6 +125,7 @@ def get_my_friends():
     if not player:
         return jsonify({"msg": "Player not found"}), 404
 
+    # get the list of friends of the current user
     friends = Player.query.with_entities(Player.username, Friendship.accepted).join(
         Friendship,
         or_(
@@ -133,9 +134,102 @@ def get_my_friends():
         )
     ).all()
 
-    result = [
+    friends_list = [
         {"username": username, "status": "accepted" if accepted else "pending"}
         for username, accepted in friends
     ]
+    return jsonify({"data": friends_list}), 200
 
-    return jsonify(result), 200
+
+# @bp.post("/players/me/friends")
+# @jwt_required()
+# def send_friend_request():
+#     current_user_id = int(get_jwt_identity())
+#     payload = request.get_json(silent=True) or {}
+#     target_username = payload.get("username")
+
+#     if not target_username:
+#         return jsonify({"msg": "username is required"}), 400
+
+#     current_player = db.session.execute(
+#         db.select(Player).filter_by(user_id=current_user_id)
+#     ).scalar_one_or_none()
+    
+#     if not current_player:
+#         return jsonify({"msg": "Profile not found"}), 404
+
+#     target_player = db.session.execute(
+#         db.select(Player).filter_by(username=target_username)
+#     ).scalar_one_or_none()
+
+#     if not target_player:
+#         return jsonify({"msg": "Target player not found"}), 404
+    
+#     if current_player.id == target_player.id:
+#         return jsonify({"msg": "You cannot add yourself as a friend"}), 400
+
+#     existing = db.session.execute(
+#         db.select(Friendship).filter(
+#             or_(
+#                 (Friendship.player1_id == current_player.id) & (Friendship.player2_id == target_player.id),
+#                 (Friendship.player1_id == target_player.id) & (Friendship.player2_id == current_player.id)
+#             )
+#         )
+#     ).scalar_one_or_none()
+
+#     if existing:
+#         return jsonify({"msg": "Friendship already exists or is pending"}), 409
+
+#     new_friendship = Friendship(
+#         player1_id=current_player.id,
+#         player2_id=target_player.id,
+#         accepted=False
+#     )
+#     db.session.add(new_friendship)
+#     db.session.commit()
+
+#     return jsonify({"msg": "Friend request sent"}), 201
+
+
+# @bp.post("/players/me/friends/respond")
+# @jwt_required()
+# def respond_friend_request():
+#     current_user_id = int(get_jwt_identity())
+#     payload = request.get_json(silent=True) or {}
+    
+#     requester_username = payload.get("username")
+#     accepted = payload.get("accepted")
+
+#     if not requester_username or accepted is None:
+#         return jsonify({"msg": "username and accepted status are required"}), 400
+
+#     current_player = db.session.execute(
+#         db.select(Player).filter_by(user_id=current_user_id)
+#     ).scalar_one_or_none()
+    
+#     requester_player = db.session.execute(
+#         db.select(Player).filter_by(username=requester_username)
+#     ).scalar_one_or_none()
+
+#     if not current_player or not requester_player:
+#         return jsonify({"msg": "Player not found"}), 404
+
+#     friendship = db.session.execute(
+#         db.select(Friendship).filter_by(
+#             player1_id=requester_player.id,
+#             player2_id=current_player.id
+#         )
+#     ).scalar_one_or_none()
+
+#     if not friendship:
+#         return jsonify({"msg": "Friend request not found"}), 404
+
+#     if accepted:
+#         friendship.accepted = True
+#         msg = "Friend request accepted"
+#     else:
+#         db.session.delete(friendship)
+#         msg = "Friend request rejected"
+
+#     db.session.commit()
+#     return jsonify({"msg": msg}), 200

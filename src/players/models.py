@@ -28,12 +28,13 @@ class Player(db.Model):
             "region": self.region,
         }
     
-    class Friendship(db.Model):
-        __tablename__ = "friends"
+class Friendship(db.Model):
+    __tablename__ = "friends"
 
-        player1_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), index=True, nullable=False)
-        player2_id: Mapped[int] = mapped_column(Integer, db.ForeignKey("players.id"), index=True, nullable=False)
-        accepted: Mapped[str] = mapped_column(String(20), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    player1_id: Mapped[int] = mapped_column(Integer, foreign_key="players.id", index=True, nullable=False)
+    player2_id: Mapped[int] = mapped_column(Integer, foreign_key="players.id", index=True, nullable=False)
+    accepted: Mapped[str] = mapped_column(String(20), nullable=False)
 
     def __init__(self,
         player1_id: int,
@@ -50,4 +51,3 @@ class Player(db.Model):
             "player2_id": self.player2_id,
             "status": "accepted" if self.accepted else "pending",
         }
-    

@@ -10,17 +10,17 @@ bp = Blueprint("catalogue", __name__)
 def health():
     return jsonify({"status": "ok"}), 200
 
-@bp.route("/cards", methods=["GET"])
+@bp.get("/cards")
 @jwt_required()
 def get_all_cards():
     # fetch all cards from the database, ordering them by ascending order on id value
     cards = Card.query.order_by(Card.id.asc()).all()
 
     # convert to json
-    cards_json = [card.to_dict(relative=True) for card in cards]
-    return jsonify({"data": cards_json})
+    cards_list = [card.to_dict(relative=True) for card in cards]
+    return jsonify({"data": cards_list})
 
-@bp.route("/cards/<card_id>", methods=["GET"])
+@bp.get("/cards/<card_id>")
 @jwt_required()
 def get_single_card(card_id: int):
     if not card_id.isdigit():
@@ -34,7 +34,7 @@ def get_single_card(card_id: int):
     # convert to json
     return jsonify(card.to_dict(relative=True))
 
-@bp.route("/internal/cards/validation", methods=["POST"])
+@bp.post("/internal/cards/validation")
 def validate_deck():
     payload = request.get_json(silent=True) or {}
     cards = []
@@ -52,7 +52,7 @@ def validate_deck():
         cards.append(card.to_dict(relative=True))
     return jsonify({"data": cards})
 
-# @catalogue.route("/cards/validation", methods=["GET"])
+# @catalogue.get("/cards/validation")
 # def validate_deck():
 #     payload = request.get_json(silent=True) or {}
 

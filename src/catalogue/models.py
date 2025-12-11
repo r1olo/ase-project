@@ -8,6 +8,7 @@ RELATIVE_PATH = "/images/"
 
 class Card(db.Model):
     __tablename__ = 'cards'
+    
     id : Mapped[int] = mapped_column(Integer, primary_key=True)
     name : Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     image : Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
