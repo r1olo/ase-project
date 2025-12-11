@@ -1,0 +1,18 @@
+services:
+  players:
+    build:
+      context: ../..
+      dockerfile: src/players/Dockerfile_test
+    environment:
+      FLASK_APP: players.app:create_test_app
+    ports:
+      - "5000:5000"
+    secrets:
+      - players.crt
+      - players.key
+
+secrets:
+  players.crt:
+    file: ../../secrets/players.crt
+  players.key:
+    file: ../../secrets/players.key
