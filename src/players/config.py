@@ -60,4 +60,5 @@ class TestConfig:
     FAKE_REDIS = True
 
     # testing
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     TESTING = True

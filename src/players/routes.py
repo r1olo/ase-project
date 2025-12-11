@@ -8,6 +8,7 @@ from common.extensions import db
 from .models import Player, Friendship
 
 
+
 bp = Blueprint("players", __name__)
 
 
@@ -69,12 +70,22 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. GET /players/<username>
-@bp.get("/players/<username>")
+# 3. POST /players/search (Cerca profilo pubblico)
+@bp.post("/players/search")
 @jwt_required()
-def get_player_public(username: str):
+def search_player():
+    # Leggiamo il JSON dal body
+    payload = request.get_json(silent=True) or {}
+    
+    # Estraiamo lo username da cercare
+    target_username = (payload.get("username") or "").strip()
+
+    if not target_username:
+        return jsonify({"msg": "Username is required"}), 400
+
+    # Cerchiamo nel DB
     profile = db.session.execute(
-        db.select(Player).filter_by(username=username)
+        db.select(Player).filter_by(username=target_username)
     ).scalar_one_or_none()
 
     if not profile:
@@ -113,6 +124,26 @@ def update_profile():
         return jsonify({"msg": "Error updating profile"}), 500
 
     return jsonify(profile.to_dict()), 200
+
+# 5. POST /internal/players/validation
+@bp.post("/internal/players/validation")
+def validate_player():
+    # Leggiamo il payload JSON dal body della richiesta
+    payload = request.get_json(silent=True) or {}
+
+    # Estraiamo lo user_id
+    target_user_id = payload.get("user_id")
+
+    # Validazione: user_id deve essere presente
+    if not target_user_id:
+        return jsonify({"msg": "user_id is required"}), 400
+
+    # Verifichiamo l'esistenza nel DB
+    exists = db.session.execute(
+        db.select(Player.id).filter_by(user_id=target_user_id)
+    ).first() is not None
+
+    return jsonify({"valid": exists}), 200
 
 
 # friendship table

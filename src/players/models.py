@@ -8,6 +8,7 @@ from common.extensions import db
 class Player(db.Model):
     __tablename__ = "players"
     
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
     region: Mapped[str] = mapped_column(String(20), nullable=True)
