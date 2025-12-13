@@ -153,6 +153,16 @@ components:
       required: [id, username, email, score, ranking]
       description: Player profile.
 
+    Friendship:
+      type: object
+      properties:
+        id: { type: integer }
+        player1_id: { type: integer }
+        player2_id: { type: integer }
+        status:
+          type: string
+          enum: [pending, accepted]
+
     # utility / error messages
     ResponseMessage:
       type: object
@@ -162,6 +172,11 @@ components:
       required: [msg]
       description: Standard message-only response used to share information about errors.
 
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   responses:
     GameEngine.ValidationError:
       description: Validation error
@@ -257,6 +272,8 @@ paths:
     post:
       tags: [Authentication]
       summary: Generate a new access token
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: New access token
@@ -276,6 +293,8 @@ paths:
     post:
       tags: [Authentication]
       summary: User log out
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Logged out
@@ -288,6 +307,8 @@ paths:
     get:
       tags: [Players]
       summary: Get a player by ID
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PlayerId'
       responses:
@@ -303,6 +324,8 @@ paths:
     get:
       tags: [Players]
       summary: Get player's score
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PlayerId'
       responses:
@@ -320,6 +343,8 @@ paths:
     get:
       tags: [Players]
       summary: Get player's ranking
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PlayerId'
       responses:
@@ -337,6 +362,8 @@ paths:
     get:
       tags: [Players]
       summary: Get all players of the game
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: A list of players
@@ -348,11 +375,14 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Player' }
-          
+
+# TODO 
   /players/{pId}/matches:
     get:
       tags: [Players]
       summary: Get all matches for player
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PlayerId'
       responses:
@@ -371,6 +401,8 @@ paths:
     get:
       tags: [Players]
       summary: Get a player's match by ID
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/PlayerId'
         - $ref: '#/components/parameters/MatchId'
@@ -383,11 +415,141 @@ paths:
         '404': 
           description: Error
 
+  /players/me/friends:
+    get:
+      tags: [Players]
+      summary: Get friends list of current user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of friends
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        username: { type: string }
+                        status: { type: string, enum: [accepted, pending] }
+        '404':
+          description: User player not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+
+  /players/me/friends/{username}:
+    get:
+      tags: [Players]
+      summary: Check friendship status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Username of the player to check friendship with.
+      responses:
+        '200':
+          description: Friendship status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username: { type: string }
+                  status: { type: string, enum: [accepted, pending] }
+        '404':
+          description: User player not found, or Target player not found, or Friendship not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+    post:
+      tags: [Players]
+      summary: Send or respond to a friendship request
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Username of the player to send a friend request to.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accepted: { type: boolean }
+      responses:
+        '200':
+          description: Friendship request accepted or rejected
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '201':
+          description: Friend request sent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '404':
+          description: User player not found, or Target player not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '409':
+          description: Conflict
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+    delete:
+      tags: [Players]
+      summary: Remove friendship
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Friendship removed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '404':
+          description: User player not found, or Target player not found, or Friendship not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '409':
+          description: Not authorized to remove friendship
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+
   # matchmaking
   /enqueue:
     post:
       tags: [Matchmaking]
       summary: Enqueue player
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Matched
@@ -418,6 +580,8 @@ paths:
     get:
       tags: [Matchmaking]
       summary: Check player's queue status
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Enqueued
@@ -468,6 +632,8 @@ paths:
       tags: [Matchmaking]
       summary: Dequeue player
       description: Remove player from queue.
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Dequeued
@@ -495,6 +661,8 @@ paths:
     get:
       tags: [Game Engine]
       summary: Get match by ID
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
@@ -516,6 +684,8 @@ paths:
     get:
       tags: [Game Engine]
       summary: Get match and rounds by ID
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
@@ -568,6 +738,8 @@ paths:
     post:
       tags: [Game Engine]
       summary: Submit deck for current match
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
       requestBody:
@@ -603,6 +775,8 @@ paths:
     post:
       tags: [Game Engine]
       summary: Submit move for current round in current match
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
         - $ref: '#/components/parameters/RoundId'
@@ -650,6 +824,8 @@ paths:
     get:
       tags: [Game Engine]
       summary: Get status of last round in current match
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
@@ -679,6 +855,8 @@ paths:
     get:
       tags: [Game Engine]
       summary: Get leaderboard
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/MatchId'
       responses:
@@ -690,6 +868,8 @@ paths:
     get:
       tags: [Cards]
       summary: Get all cards of the game
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: A list of cards
@@ -706,6 +886,8 @@ paths:
     get:
       tags: [Cards]
       summary: Get a single card by ID
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CardId'
       responses:
@@ -724,6 +906,7 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
+
   /internal/cards/validation:
     get:
       tags: [Card]
