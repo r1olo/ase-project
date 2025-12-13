@@ -176,49 +176,6 @@ def get_my_friends():
     ]
     return jsonify({"data": friends_list}), 200
 
-# add a new friend to friends list of current user
-# notice: status of new created friendship is pending by default
-@bp.post("/players/me/friends")
-@jwt_required()
-def send_friend_request():
-    current_user_id = int(get_jwt_identity())
-    current_player = Player.query.filter_by(user_id=current_user_id).first()
-    if not current_player:
-        return jsonify({"msg": "User player not found"}), 404
-    
-    payload = request.get_json(silent=True) or {}
-    target_username = payload.get("username")
-    if not target_username:
-        return jsonify({"msg": "username is required"}), 400
-    target_player = Player.query.filter_by(username=target_username).first()
-    if not target_player:
-        return jsonify({"msg": "Target player not found"}), 404
-    
-    if current_player.id == target_player.id:
-        return jsonify({"msg": "You cannot add yourself as a friend"}), 400
-
-    friendship = _get_friendship_by_ids(current_player.id, target_player.id)
-    if friendship:
-        if friendship.accepted:
-            return jsonify({"msg": "You are already friends"}), 409
-        else:
-            return jsonify({"msg": "Friendship request is pending"}), 409
-
-    if current_player.id < target_player.id:
-        player1_id, player2_id = current_player.id, target_player.id
-    else:
-        player1_id, player2_id = target_player.id, current_player.id
-    # add a new record to table
-    new_friendship = Friendship(
-        player1_id=player1_id,
-        player2_id=player2_id,
-        accepted=False
-    )
-    db.session.add(new_friendship)
-    db.session.commit()
-
-    return jsonify({"msg": "Friend request sent"}), 201
-
 # check friendship status between current user and user with param username
 @bp.get("/players/me/friends/<username>")
 @jwt_required()
@@ -239,28 +196,55 @@ def get_friendship_status(username: str):
     status = "accepted" if friendship.accepted else "pending"
     return jsonify({"username": username, "status": status}), 200
 
-# modify friendship request status between current user and user with param username
-@bp.put("/players/me/friends/<username>")
+# send or respond to a friendship request
+# notice: status of new created friendship is pending by default
+@bp.post("/players/me/friends/<username>")
 @jwt_required()
-def respond_friend_request(username):
+def handle_friend_request(username):
     current_user_id = int(get_jwt_identity())
     current_player = Player.query.filter_by(user_id=current_user_id).first()
     if not current_player:
         return jsonify({"msg": "User player not found"}), 404
 
+    target_player = Player.query.filter_by(username=username).first()
+    if not target_player:
+        return jsonify({"msg": "Player not found"}), 404
+
+    if current_player.id == target_player.id:
+        return jsonify({"msg": "You cannot add yourself as a friend"}), 400
+
+    friendship = _get_friendship_by_ids(current_player.id, target_player.id)
+    # case: friendship does not exist
+    if not friendship:
+        # create new request
+        if current_player.id < target_player.id:
+            p1, p2 = current_player.id, target_player.id
+        else:
+            p1, p2 = target_player.id, current_player.id
+            
+        new_friendship = Friendship(
+            player1_id=p1,
+            player2_id=p2,
+            requester_id=current_player.id,
+            accepted=False
+        )
+        db.session.add(new_friendship)
+        db.session.commit()
+        return jsonify({"msg": "Friend request sent"}), 201
+
+    # case: friendship exists
+    if friendship.accepted:
+        return jsonify({"msg": "You are already friends"}), 409
+
+    # case: pending friendship request - check requester
+    if friendship.requester_id == current_player.id:
+        return jsonify({"msg": "Friend request is pending"}), 409
+
+    # case: incoming request - process response
     payload = request.get_json(silent=True) or {}
     accepted = payload.get("accepted")
     if accepted is None:
-        return jsonify({"msg": "accepted status is required"}), 400
-
-    requester_player = Player.query.filter_by(username=username).first()
-    if not requester_player:
-        return jsonify({"msg": "Player not found"}), 404
-
-    friendship = _get_friendship_by_ids(current_player.id, requester_player.id)
-    if not friendship:
-        return jsonify({"msg": "Friend request not found"}), 404
-
+        return jsonify({"msg": "Provide 'accepted' to respond."}), 400
     if accepted:
         friendship.accepted = True
         msg = "Friend request accepted"
@@ -287,8 +271,10 @@ def remove_friend(username):
     friendship = _get_friendship_by_ids(current_player.id, target_player.id)
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
+    
+    if friendship.requester_id != current_player.id:
+        return jsonify({"msg": "Only requester can remove friendship"}), 409
 
     db.session.delete(friendship)
     db.session.commit()
-
     return jsonify({"msg": "Friendship removed"}), 200

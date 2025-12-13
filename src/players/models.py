@@ -35,20 +35,25 @@ class Friendship(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     player1_id: Mapped[int] = mapped_column(Integer, ForeignKey("players.id"), index=True, nullable=False)
     player2_id: Mapped[int] = mapped_column(Integer, ForeignKey("players.id"), index=True, nullable=False)
+    requester_id: Mapped[int] = mapped_column(Integer, ForeignKey("players.id"), nullable=False)
+    
     accepted: Mapped[str] = mapped_column(Boolean, nullable=False)
 
     def __init__(self,
         player1_id: int,
         player2_id: int,
+        requester_id: int,
         accepted: bool = False
     ):
         self.player1_id = player1_id
         self.player2_id = player2_id
+        self.requester_id = requester_id
         self.accepted = accepted
 
     def to_dict(self) -> dict:
         return {
             "player1_id": self.player1_id,
             "player2_id": self.player2_id,
+            "requester_id": self.requester_id,
             "status": "accepted" if self.accepted else "pending",
         }
