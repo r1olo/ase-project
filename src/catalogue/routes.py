@@ -40,8 +40,12 @@ def validate_deck():
     payload = request.get_json(silent=True) or {}
     cards = []
     
+    data = payload.get("data")
+    if data is None:
+        return jsonify({"msg": "Invalid deck"}), 400
+
     # checks each card in the payload
-    for card_id in payload.get("data", []):
+    for card_id in data:
         # case no card ID or card ID is not a number
         if not card_id or not (isinstance(card_id, int) or card_id.isdigit()):
             return jsonify({"msg": "Empty deck"}), 400

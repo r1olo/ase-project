@@ -21,7 +21,9 @@ def _fill_db():
     db.session.commit()
 
 ### test cases for catalogue cards endpoints    
-def test_get_all_cards_empty_db(catalogue_client):
+def test_get_all_cards_empty_db(disable_jwt, catalogue_client):
+    disable_jwt()
+
     # ensure no cards in the database
     resp = catalogue_client.get("/cards")
     assert resp.status_code == 200
@@ -76,10 +78,8 @@ def test_cards_validation_empty_body(disable_jwt, catalogue_client):
     _fill_db()
 
     # try to validate an empty payload
-    resp = catalogue_client.get("/cards/validation", json={})
-    assert resp.status_code == 200
-    data = resp.get_json()
-    assert data["data"] == True
+    resp = catalogue_client.post("/internal/cards/validation", json={})
+    assert resp.status_code == 400
 
 def test_cards_validation_success(disable_jwt, catalogue_client):
     disable_jwt()
@@ -95,10 +95,13 @@ def test_cards_validation_success(disable_jwt, catalogue_client):
         Card.query.filter_by(name="Trentino-Alto Adige").first()
     ]
     
-    resp = catalogue_client.get("/cards/validation", json={"data": [card.to_dict(relative=True) for card in data]})
+    cards_data = [card.to_dict(relative=True) for card in data]
+    cards_ids = [data[idx].id for idx, _ in enumerate(data)]
+
+    resp = catalogue_client.post("/internal/cards/validation", json={"data": cards_ids})
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["data"] == True
+    assert data["data"] in cards_data
 
 def test_cards_validation_failure(disable_jwt, catalogue_client):
     disable_jwt()
@@ -107,17 +110,7 @@ def test_cards_validation_failure(disable_jwt, catalogue_client):
     with open("cards/cards.json") as file:
         cards = json.load(file)
         # define the request payload from json file with no id field
-        data = [
-            cards.get("campania"),
-            cards.get("lazio"),
-            cards.get("liguria"),
-            cards.get("sicilia"),
-            cards.get("molise"),
-            cards.get("veneto"),
-            cards.get("trentino_alto_adige"),
-        ]
+        data = [-1, -2, -3, -4, -5, -6, -7]
         
-        resp = catalogue_client.get("/cards/validation", json={"data": data})
-        assert resp.status_code == 200
-        data = resp.get_json()
-        assert data["data"] == False
+        resp = catalogue_client.post("/internal/cards/validation", json={"data": data})
+        assert resp.status_code == 400
