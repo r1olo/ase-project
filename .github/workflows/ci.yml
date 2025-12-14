@@ -25,11 +25,15 @@ jobs:
       - name: Start services
         run: docker compose up -d --build
 
-      # 4. Run the verification script
+      # 4. Create keys and certificates
+      - name: Create keys and certificates
+        run: ./scripts/genkeys.sh
+
+      # 5. Run the verification script
       - name: Verify Health Endpoint
         run: ./scripts/verify_health.sh
 
-      # 5. Teardown (Optional, runner cleans up anyway, but good practice)
+      # 6. Teardown (Optional, runner cleans up anyway, but good practice)
       - name: Teardown
         if: always() # Run this even if the test failed
         run: docker compose down
