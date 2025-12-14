@@ -1,11 +1,36 @@
 from catalogue.models import Card
+from common.extensions import db
 
 import json
 
-### test cases for catalogue cards endpoints
+# fill the database with cards from the json file
+def _fill_db():
+    with open("cards/cards.json") as file:
+        cards_data = json.load(file)
+        for _, card_info in cards_data.items():
+            card = Card(
+                name=card_info["name"],
+                image=card_info["image"],
+                economy=card_info["economy"],
+                food=card_info["food"],
+                environment=card_info["environment"],
+                special=card_info["special"],
+                total=card_info["total"],
+            )
+            db.session.add(card)
+    db.session.commit()
+
+### test cases for catalogue cards endpoints    
+def test_get_all_cards_empty_db(catalogue_client):
+    # ensure no cards in the database
+    resp = catalogue_client.get("/cards")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["data"] == []
 
 def test_get_all_cards(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     # try to fetch all cards
     resp = catalogue_client.get("/cards")
@@ -21,6 +46,7 @@ def test_get_all_cards(disable_jwt, catalogue_client):
  
 def test_get_single_card_success(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     # try to fetch the card by id
     resp = catalogue_client.get(f"/cards/8")
@@ -30,6 +56,7 @@ def test_get_single_card_success(disable_jwt, catalogue_client):
 
 def test_get_single_card_not_found(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     # try to fetch a non-existent card
     resp = catalogue_client.get("/cards/123456789")
@@ -46,6 +73,7 @@ def test_get_single_card_invalid_id(disable_jwt, catalogue_client):
 
 def test_cards_validation_empty_body(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     # try to validate an empty payload
     resp = catalogue_client.get("/cards/validation", json={})
@@ -55,6 +83,7 @@ def test_cards_validation_empty_body(disable_jwt, catalogue_client):
 
 def test_cards_validation_success(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     data = [
         Card.query.filter_by(name="Campania").first(),
@@ -73,6 +102,7 @@ def test_cards_validation_success(disable_jwt, catalogue_client):
 
 def test_cards_validation_failure(disable_jwt, catalogue_client):
     disable_jwt()
+    _fill_db()
 
     with open("cards/cards.json") as file:
         cards = json.load(file)
