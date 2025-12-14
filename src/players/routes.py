@@ -318,26 +318,26 @@ def remove_friend(username):
     return jsonify({"msg": "Friendship removed"}), 200
 
 # check if two players are friends
-bp.get("/internal/players/friendship/validation")
-def validate_friendship(player1_id: int, player2_id: int):
+@bp.get("/internal/players/friendship/validation")
+def validate_friendship():
     payload = request.get_json(silent=True) or {}
-    player1_id, player2_id = payload.get("player1_id"), payload.get("player2_id")
+    user1_id, user2_id = payload.get("player1_id"), payload.get("player2_id")
 
     # check if both keys are specified
-    if not player1_id or not player2_id:
+    if user1_id is None or user2_id is None:
         return jsonify({"msg": "Both player IDs are required"}), 400
     
     # check if values are in the expected format
-    if not isinstance(player1_id, int) or not isinstance(player2_id, int):
+    if not isinstance(user1_id, int) or not isinstance(user2_id, int):
         return jsonify({"msg": "Invalid player IDs"}), 400
     
     # check if both players exist
-    player = Player.query.filter_by(id=player1_id).first()
-    if not player:
+    player1 = Player.query.filter_by(user_id=user1_id).first()
+    if not player1:
         return jsonify({"msg": "First player not found"}), 404
-    player = Player.query.filter_by(id=player2_id).first()
-    if not player:
+    player2 = Player.query.filter_by(user_id=user2_id).first()
+    if not player2:
         return jsonify({"msg": "Second player not found"}), 404
 
-    result = _get_friendship_by_ids(player1_id, player2_id) is not None
-    return jsonify({"valid": result}), 200
+    result = _get_friendship_by_ids(player1.id, player2.id)
+    return jsonify({"valid": result is not None}), 200

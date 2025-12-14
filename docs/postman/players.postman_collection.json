@@ -17,7 +17,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Sicily\"\n}",
+							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Sicilia\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -61,7 +61,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"region\": \"Sicilia\"\n}\n\n",
+							"raw": "{\n    \"region\": \"Sicilia\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -114,12 +114,15 @@
 				},
 				{
 					"name": "get profile of a player",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
 					"request": {
-						"method": "POST",
+						"method": "GET",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\": \"Zizzi\"\n}",
+							"raw": "",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -127,13 +130,19 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url_global}}/players/search",
+							"raw": "{{base_url_global}}/players/search?username=Zizzi",
 							"host": [
 								"{{base_url_global}}"
 							],
 							"path": [
 								"players",
 								"search"
+							],
+							"query": [
+								{
+									"key": "username",
+									"value": "Zizzi"
+								}
 							]
 						}
 					},
@@ -390,6 +399,41 @@
 								"players",
 								"me",
 								"friends"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "validate friendship",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"player1_id\": 0,\r\n    \"player2_id\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/internal/players/friendship/validation",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"internal",
+								"players",
+								"friendship",
+								"validation"
 							]
 						}
 					},
