@@ -5,6 +5,7 @@ services:
       dockerfile: src/catalogue/Dockerfile_test
     environment:
       FLASK_APP: catalogue.app:create_test_app
+      DB_INIT: true
     ports:
       - "5000:5000"
     secrets:

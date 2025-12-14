@@ -65,4 +65,4 @@ class TestConfig:
     TESTING = True
 
     # Fill DB only if we have it in environment (otherwise, do not)
-    DB_INIT = os.getenv("DB_INIT", False)
+    DB_INIT = _bool_env("DB_INIT", False)
