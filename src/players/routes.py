@@ -91,27 +91,16 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. GET /players/search (Ricerca Profilo)
-@bp.get("/players/search")
+# 3. GET /players/search/<user_id> (Cerca profilo tramite ID)
+@bp.get("/players/search/<int:id>")
 @jwt_required()
-def search_player():
-    target_username = request.args.get("username", type=str)
+def get_player_by_id(id):
+    # Flask estrae automaticamente "id" dall'URL e lo passa qui.
+    # <int:...> assicura che se l'utente scrive "abc", restituisce 404 automaticamente.
 
-    if target_username:
-        target_username = target_username.strip()
-
-    # Messaggio di errore
-    if not target_username:
-        return jsonify({
-            "msg": "Missing required parameter 'username'",
-            "error_code": "MISSING_QUERY_PARAM",
-            "help": "This endpoint requires a query parameter named 'username'.",
-            "example_usage": "/players/search?username=Pippo"
-        }), 400
-
-    # Cerchiamo nel DB
+    # Cerchiamo nel DB usando il campo user_id
     profile = db.session.execute(
-        db.select(Player).filter_by(username=target_username)
+        db.select(Player).filter_by(user_id=id)
     ).scalar_one_or_none()
 
     if not profile:
