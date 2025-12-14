@@ -160,6 +160,7 @@ services:
       dockerfile: src/game_engine/Dockerfile
     environment:
       CATALOGUE_URL: https://catalogue:5000
+      PLAYERS_URL: https://players:5000
       GAME_ENGINE_DATABASE_URL: postgresql+psycopg://engine_user:engine_password@game-engine-db:5432/game_engine_db?sslmode=require
       AUTH_PUBLIC_KEY: /run/secrets/jwt_public_key
     depends_on:

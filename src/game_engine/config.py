@@ -25,6 +25,9 @@ class Config:
     TESTING = False
     CATALOGUE_URL = os.getenv("CATALOGUE_URL", "https://catalogue:5000")
     CATALOGUE_REQUEST_TIMEOUT = float(os.getenv("CATALOGUE_REQUEST_TIMEOUT", "3"))
+    PLAYERS_URL = os.getenv("PLAYERS_URL", "https://players:5000")
+    PLAYERS_REQUEST_TIMEOUT = float(os.getenv("PLAYERS_REQUEST_TIMEOUT", "3"))
+
 
     def __init__(self):
         # init jwt keys or fallback secret

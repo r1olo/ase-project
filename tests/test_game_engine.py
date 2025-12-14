@@ -198,7 +198,7 @@ def test_game_completion_and_history(client, auth_headers, mock_catalogue_data):
         client.post(f'/matches/{match_id}/moves/{i}', headers=auth_headers(20), json={"card_id": i})
 
     # Verify history
-    resp = client.get(f'/players/10/history', headers=auth_headers(10))
+    resp = client.get(f'/matches/history/10', headers=auth_headers(10))
     assert resp.status_code == 200
     
     match_entry = next(m for m in resp.json['matches'] if m['id'] == match_id)

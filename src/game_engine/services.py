@@ -155,7 +155,7 @@ class MatchService:
 
         return result
     
-    def get_match(self, match_id: int, include_rounds: bool = False) -> Match:
+    def get_match(self, match_id: int, requester_id: int, include_rounds: bool = False) -> Match:
         """
         Get a match by ID.
         
@@ -166,15 +166,18 @@ class MatchService:
             match = self.match_repo.find_by_id_with_rounds(match_id)
         else:
             match = self.match_repo.find_by_id(match_id)
+
+        if match.player1_id != requester_id and match.player2_id != requester_id:
+            raise PermissionError("You do not have access to this match")
         
         if not match:
             raise LookupError("Match not found")
         
         return match
     
-    def get_current_round_status(self, match_id: int) -> Dict:
+    def get_current_round_status(self, match_id: int, requester_id: int) -> Dict:
         """Get the status of the current round."""
-        match = self.get_match(match_id)
+        match = self.get_match(match_id, requester_id, include_rounds=False)
         current_round = self.round_repo.find_current_incomplete_round(match_id)
         
         if not current_round and match.status == MatchStatus.IN_PROGRESS:
@@ -196,9 +199,15 @@ class MatchService:
         player_id: int,
         status: Optional[MatchStatus] = None,
         limit: int = 20,
-        offset: int = 0
+        offset: int = 0,
+        requester_id: Optional[int] = None,
     ) -> Dict:
         """Get match history for a player with statistics."""
+        
+        # Check friendship only if the requester is NOT the player
+        if requester_id and requester_id != player_id:
+            self._validate_friendship(requester_id, player_id)
+
         # Get matches
         matches = self.match_repo.find_for_player(player_id, status, limit, offset)
         
@@ -236,6 +245,41 @@ class MatchService:
                 "count": len(matches)
             }
         }
+
+    def _validate_friendship(self, player1_id: int, player2_id: int) -> None:
+        """
+        Validates if two players are friends using the Players Service.
+        Raises PermissionError if not friends.
+        Raises RuntimeError if service is unreachable.
+        """
+       
+        if self._is_testing():
+            pass
+
+        players_url = current_app.config.get("PLAYERS_URL", "https://players:5000").rstrip("/")
+        timeout = current_app.config.get("PLAYERS_REQUEST_TIMEOUT", 3)
+
+        try:
+            response = requests.post(
+                f"{players_url}/internal/players/friendship/validation",
+                json={"player1_id": player1_id, "player2_id": player2_id},
+                timeout=timeout
+            )
+            
+            if response.status_code != 200:
+                current_app.logger.warning(
+                    f"Friendship check failed with status {response.status_code}: {response.text}"
+                )
+                # Fail closed for security
+                raise PermissionError("Could not verify friendship status")
+
+            data = response.json()
+            if not data.get("valid", False):
+                raise PermissionError("You are not friends with this player")
+
+        except requests.RequestException as e:
+            current_app.logger.error(f"Failed to contact Players service: {e}")
+            raise RuntimeError("Players service unavailable") from e
     
     def get_leaderboard(self, limit: int = 100, offset: int = 0) -> Dict:
         """Get global leaderboard with player statistics."""

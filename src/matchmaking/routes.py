@@ -174,7 +174,7 @@ def _lookup_active_match(user_id):
     for status in ("SETUP", "IN_PROGRESS"):
         try:
             resp = requests.get(
-                f"{base_url}/players/{user_id}/history",
+                f"{base_url}/matches/history/{user_id}",
                 params={"status": status, "limit": 1},
                 timeout=timeout,
             )

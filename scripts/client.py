@@ -535,7 +535,7 @@ def list_active_matches(state: ClientState) -> List[Dict]:
         return _api_request(
             state,
             "get",
-            f"/players/{state.user_id}/history",
+            f"/matches/history/{state.user_id}",
             params=params,
             base_url=base,
         )

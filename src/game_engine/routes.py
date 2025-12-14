@@ -111,11 +111,8 @@ def submit_move(match_id: int, round_number: int):
 def get_current_round_status(match_id: int):
     """Get the status of the current round, including the active category."""
     try:
-        '''
-        TODO: View the match only if the player's id is part of it
-        by retrieving the identity from the JWT token.
-        '''
-        result = match_service.get_current_round_status(match_id)
+        requester_id = int(get_jwt_identity())
+        result = match_service.get_current_round_status(match_id, requester_id)
         current_app.logger.debug(f"Round status check for match {match_id}: {result['round_status']}")
         return jsonify(result), 200
     except Exception as e:
@@ -127,11 +124,8 @@ def get_current_round_status(match_id: int):
 def get_match(match_id: int):
     """Get the match info (without rounds)."""
     try:
-        '''
-        TODO: View the match only if the player's id is part of it
-        by retrieving the identity from the JWT token.
-        '''
-        match = match_service.get_match(match_id, include_rounds=False)
+        requester_id = int(get_jwt_identity())
+        match = match_service.get_match(match_id, requester_id, include_rounds=False)
         current_app.logger.debug(f"Fetching match {match_id} info")
         return jsonify(match.to_dict(include_rounds=False)), 200
     except Exception as e:
@@ -146,11 +140,8 @@ def get_match_with_history(match_id: int):
     Uses eager loading to avoid N+1 queries.
     """
     try:
-        '''
-        TODO: View the match only if the player's id is part of it
-        by retrieving the identity from the JWT token.
-        '''
-        match = match_service.get_match(match_id, include_rounds=True)
+        requester_id = int(get_jwt_identity())
+        match = match_service.get_match(match_id, requester_id, include_rounds=True)
         current_app.logger.debug(f"Fetching match {match_id} history with {len(match.rounds)} rounds")
         return jsonify(match.to_dict(include_rounds=True)), 200
     except Exception as e:
@@ -178,7 +169,7 @@ def get_leaderboard():
         return _handle_service_error(e)
 
 
-@game_engine.get("/players/<int:player_id>/history")
+@game_engine.get("/matches/history/<int:player_id>")
 @jwt_required()
 def get_player_history(player_id: int):
     """
@@ -193,10 +184,6 @@ def get_player_history(player_id: int):
     offset = int(request.args.get('offset', 0))
     status_filter = request.args.get('status', '').upper()
     requester_id = int(get_jwt_identity())
-    
-    # Ensure the requester is fetching their own history
-    if requester_id != player_id:
-        return jsonify({"msg": "Forbidden"}), 403
 
     try:
         from .models import MatchStatus
@@ -206,7 +193,7 @@ def get_player_history(player_id: int):
         if status_filter and status_filter in [s.name for s in MatchStatus]:
             status = MatchStatus[status_filter]
         
-        result = match_service.get_player_history(player_id, status, limit, offset)
+        result = match_service.get_player_history(requester_id, player_id, status, limit, offset)
         return jsonify(result), 200
     except Exception as e:
         return _handle_service_error(e)

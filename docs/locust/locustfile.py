@@ -439,7 +439,7 @@ class GameSystemUser(HttpUser):
         )
         if self.player_a.user_id:
             self.client.get(
-                _service_url("game_engine", f"/players/{self.player_a.user_id}/history"),
+                _service_url("game_engine", f"/matches/history/{self.player_a.user_id}"),
                 name="game_engine_player_history",
                 headers=headers_a,
                 verify=VERIFY_TLS,
