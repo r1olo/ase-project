@@ -91,7 +91,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n  \"user_id\": \"0\"\r\n}",
+							"raw": "{\r\n  \"user_id\": 0\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -406,14 +406,11 @@
 				},
 				{
 					"name": "validate friendship",
-					"protocolProfileBehavior": {
-						"disableBodyPruning": true
-					},
 					"request": {
 						"auth": {
 							"type": "noauth"
 						},
-						"method": "GET",
+						"method": "POST",
 						"header": [],
 						"body": {
 							"mode": "raw",

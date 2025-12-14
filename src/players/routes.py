@@ -318,7 +318,7 @@ def remove_friend(username):
     return jsonify({"msg": "Friendship removed"}), 200
 
 # check if two players are friends
-@bp.get("/internal/players/friendship/validation")
+@bp.post("/internal/players/friendship/validation")
 def validate_friendship():
     payload = request.get_json(silent=True) or {}
     user1_id, user2_id = payload.get("player1_id"), payload.get("player2_id")
