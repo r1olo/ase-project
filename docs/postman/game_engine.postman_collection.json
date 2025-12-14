@@ -1,943 +1,1054 @@
 {
-    "info": {
-        "_postman_id": "e0a6c8b0-46c1-4521-b73c-eb1376f9688d",
-        "name": "Card Game Engine - Full Match (Final)",
-        "description": "Complete sequential test flow for a 5-round match.",
-        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    "item": [
-        {
-            "name": "1. Health Check (Setup)",
-            "event": [
-                {
-                    "listen": "prerequest",
-                    "script": {
-                        "exec": [
-                            "// --- CONFIGURATION ---",
-                            "pm.collectionVariables.set(\"base_url\", \"http://127.0.0.1:5000\");",
-                            "",
-                            "// Player IDs",
-                            "pm.collectionVariables.set(\"player1_id\", 1);",
-                            "pm.collectionVariables.set(\"player2_id\", 2);",
-                            "",
-                            "// JWT Tokens (Mocked)",
-                            "pm.collectionVariables.set(\"player1_token\", \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTM5NjI4NiwianRpIjoiMjQxNWEwNjctNjJhMS00MzA0LWFmMjAtOTMzNzNlYzI3ZWUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NjUzOTYyODYsImNzcmYiOiJiM2U4NmMxOS01Yzc1LTQ3OGEtYWVjMy02ZmUwNjI4MjIzMmUifQ.qD9xrt6BvtiGYSTBPPEwcJze-ybkzVW-DpOdCJqWJ5A\");",
-                            "pm.collectionVariables.set(\"player2_token\", \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTM5NjMxNCwianRpIjoiNmNmOWZiZTYtZGQwMC00YzU0LTk1NzQtYTA5MGFlNTAwMzVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NjUzOTYzMTQsImNzcmYiOiIwNGUwZTRkNi00NWNlLTQyODctYmRlMy05Y2VkMzM1Y2M3NjgifQ.XBCrH-a05dwMcsmM1NaY4Zs2wWZuZPBel2gui65KHeM\");",
-                            "",
-                            "// Deck Configuration",
-                            "// P1 Deck: Liguria, Lombardia, Piemonte, Toscana, Lazio",
-                            "pm.collectionVariables.set(\"p1_deck_cards\", '[8, 9, 12, 16, 7]');",
-                            "// P2 Deck: Campania, Sicilia, Puglia, Sardegna, Emilia-Romagna",
-                            "pm.collectionVariables.set(\"p2_deck_cards\", '[4, 15, 13, 14, 5]');",
-                            "",
-                            "// Move Configuration",
-                            "pm.collectionVariables.set(\"p1_move_r1\", 8); // Liguria",
-                            "pm.collectionVariables.set(\"p2_move_r1\", 4); // Campania",
-                            "pm.collectionVariables.set(\"p1_move_r2\", 9); // Lombardia",
-                            "pm.collectionVariables.set(\"p2_move_r2\", 15); // Sicilia",
-                            "pm.collectionVariables.set(\"p1_move_r3\", 12); // Piemonte",
-                            "pm.collectionVariables.set(\"p2_move_r3\", 13); // Puglia",
-                            "pm.collectionVariables.set(\"p1_move_r4\", 16); // Toscana",
-                            "pm.collectionVariables.set(\"p2_move_r4\", 14); // Sardegna",
-                            "pm.collectionVariables.set(\"p1_move_r5\", 7); // Lazio",
-                            "pm.collectionVariables.set(\"p2_move_r5\", 5); // Emilia-Romagna"
-                        ],
-                        "type": "text/javascript"
-                    }
-                },
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "pm.test(\"Response body check\", function () {",
-                            "    const response = pm.response.json();",
-                            "    pm.expect(response.status).to.eql(\"ok\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                    "raw": "{{base_url}}/health",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "health"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "2. POST /matches/create",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 201\", function () {",
-                            "    pm.response.to.have.status(201);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Match ID is created and saved\", function () {",
-                            "    pm.expect(response.id).to.be.a('number');",
-                            "    pm.collectionVariables.set(\"match_id\", response.id);",
-                            "});",
-                            "pm.test(\"Match status is SETUP\", function () {",
-                            "    pm.expect(response.status).to.eql(\"SETUP\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"player1_id\": {{player1_id}},\n    \"player2_id\": {{player2_id}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/create",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "create"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "3. POST /matches/{{match_id}}/deck (P1)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Status remains SETUP\", function () {",
-                            "    pm.expect(response.status).to.eql(\"SETUP\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"data\": {{p1_deck_cards}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/deck",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "deck"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "4. POST /matches/{{match_id}}/deck (P2 - Starts Match)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Status is IN_PROGRESS\", function () {",
-                            "    pm.expect(response.status).to.eql(\"IN_PROGRESS\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"data\": {{p2_deck_cards}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/deck",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "deck"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "5. GET /matches/{{match_id}}/round",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Current round is 1\", function () {",
-                            "    pm.expect(response.current_round_number).to.eql(1);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/round",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "round"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "6. Move R1: P1",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Status is WAITING_FOR_OPPONENT\", function () {",
-                            "    pm.expect(response.status).to.eql(\"WAITING_FOR_OPPONENT\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r1}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/1",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "1"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "7. Move R1: P2 (Process)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Round 1 Processed\", function () {",
-                            "    pm.expect(response.status).to.eql(\"ROUND_PROCESSED\");",
-                            "    pm.expect(response.next_round).to.eql(2);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p2_move_r1}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/1",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "1"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "8. GET /matches/{{match_id}}/history",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"History has 2 rounds. One processed and one started\", function () {",
-                            "    pm.expect(response.rounds.length).to.eql(2);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/history",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "history"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "9. Move R2: P1",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r2}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/2",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "2"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "10. Move R2: P2 (Process)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Next round is 3\", function () {",
-                            "    pm.expect(response.next_round).to.eql(3);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p2_move_r2}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/2",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "2"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "11. Move R3: P1",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r3}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/3",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "3"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "12. Move R3: P2 (Process)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Next round is 4\", function () {",
-                            "    pm.expect(response.next_round).to.eql(4);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p2_move_r3}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/3",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "3"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "13. Move R4: P1",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r4}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/4",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "4"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "14. Move R4: P2 (Process)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Next round is 5\", function () {",
-                            "    pm.expect(response.next_round).to.eql(5);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p2_move_r4}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/4",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "4"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "15. Move R5: P1",
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r5}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/5",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "5"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "16. Move R5: P2 (Final - Match Finish)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Match status is FINISHED\", function () {",
-                            "    pm.expect(response.game_status).to.eql(\"FINISHED\");",
-                            "});",
-                            "pm.test(\"Final score and winner should be set\", function () {",
-                            "    pm.expect(response.scores).to.be.an('object');",
-                            "    pm.expect(response.next_round).to.be.null;",
-                            "    pm.collectionVariables.set(\"final_score_p1\", response.scores[pm.collectionVariables.get(\"player1_id\")]);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player2_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p2_move_r5}}\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}/moves/5",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "5"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "17. GET /matches/{{match_id}} (Check Final)",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Match is FINISHED\", function () {",
-                            "    pm.expect(response.status).to.eql(\"FINISHED\");",
-                            "    pm.expect(response.winner_id).to.satisfy(function(v) { return v === null || typeof v === 'number'; });",
-                            "});",
-                            "pm.collectionVariables.set(\"match_winner_id\", response.winner_id);"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/matches/{{match_id}}",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "{{match_id}}"
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "18. GET /players/{{player1_id}}/history",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"History summary is correct\", function () {",
-                            "    pm.expect(response.player_id).to.eql(pm.collectionVariables.get(\"player1_id\"));",
-                            "    pm.expect(response.summary.total_matches).to.be.at.least(1);",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/matches/history/{{player1_id}}?status=finished&limit=1",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "matches",
-                        "history",
-                        "{{player1_id}}"
-                    ],
-                    "query": [
-                        {
-                            "key": "status",
-                            "value": "finished"
-                        },
-                        {
-                            "key": "limit",
-                            "value": "1"
-                        }
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "19. GET /leaderboard",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 200\", function () {",
-                            "    pm.response.to.have.status(200);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Leaderboard data is present\", function () {",
-                            "    pm.expect(response.leaderboard).to.be.an('array');",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "GET",
-                "header": [
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/game-engine/leaderboard?limit=10",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "game-engine",
-                        "leaderboard"
-                    ],
-                    "query": [
-                        {
-                            "key": "limit",
-                            "value": "10"
-                        }
-                    ]
-                }
-            },
-            "response": []
-        },
-        {
-            "name": "20. Error Check: Already Played Card",
-            "event": [
-                {
-                    "listen": "test",
-                    "script": {
-                        "exec": [
-                            "pm.test(\"Status code is 400\", function () {",
-                            "    pm.response.to.have.status(400);",
-                            "});",
-                            "",
-                            "const response = pm.response.json();",
-                            "pm.test(\"Error code is CARD_ALREADY_PLAYED\", function () {",
-                            "    pm.expect(response.code).to.eql(\"CARD_ALREADY_PLAYED\");",
-                            "});"
-                        ],
-                        "type": "text/javascript"
-                    }
-                }
-            ],
-            "request": {
-                "method": "POST",
-                "header": [
-                    {
-                        "key": "Content-Type",
-                        "value": "application/json"
-                    },
-                    {
-                        "key": "Authorization",
-                        "value": "Bearer {{player1_token}}"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"card_id\": {{p1_move_r1}} \n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/game-engine/matches/{{match_id}}/moves/5",
-                    "host": [
-                        "{{base_url}}"
-                    ],
-                    "path": [
-                        "game-engine",
-                        "matches",
-                        "{{match_id}}",
-                        "moves",
-                        "5"
-                    ]
-                }
-            },
-            "response": []
-        }
-    ]
+	"info": {
+		"_postman_id": "febac72c-f8c4-4c2c-8b88-9ed5a383681b",
+		"name": "Game Engine",
+		"description": "Complete sequential test flow for a 5-round match.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50804637",
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/50804637-febac72c-f8c4-4c2c-8b88-9ed5a383681b?action=share&source=collection_link&creator=50804637"
+	},
+	"item": [
+		{
+			"name": "1. Health Check (Setup)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// --- CONFIGURATION ---",
+							"pm.collectionVariables.set(\"base_url\", \"http://127.0.0.1:5000\");",
+							"",
+							"// Player IDs",
+							"pm.collectionVariables.set(\"player1_id\", 1);",
+							"pm.collectionVariables.set(\"player2_id\", 2);",
+							"",
+							"// JWT Tokens (Mocked)",
+							"pm.collectionVariables.set(\"player1_token\", \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTM5NjI4NiwianRpIjoiMjQxNWEwNjctNjJhMS00MzA0LWFmMjAtOTMzNzNlYzI3ZWUyIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NjUzOTYyODYsImNzcmYiOiJiM2U4NmMxOS01Yzc1LTQ3OGEtYWVjMy02ZmUwNjI4MjIzMmUifQ.qD9xrt6BvtiGYSTBPPEwcJze-ybkzVW-DpOdCJqWJ5A\");",
+							"pm.collectionVariables.set(\"player2_token\", \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTM5NjMxNCwianRpIjoiNmNmOWZiZTYtZGQwMC00YzU0LTk1NzQtYTA5MGFlNTAwMzVlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjIiLCJuYmYiOjE3NjUzOTYzMTQsImNzcmYiOiIwNGUwZTRkNi00NWNlLTQyODctYmRlMy05Y2VkMzM1Y2M3NjgifQ.XBCrH-a05dwMcsmM1NaY4Zs2wWZuZPBel2gui65KHeM\");",
+							"",
+							"// Deck Configuration",
+							"// P1 Deck: Liguria, Lombardia, Piemonte, Toscana, Lazio",
+							"pm.collectionVariables.set(\"p1_deck_cards\", '[8, 9, 12, 16, 7]');",
+							"// P2 Deck: Campania, Sicilia, Puglia, Sardegna, Emilia-Romagna",
+							"pm.collectionVariables.set(\"p2_deck_cards\", '[4, 15, 13, 14, 5]');",
+							"",
+							"// Move Configuration",
+							"pm.collectionVariables.set(\"p1_move_r1\", 8); // Liguria",
+							"pm.collectionVariables.set(\"p2_move_r1\", 4); // Campania",
+							"pm.collectionVariables.set(\"p1_move_r2\", 9); // Lombardia",
+							"pm.collectionVariables.set(\"p2_move_r2\", 15); // Sicilia",
+							"pm.collectionVariables.set(\"p1_move_r3\", 12); // Piemonte",
+							"pm.collectionVariables.set(\"p2_move_r3\", 13); // Puglia",
+							"pm.collectionVariables.set(\"p1_move_r4\", 16); // Toscana",
+							"pm.collectionVariables.set(\"p2_move_r4\", 14); // Sardegna",
+							"pm.collectionVariables.set(\"p1_move_r5\", 7); // Lazio",
+							"pm.collectionVariables.set(\"p2_move_r5\", 5); // Emilia-Romagna"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"pm.test(\"Response body check\", function () {",
+							"    const response = pm.response.json();",
+							"    pm.expect(response.status).to.eql(\"ok\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. POST /matches/create",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"Match ID is created and saved\", function () {",
+							"    pm.expect(response.id).to.be.a('number');",
+							"    pm.collectionVariables.set(\"match_id\", response.id);",
+							"});",
+							"pm.test(\"Match status is SETUP\", function () {",
+							"    pm.expect(response.status).to.eql(\"SETUP\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"player1_id\": {{player1_id}},\n    \"player2_id\": {{player2_id}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/create",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"create"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. POST /matches/{{match_id}}/deck (P1)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Status remains SETUP\", function () {",
+							"    pm.expect(response.status).to.eql(\"SETUP\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {{p1_deck_cards}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/deck",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"deck"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. POST /matches/{{match_id}}/deck (P2 - Starts Match)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Status is IN_PROGRESS\", function () {",
+							"    pm.expect(response.status).to.eql(\"IN_PROGRESS\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {{p2_deck_cards}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/deck",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"deck"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. GET /matches/{{match_id}}/round",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Current round is 1\", function () {",
+							"    pm.expect(response.current_round_number).to.eql(1);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/round",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"round"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "6. Move R1: P1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Status is WAITING_FOR_OPPONENT\", function () {",
+							"    pm.expect(response.status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r1}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Move R1: P2 (Process)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Round 1 Processed\", function () {",
+							"    pm.expect(response.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(response.next_round).to.eql(2);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r1}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "8. GET /matches/{{match_id}}/history",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"History has 2 rounds. One processed and one started\", function () {",
+							"    pm.expect(response.rounds.length).to.eql(2);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. Error Check: Already Played Card",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 400\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"Error code is CARD_ALREADY_PLAYED\", function () {",
+							"    pm.expect(response.code).to.eql(\"CARD_ALREADY_PLAYED\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r1}} \n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10. Move R2: P1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r2}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11. Move R2: P2 (Process)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Next round is 3\", function () {",
+							"    pm.expect(response.next_round).to.eql(3);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r2}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12. Move R3: P1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r3}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "13. Move R3: P2 (Process)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Next round is 4\", function () {",
+							"    pm.expect(response.next_round).to.eql(4);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r3}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "14. Move R4: P1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r4}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/4",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "15. Move R4: P2 (Process)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"const response = pm.response.json();",
+							"pm.test(\"Next round is 5\", function () {",
+							"    pm.expect(response.next_round).to.eql(5);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r4}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/4",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "16. Move R5: P1",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r5}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "17. Move R5: P2 (Final - Match Finish)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"Match status is FINISHED\", function () {",
+							"    pm.expect(response.game_status).to.eql(\"FINISHED\");",
+							"});",
+							"pm.test(\"Final score and winner should be set\", function () {",
+							"    pm.expect(response.scores).to.be.an('object');",
+							"    pm.expect(response.next_round).to.be.null;",
+							"    pm.collectionVariables.set(\"final_score_p1\", response.scores[pm.collectionVariables.get(\"player1_id\")]);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player2_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r5}}\n}"
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}",
+						"moves",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "18. GET /matches/{{match_id}} (Check Final)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"Match is FINISHED\", function () {",
+							"    pm.expect(response.status).to.eql(\"FINISHED\");",
+							"    pm.expect(response.winner_id).to.satisfy(function(v) { return v === null || typeof v === 'number'; });",
+							"});",
+							"pm.collectionVariables.set(\"match_winner_id\", response.winner_id);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "19. GET /matches/history/{{player1_id}}",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"History summary is correct\", function () {",
+							"    pm.expect(response.player_id).to.eql(pm.collectionVariables.get(\"player1_id\"));",
+							"    pm.expect(response.summary.total_matches).to.be.at.least(1);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/history/{{player1_id}}?status=\"finished\"&limit=1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"history",
+						"{{player1_id}}"
+					],
+					"query": [
+						{
+							"key": "status",
+							"value": "\"finished\""
+						},
+						{
+							"key": "limit",
+							"value": "1"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "20. GET /leaderboard",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"const response = pm.response.json();",
+							"pm.test(\"Leaderboard data is present\", function () {",
+							"    pm.expect(response.leaderboard).to.be.an('array');",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{player1_token}}"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/game-engine/leaderboard?limit=10",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"game-engine",
+						"leaderboard"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": ""
+		},
+		{
+			"key": "player1_id",
+			"value": ""
+		},
+		{
+			"key": "player2_id",
+			"value": ""
+		},
+		{
+			"key": "player1_token",
+			"value": ""
+		},
+		{
+			"key": "player2_token",
+			"value": ""
+		},
+		{
+			"key": "p1_deck_cards",
+			"value": ""
+		},
+		{
+			"key": "p2_deck_cards",
+			"value": ""
+		},
+		{
+			"key": "p1_move_r1",
+			"value": ""
+		},
+		{
+			"key": "p2_move_r1",
+			"value": ""
+		},
+		{
+			"key": "p1_move_r2",
+			"value": ""
+		},
+		{
+			"key": "p2_move_r2",
+			"value": ""
+		},
+		{
+			"key": "p1_move_r3",
+			"value": ""
+		},
+		{
+			"key": "p2_move_r3",
+			"value": ""
+		},
+		{
+			"key": "p1_move_r4",
+			"value": ""
+		},
+		{
+			"key": "p2_move_r4",
+			"value": ""
+		},
+		{
+			"key": "p1_move_r5",
+			"value": ""
+		},
+		{
+			"key": "p2_move_r5",
+			"value": ""
+		},
+		{
+			"key": "match_id",
+			"value": ""
+		},
+		{
+			"key": "final_score_p1",
+			"value": ""
+		},
+		{
+			"key": "match_winner_id",
+			"value": ""
+		}
+	]
 }

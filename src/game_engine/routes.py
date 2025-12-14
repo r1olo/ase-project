@@ -134,7 +134,7 @@ def get_match(match_id: int):
 
 @game_engine.get("/matches/<int:match_id>/history")
 @jwt_required()
-def get_match_with_history(match_id: int):
+def get_match_with_rounds(match_id: int):
     """
     Get the match info with all rounds.
     Uses eager loading to avoid N+1 queries.
