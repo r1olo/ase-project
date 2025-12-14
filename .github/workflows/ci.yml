@@ -36,6 +36,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        
+      - name: Create keys and certificates
+        run: ./scripts/genkeys.sh
 
       - name: Build and start catalogue service
         run: docker compose -f tests/compose/catalogue-isolation.yml up --build -d
@@ -68,6 +71,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Create keys and certificates
+        run: ./scripts/genkeys.sh
+
       - name: Build and start game engine service
         run: docker compose -f tests/compose/game_engine-isolation.yml up --build -d
 
@@ -98,6 +104,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+        
+      - name: Create keys and certificates
+        run: ./scripts/genkeys.sh
 
       - name: Build and start players service
         run: docker compose -f tests/compose/players-isolation.yml up --build -d
@@ -113,7 +122,8 @@ jobs:
       - name: Run isolation tests with Newman
         run: |
           newman run docs/postman/players.postman_collection.json \
-            --env-var base_url='https://localhost:5000/' \
+            --global-var base_url_global='https://localhost:5000/' \
+            --global-var jwt_token_global='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTQ1MTY4MywianRpIjoiNGY3MTQzZGMtYjY2My00OTRjLWI0ZWMtOTFlNmE3YWM4NzMzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjAiLCJuYmYiOjE3NjU0NTE2ODMsImNzcmYiOiI1YzgyZDg1Yy01NjhiLTQ3OGUtOGY1NS1hODdhYjJkZTllNzcifQ.vVdlb2vWZFeRbIZ_6lTFF7BeGc0YjZmbaiDcoGfVZPI' \
             --insecure
 
       - name: Teardown players service
