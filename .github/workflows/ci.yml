@@ -54,7 +54,8 @@ jobs:
       - name: Run isolation tests with Newman
         run: |
           newman run docs/postman/card_catalogue.postman_collection.json \
-            --env-var base_url='https://localhost:5000/' \
+            --global-var base_url_global='https://localhost:5000/' \
+            --global-var jwt_token_global='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTQ1MTY4MywianRpIjoiNGY3MTQzZGMtYjY2My00OTRjLWI0ZWMtOTFlNmE3YWM4NzMzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjAiLCJuYmYiOjE3NjU0NTE2ODMsImNzcmYiOiI1YzgyZDg1Yy01NjhiLTQ3OGUtOGY1NS1hODdhYjJkZTllNzcifQ.vVdlb2vWZFeRbIZ_6lTFF7BeGc0YjZmbaiDcoGfVZPI' \
             --insecure
 
       - name: Teardown catalogue service
