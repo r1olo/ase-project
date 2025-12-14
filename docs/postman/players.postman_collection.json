@@ -3,8 +3,8 @@
 		"_postman_id": "86d963be-f860-4ab9-8f42-063832c0ebe6",
 		"name": "Players",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "50721544",
-		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-86d963be-f860-4ab9-8f42-063832c0ebe6?action=share&source=collection_link&creator=50721544"
+		"_exporter_id": "49834238",
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-86d963be-f860-4ab9-8f42-063832c0ebe6?action=share&source=collection_link&creator=49834238"
 	},
 	"item": [
 		{
@@ -151,6 +151,23 @@
 			"item": [
 				{
 					"name": "create new profile player",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Create new profile player\", function () {\r",
+									"    pm.response.to.have.status(201);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('username')\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -178,6 +195,21 @@
 				},
 				{
 					"name": "try to add friend",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Add user to its own friends list\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -195,7 +227,8 @@
 							"variable": [
 								{
 									"key": "username",
-									"value": "Gabibbo"
+									"value": "Gabibbo",
+									"description": "Username"
 								}
 							]
 						},
@@ -204,7 +237,24 @@
 					"response": []
 				},
 				{
-					"name": "add new friend",
+					"name": "add friend",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Add other user to friends list\", function () {\r",
+									"    pm.response.to.have.status(201);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('msg');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -222,7 +272,8 @@
 							"variable": [
 								{
 									"key": "username",
-									"value": "Zizzi"
+									"value": "Zizzi",
+									"description": "Username"
 								}
 							]
 						}
@@ -248,7 +299,8 @@
 							"variable": [
 								{
 									"key": "username",
-									"value": "Zizzi"
+									"value": "Zizzi",
+									"description": "Username"
 								}
 							]
 						}
@@ -257,6 +309,23 @@
 				},
 				{
 					"name": "get friends list",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Get friends list\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data).to.be.an(\"array\");\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -287,6 +356,21 @@
 				},
 				{
 					"name": "try to remove friend",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Remove friend with incoming pending request\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -327,6 +411,23 @@
 				},
 				{
 					"name": "handle friendship request",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Handle friendship request\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('msg')\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -371,36 +472,24 @@
 					"response": []
 				},
 				{
-					"name": "get updated friends list",
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "{{jwt_token_global}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url_global}}/players/me/friends",
-							"host": [
-								"{{base_url_global}}"
-							],
-							"path": [
-								"players",
-								"me",
-								"friends"
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "validate friendship",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Validate friendship between players\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.valid).to.be.a(\"boolean\");\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"auth": {
 							"type": "noauth"
@@ -433,6 +522,23 @@
 				},
 				{
 					"name": "remove friend",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Remove friend from friends list\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('msg');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "DELETE",
 						"header": [],
@@ -464,6 +570,23 @@
 				},
 				{
 					"name": "get updated friends list",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Get friends list\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.data).to.be.an(\"array\");\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
