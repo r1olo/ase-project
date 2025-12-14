@@ -17,9 +17,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/health",
+					"raw": "{{base_url_global}}/health",
 					"host": [
-						"{{base_url}}"
+						"{{base_url_global}}"
 					],
 					"path": [
 						"health"
@@ -34,9 +34,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/cards",
+					"raw": "{{base_url_global}}/cards",
 					"host": [
-						"{{base_url}}"
+						"{{base_url_global}}"
 					],
 					"path": [
 						"cards"
@@ -51,9 +51,9 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_url}}/cards/:card_id",
+					"raw": "{{base_url_global}}/cards/:card_id",
 					"host": [
-						"{{base_url}}"
+						"{{base_url_global}}"
 					],
 					"path": [
 						"cards",
@@ -88,9 +88,9 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/internal/cards/validation",
+					"raw": "{{base_url_global}}/internal/cards/validation",
 					"host": [
-						"{{base_url}}"
+						"{{base_url_global}}"
 					],
 					"path": [
 						"internal",
