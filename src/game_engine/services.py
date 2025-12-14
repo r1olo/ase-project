@@ -268,7 +268,7 @@ class MatchService:
     def _create_new_round(self, match: Match) -> Round:
         """Create a new round for the match."""
         round_number = self.game_engine.get_next_round_number(match)
-        category = random.choice(CARD_CATEGORIES)
+        category = random.choice(CARD_CATEGORIES) # nosec
         
         round_obj = self.round_repo.create(match, round_number, category)
         current_app.logger.info(

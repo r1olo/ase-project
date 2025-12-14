@@ -24,7 +24,7 @@ class RedisManager:
         def teardown_redis(_=None):
             try:
                 client.close()
-            except Exception:
+            except Exception: # nosec
                 pass
         app.teardown_appcontext(teardown_redis)
 

@@ -52,7 +52,7 @@ class Config:
 
 class TestConfig:
     # JWT
-    JWT_SECRET_KEY = "test-secret"
+    JWT_SECRET_KEY = "test-secret" # nosec
     JWT_COOKIE_SECURE = False
     JWT_COOKIE_CSRF_PROTECT = True
 
