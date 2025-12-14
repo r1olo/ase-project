@@ -283,4 +283,4 @@ def remove_friend(username):
 # check if two players are friends
 bp.get("/internal/players/friendship/validation")
 def validate_friendship(player1_id: int, player2_id: int):
-    return _get_friendship_by_ids(player1_id, player2_id)
+    return _get_friendship_by_ids(player1_id, player2_id) is not None

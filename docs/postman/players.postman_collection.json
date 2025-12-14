@@ -1,0 +1,520 @@
+{
+	"info": {
+		"_postman_id": "86d963be-f860-4ab9-8f42-063832c0ebe6",
+		"name": "Players",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49834238",
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-86d963be-f860-4ab9-8f42-063832c0ebe6?action=share&source=collection_link&creator=49834238"
+	},
+	"item": [
+		{
+			"name": "Players",
+			"item": [
+				{
+					"name": "create a new player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Sicily\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get my profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "modify my profile",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"region\": \"Sicilia\"\n}\n\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/me",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "check if user has a player profile",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"user_id\": \"0\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/internal/players/validation",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"internal",
+								"players",
+								"validation"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get profile of a player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"Zizzi\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/search",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"search"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "APIs for handling players-related operations."
+		},
+		{
+			"name": "Friendship",
+			"item": [
+				{
+					"name": "create new profile player",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"Gabibbo\",\r\n    \"region\": \"Liguria\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players"
+							]
+						},
+						"description": "Create a new profile player for current user, in order to use it later to test friendship dedicated endpoints."
+					},
+					"response": []
+				},
+				{
+					"name": "try to add friend",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Gabibbo"
+								}
+							]
+						},
+						"description": "Send a friend request to user identified by username param, which is the same as current user."
+					},
+					"response": []
+				},
+				{
+					"name": "add new friend",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Zizzi"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "check friendship status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Zizzi"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get friends list",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token_global}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends"
+							]
+						},
+						"description": "Accept friendship request sent by new registered player, switching to already previous existing player."
+					},
+					"response": []
+				},
+				{
+					"name": "try to remove friend",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token_global}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"accepted\": true\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Gabibbo"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "handle friendship request",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token_global}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"accepted\": true\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Gabibbo"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get updated friends list",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token_global}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "remove friend",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"accepted\": true\r\n}"
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Zizzi"
+								}
+							]
+						},
+						"description": "Remove friend from friends list of new registered player."
+					},
+					"response": []
+				},
+				{
+					"name": "get updated friends list",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url_global}}/players/me/friends",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"me",
+								"friends"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "APIs for handling friendship-related operations such as friend requests, checking friendship status or managing friends list.\n\nNotice: run this tests only after running the Players folder ones.",
+			"auth": {
+				"type": "bearer",
+				"bearer": [
+					{
+						"key": "token",
+						"value": "{{jwt_token}}",
+						"type": "string"
+					}
+				]
+			},
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {},
+						"exec": [
+							""
+						]
+					}
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token_global}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	]
+}
