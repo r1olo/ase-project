@@ -5,30 +5,34 @@ from .models import Card
 from .routes import bp as catalogue_blueprint
 from common.app_factory import create_flask_app
 from common.extensions import db, jwt
-from flask import Flask
+from flask import Flask, current_app
 
 import json
 
 # fill the database at init
 def _init_cards_db(_):
+    # create structure
     db.create_all()
-    with open("cards/cards.json") as file:
-        cards_data = json.load(file)
-        for _, card_info in cards_data.items():
-            card = Card.query.filter_by(name=card_info["name"]).first()
-            if card is not None:
-                continue
-            card = Card(
-                name=card_info["name"],
-                image=card_info["image"],
-                economy=card_info["economy"],
-                food=card_info["food"],
-                environment=card_info["environment"],
-                special=card_info["special"],
-                total=card_info["total"],
-            )
-            db.session.add(card)
-    db.session.commit()                
+
+    # fill database if DB_INIT is set
+    if current_app.config.get("DB_INIT", False):
+        with open("cards/cards.json") as file:
+            cards_data = json.load(file)
+            for _, card_info in cards_data.items():
+                card = Card.query.filter_by(name=card_info["name"]).first()
+                if card is not None:
+                    continue
+                card = Card(
+                    name=card_info["name"],
+                    image=card_info["image"],
+                    economy=card_info["economy"],
+                    food=card_info["food"],
+                    environment=card_info["environment"],
+                    special=card_info["special"],
+                    total=card_info["total"],
+                )
+                db.session.add(card)
+        db.session.commit()                
 
 # generic create app interface for cards
 def _create_app(config) -> Flask:

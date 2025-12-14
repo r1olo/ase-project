@@ -20,11 +20,15 @@ class Config:
     JWT_ALGORITHM = None
     JWT_SECRET_KEY = None
 
+    # SQLAlchemy
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "CATALOGUE_DATABASE_URL", "sqlite:///catalogue.db"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     TESTING = False
+
+    # Catalogue
+    DB_INIT = True
 
     def __init__(self):
         # init jwt keys or fallback secret
@@ -59,3 +63,6 @@ class TestConfig:
     
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     TESTING = True
+
+    # Fill DB only if we have it in environment (otherwise, do not)
+    DB_INIT = os.getenv("DB_INIT", False)
