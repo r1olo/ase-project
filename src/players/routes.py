@@ -272,9 +272,15 @@ def remove_friend(username):
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
     
-    if friendship.requester_id != current_player.id:
+    # if friendship request is still pending, so that the status accepted is set to false, only the requester user can remove it
+    if not friendship.accepted and not friendship.requester_id == current_player.id:
         return jsonify({"msg": "Only requester can remove friendship"}), 409
 
     db.session.delete(friendship)
     db.session.commit()
     return jsonify({"msg": "Friendship removed"}), 200
+
+# check if two players are friends
+bp.get("/internal/players/friendship/validation")
+def validate_friendship(player1_id: int, player2_id: int):
+    return _get_friendship_by_ids(player1_id, player2_id)
