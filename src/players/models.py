@@ -1,9 +1,33 @@
 """Database models for the players service."""
 
 from __future__ import annotations
+from enum import StrEnum
 from sqlalchemy import Boolean, Integer, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 from common.extensions import db
+
+# Definisci l'Enum con le regioni permesse
+class Region(StrEnum):
+    ABRUZZO = "Abruzzo"
+    BASILICATA = "Basilicata"
+    CALABRIA = "Calabria"
+    CAMPANIA = "Campania"
+    EMILIA_ROMAGNA = "Emilia-Romagna"
+    FRIULI_VENEZIA_GIULIA = "Friuli-Venezia Giulia"
+    LAZIO = "Lazio"
+    LIGURIA = "Liguria"
+    LOMBARDIA = "Lombardia"
+    MARCHE = "Marche"
+    MOLISE = "Molise"
+    PIEMONTE = "Piemonte"
+    PUGLIA = "Puglia"
+    SARDEGNA = "Sardegna"
+    SICILIA = "Sicilia"
+    TOSCANA = "Toscana"
+    TRENTINO_ALTO_ADIGE = "Trentino-Alto Adige"
+    UMBRIA = "Umbria"
+    VALLE_D_AOSTA = "Valle d'Aosta"
+    VENETO = "Veneto"
 
 class Player(db.Model):
     __tablename__ = "players"
@@ -11,7 +35,7 @@ class Player(db.Model):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, nullable=False)
-    region: Mapped[str] = mapped_column(String(20), nullable=True)
+    region: Mapped[str] = mapped_column(String(25), nullable=True)
 
     def __init__(self,
         user_id: int,

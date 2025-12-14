@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from common.extensions import db
-from .models import Player, Friendship
+from .models import Player, Friendship, Region
 
 
 bp = Blueprint("players", __name__)
@@ -32,6 +32,19 @@ def get_my_profile():
     
     return jsonify(profile.to_dict()), 200
 
+# Funzione di utilità per validare la regione
+def validate_region(region_input: str | None) -> str | None:
+    """
+    Restituisce la regione valida se presente nell'Enum, None se vuota.
+    Solleva ValueError se la stringa non è valida.
+    """
+    cleaned = (region_input or "").strip()
+    if not cleaned:
+        return None
+    
+    # Controlla se il valore esiste nell'Enum (es. "Sicilia")
+    # Se cleaned non è nell'enum, questa riga lancerà ValueError
+    return Region(cleaned).value
 
 # 2. POST /players
 @bp.post("/players")
@@ -52,8 +65,17 @@ def create_profile():
     if not username:
         return jsonify({"msg": "username is required"}), 400
 
-    region_value = (payload.get("region") or "").strip() or None
-
+    # Validazione Region
+    try:
+        region_value = validate_region(payload.get("region"))
+    except ValueError:
+        # Se l'utente ha scritto "sicilia" invece di "Sicilia"
+        valid_regions = [r.value for r in Region]
+        return jsonify({
+            "msg": "Invalid region", 
+            "valid_options": valid_regions
+        }), 400
+    
     new_profile = Player(
         user_id=current_user_id, 
         username=username,
@@ -109,13 +131,20 @@ def update_profile():
     # Leggiamo i dati inviati
     payload = request.get_json(silent=True) or {}
 
-    # Aggiorniamo la REGION solo se è presente nel payload
+    # Aggiorniamo la REGION solo se presente nel payload
     if "region" in payload:
-        profile.region = (payload.get("region") or "").strip() or None
+        try:
+            # Validiamo usando la stessa logica (Enum)
+            profile.region = validate_region(payload.get("region"))
+        except ValueError:
+            valid_regions = [r.value for r in Region]
+            return jsonify({
+                "msg": "Invalid region",
+                "valid_options": valid_regions
+            }), 400
 
     # Non tocchiamo 'username' o 'user_id'. 
     # Se l'utente prova a inviarli, vengono semplicemente ignorati.
-
     try:
         db.session.commit()
     except Exception:
