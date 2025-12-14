@@ -25,3 +25,8 @@ with app.app_context():
         os.makedirs(SECRETS_DIR)
     with open(FILE_PATH, "w") as f:
         f.write(token)
+
+    print("")
+
+    token = create_access_token(identity="1", expires_delta=False)
+    print(token)
