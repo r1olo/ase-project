@@ -58,6 +58,68 @@ jobs:
         if: always()
         run: docker compose -f tests/compose/catalogue-isolation.yml down
 
+  game-engine-isolation-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start game engine service
+        run: docker compose -f tests/compose/game_engine-isolation.yml up --build -d
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run isolation tests with Newman
+        run: |
+          newman run docs/postman/game_engine.postman_collection.json \
+            --env-var base_url='https://localhost:5000/' \
+            --insecure
+
+      - name: Teardown game engine service
+        if: always()
+        run: docker compose -f tests/compose/game_engine-isolation.yml down
+
+  players-isolation-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start players service
+        run: docker compose -f tests/compose/players-isolation.yml up --build -d
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run isolation tests with Newman
+        run: |
+          newman run docs/postman/players.postman_collection.json \
+            --env-var base_url='https://localhost:5000/' \
+            --insecure
+
+      - name: Teardown players service
+        if: always()
+        run: docker compose -f tests/compose/players-isolation.yml down
+
   user-registration:
     runs-on: ubuntu-latest
     
