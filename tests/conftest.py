@@ -65,3 +65,9 @@ def game_engine_app():
 @pytest.fixture
 def game_engine_client(game_engine_app):
     return game_engine_app.test_client()
+
+@pytest.fixture
+def disable_jwt(mocker):
+    def _disable():
+        mocker.patch('flask_jwt_extended.view_decorators.verify_jwt_in_request')
+    return _disable
