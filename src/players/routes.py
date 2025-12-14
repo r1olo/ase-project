@@ -91,18 +91,23 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. POST /players/search (Cerca profilo pubblico)
-@bp.post("/players/search")
+# 3. GET /players/search (Ricerca Profilo)
+@bp.get("/players/search")
 @jwt_required()
 def search_player():
-    # Leggiamo il JSON dal body
-    payload = request.get_json(silent=True) or {}
-    
-    # Estraiamo lo username da cercare
-    target_username = (payload.get("username") or "").strip()
+    target_username = request.args.get("username", type=str)
 
+    if target_username:
+        target_username = target_username.strip()
+
+    # Messaggio di errore
     if not target_username:
-        return jsonify({"msg": "Username is required"}), 400
+        return jsonify({
+            "msg": "Missing required parameter 'username'",
+            "error_code": "MISSING_QUERY_PARAM",
+            "help": "This endpoint requires a query parameter named 'username'.",
+            "example_usage": "/players/search?username=Pippo"
+        }), 400
 
     # Cerchiamo nel DB
     profile = db.session.execute(
