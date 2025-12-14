@@ -1,6 +1,6 @@
 #!/bin/bash
-
 FOLDER=secrets
+AUTH_DB_ENC=auth_db_encryption.key
 SERVICES=(
     auth{,-db}
     players{,-db}
@@ -24,3 +24,6 @@ echo "Generating certificates and keys..."
             -addext "subjectAltName=DNS:$ser,DNS:localhost,IP:127.0.0.1"
     done
 } &>/dev/null && echo "Certificates and keys generated"
+
+echo "Generating Auth DB encryption key..."
+openssl rand -base64 32 >$FOLDER/$AUTH_DB_ENC
