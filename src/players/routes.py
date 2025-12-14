@@ -161,17 +161,20 @@ def update_profile():
 # 5. POST /internal/players/validation
 @bp.post("/internal/players/validation")
 def validate_player():
-    # Leggiamo il payload JSON dal body della richiesta
     payload = request.get_json(silent=True) or {}
-
-    # Estraiamo lo user_id
+    
+    # Estraiamo il valore grezzo
     target_user_id = payload.get("user_id")
 
-    # Validazione: user_id deve essere presente
-    if not target_user_id:
-        return jsonify({"msg": "user_id is required"}), 400
+    # Controllo RIGOROSO del tipo:
+    # Accetta solo interi veri (es. 123 o 0).
+    # Rifiuta stringhe (es. "123"), booleani, float o None.
+    if type(target_user_id) is not int:
+        return jsonify({"msg": "user_id must be a valid integer (no strings allowed)"}), 400
 
-    # Verifichiamo l'esistenza nel DB
+    # Se siamo qui, target_user_id è sicuramente un intero (es. 123 o 0)
+    
+    # Verifica nel DB
     exists = db.session.execute(
         db.select(Player.id).filter_by(user_id=target_user_id)
     ).first() is not None
