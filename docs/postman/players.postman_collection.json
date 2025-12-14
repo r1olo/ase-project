@@ -17,7 +17,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Sicilia\"\n}",
+							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Toscana\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
