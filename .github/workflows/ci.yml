@@ -124,6 +124,7 @@ jobs:
           newman run docs/postman/players.postman_collection.json \
             --global-var base_url_global='https://localhost:5000/' \
             --global-var jwt_token_global='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTQ1MTY4MywianRpIjoiNGY3MTQzZGMtYjY2My00OTRjLWI0ZWMtOTFlNmE3YWM4NzMzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjAiLCJuYmYiOjE3NjU0NTE2ODMsImNzcmYiOiI1YzgyZDg1Yy01NjhiLTQ3OGUtOGY1NS1hODdhYjJkZTllNzcifQ.vVdlb2vWZFeRbIZ_6lTFF7BeGc0YjZmbaiDcoGfVZPI' \
+            --env-var jwt_token='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc2NTcwNjc3MywianRpIjoiYjJiM2NiMjEtMjEyZi00NTI4LTkxZDktYTgwYTM1Y2M4MGM3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6IjEiLCJuYmYiOjE3NjU3MDY3NzMsImNzcmYiOiI5NjRlMWU5My03ODU3LTRlNGItODNlNi1jM2JjZjIzZDlhNzMifQ.yojyzcn_bzrmBRKKm3dhrJ8_33_uCmH8yxinu3iJDsM' \
             --insecure
 
       - name: Teardown players service
