@@ -42,9 +42,15 @@ def test_get_all_cards(disable_jwt, catalogue_client):
     with open("cards/cards.json") as file:
         cards = json.load(file)
         assert len(data["data"]) == len(cards)
+
+        cards_list = list(cards.values())
+        # bake in relative path
+        for card in cards_list:
+            card["image"] = "/images/" + card["image"]
+            
         for card_data in data["data"]:
             card_data.pop("id")  # remove id for comparison
-            assert card_data in cards.values()
+            assert card_data in cards_list
  
 def test_get_single_card_success(disable_jwt, catalogue_client):
     disable_jwt()
@@ -101,7 +107,7 @@ def test_cards_validation_success(disable_jwt, catalogue_client):
     resp = catalogue_client.post("/internal/cards/validation", json={"data": cards_ids})
     assert resp.status_code == 200
     data = resp.get_json()
-    assert data["data"] in cards_data
+    assert data["data"] == cards_data
 
 def test_cards_validation_failure(disable_jwt, catalogue_client):
     disable_jwt()
