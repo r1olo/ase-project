@@ -27,6 +27,37 @@ jobs:
       - name: Run unit tests
         run: pytest
 
+  catalogue-isolation-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and start catalogue service
+        run: docker compose -f tests/compose/catalogue-isolation.yml up --build -d
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run isolation tests with Newman
+        run: |
+          newman run docs/postman/card_catalogue.postman_collection.json \
+            --env-var base_url='https://localhost:5000/' \
+            --insecure
+
+      - name: Teardown catalogue service
+        if: always()
+        run: docker compose -f tests/compose/catalogue-isolation.yml down
+
   user-registration:
     runs-on: ubuntu-latest
     
