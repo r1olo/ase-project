@@ -9,7 +9,7 @@ bp = Blueprint("catalogue", __name__)
 # check service status
 @bp.get("/health")
 def health():
-    return jsonify({"status": "ok"}), 200
+    return jsonify({"status": "ok"})
 
 # get all cards details from db
 @bp.get("/cards")
@@ -23,14 +23,11 @@ def get_all_cards():
     return jsonify({"data": cards_list})
 
 # get card details given its identifier
-@bp.get("/cards/<card_id>")
+@bp.get("/cards/<int:card_id>")
 @jwt_required()
 def get_single_card(card_id: int):
-    if not card_id.isdigit():
-        return jsonify({"msg": "Invalid card ID"}), 400
-
     # fetch card by id
-    card = Card.query.filter_by(id=int(card_id)).first()
+    card = Card.query.filter_by(id=card_id).first()
     if not card:
         return jsonify({"msg": "Card not found"}), 404
 
