@@ -1,0 +1,35 @@
+name: Health Check
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 1. Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Docker (Optional but recommended for caching layers)
+      # GitHub runners come with Docker installed, but this helps cache layers
+      # to speed up future builds.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Build and Start the Stack
+      - name: Start services
+        run: docker compose up -d --build
+
+      # 4. Run the verification script
+      - name: Verify Health Endpoint
+        run: ./scripts/verify_health.sh
+
+      # 5. Teardown (Optional, runner cleans up anyway, but good practice)
+      - name: Teardown
+        if: always() # Run this even if the test failed
+        run: docker compose down
