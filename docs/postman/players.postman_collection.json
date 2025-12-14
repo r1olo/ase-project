@@ -3,8 +3,8 @@
 		"_postman_id": "86d963be-f860-4ab9-8f42-063832c0ebe6",
 		"name": "Players",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "49834238",
-		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-86d963be-f860-4ab9-8f42-063832c0ebe6?action=share&source=collection_link&creator=49834238"
+		"_exporter_id": "50721544",
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-86d963be-f860-4ab9-8f42-063832c0ebe6?action=share&source=collection_link&creator=50721544"
 	},
 	"item": [
 		{
@@ -61,7 +61,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"region\": \"Sicilia\"\n}",
+							"raw": "{\n    \"region\": \"Sicilia\"\n}\n\n",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -130,19 +130,14 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url_global}}/players/search?username=Zizzi",
+							"raw": "{{base_url_global}}/players/search/0",
 							"host": [
 								"{{base_url_global}}"
 							],
 							"path": [
 								"players",
-								"search"
-							],
-							"query": [
-								{
-									"key": "username",
-									"value": "Zizzi"
-								}
+								"search",
+								"0"
 							]
 						}
 					},
