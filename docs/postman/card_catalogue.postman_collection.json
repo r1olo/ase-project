@@ -2,9 +2,10 @@
 	"info": {
 		"_postman_id": "1bcdc189-c4ed-4e5f-b779-df516d6d435c",
 		"name": "Card Catalogue",
+		"description": "APIs for managing cards and card-related operations.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "49834238",
-		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/Rebecca-Rodi's-Workspace~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-1bcdc189-c4ed-4e5f-b779-df516d6d435c?action=share&source=collection_link&creator=49834238"
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/49834238-1bcdc189-c4ed-4e5f-b779-df516d6d435c?action=share&source=collection_link&creator=49834238"
 	},
 	"item": [
 		{
@@ -106,7 +107,7 @@
 		"bearer": [
 			{
 				"key": "token",
-				"value": "{{jwt_token}}",
+				"value": "{{jwt_token_global}}",
 				"type": "string"
 			}
 		]
@@ -136,10 +137,6 @@
 		}
 	],
 	"variable": [
-		{
-			"key": "base_url",
-			"value": ""
-		},
 		{
 			"key": "jwt_token",
 			"value": ""
