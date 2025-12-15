@@ -44,7 +44,7 @@ jobs:
         run: docker compose -f tests/compose/catalogue-isolation.yml up --build -d
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
@@ -79,7 +79,7 @@ jobs:
         run: docker compose -f tests/compose/game_engine-isolation.yml up --build -d
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
@@ -113,7 +113,7 @@ jobs:
         run: docker compose -f tests/compose/players-isolation.yml up --build -d
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
 
