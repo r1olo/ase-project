@@ -1,5 +1,10 @@
 FROM postgres:alpine
 
+# the local gosu provided with postgres is vulnerable. remove it
+RUN apk add --no-cache gosu \
+    && rm /usr/local/bin/gosu \
+    && ln -s /usr/bin/gosu /usr/local/bin/gosu
+
 COPY docker/postgres-entrypoint.sh /postgres-entrypoint.sh
 RUN chmod +x /postgres-entrypoint.sh
 
