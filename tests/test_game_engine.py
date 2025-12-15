@@ -6,7 +6,7 @@ Tests all static methods with various scenarios including edge cases.
 import pytest
 from unittest.mock import Mock
 from game_engine.game_engine import GameEngine, RoundStatus, ValidationError
-from game_engine.models import Match, MatchStatus, Round
+from game_engine.models import MatchStatus
 
 
 # --- Fixtures ---
@@ -14,7 +14,7 @@ from game_engine.models import Match, MatchStatus, Round
 @pytest.fixture
 def setup_match():
     """Create a basic match in SETUP status."""
-    match = Mock(spec=Match)
+    match = Mock()
     match.player1_id = 1
     match.player2_id = 2
     match.status = MatchStatus.SETUP
@@ -29,7 +29,7 @@ def setup_match():
 @pytest.fixture
 def in_progress_match():
     """Create a match in IN_PROGRESS status with decks."""
-    match = Mock(spec=Match)
+    match = Mock()
     match.player1_id = 1
     match.player2_id = 2
     match.status = MatchStatus.IN_PROGRESS
@@ -56,7 +56,7 @@ def in_progress_match():
 @pytest.fixture
 def current_round():
     """Create an empty round."""
-    round_obj = Mock(spec=Round)
+    round_obj = Mock()
     round_obj.round_number = 1
     round_obj.player1_card_id = None
     round_obj.player2_card_id = None
@@ -294,7 +294,7 @@ class TestValidateMoveSubmission:
         assert error["code"] == ValidationError.ALREADY_MOVED_THIS_ROUND.value
     
     def test_card_already_played_in_previous_round(self, in_progress_match, current_round):
-        previous_round = Mock(spec=Round)
+        previous_round = Mock()
         previous_round.player1_card_id = 101
         previous_round.player2_card_id = 201
         
@@ -472,25 +472,25 @@ class TestShouldEndMatch:
     
     def test_less_than_max_rounds(self, in_progress_match):
         for i in range(3):
-            round_obj = Mock(spec=Round)
+            round_obj = Mock()
             round_obj.is_complete = Mock(return_value=True)
             in_progress_match.rounds.append(round_obj)
         assert GameEngine.should_end_match(in_progress_match) is False
     
     def test_exactly_max_rounds(self, in_progress_match):
         for i in range(5):
-            round_obj = Mock(spec=Round)
+            round_obj = Mock()
             round_obj.is_complete = Mock(return_value=True)
             in_progress_match.rounds.append(round_obj)
         assert GameEngine.should_end_match(in_progress_match) is True
     
     def test_incomplete_rounds_not_counted(self, in_progress_match):
         for i in range(3):
-            round_obj = Mock(spec=Round)
+            round_obj = Mock()
             round_obj.is_complete = Mock(return_value=True)
             in_progress_match.rounds.append(round_obj)
         
-        incomplete_round = Mock(spec=Round)
+        incomplete_round = Mock()
         incomplete_round.is_complete = Mock(return_value=False)
         in_progress_match.rounds.append(incomplete_round)
         
@@ -553,7 +553,7 @@ class TestGetNextRoundNumber:
     
     def test_subsequent_rounds(self, in_progress_match):
         for i in range(3):
-            round_obj = Mock(spec=Round)
+            round_obj = Mock()
             round_obj.is_complete = Mock(return_value=True)
             in_progress_match.rounds.append(round_obj)
         
@@ -562,11 +562,11 @@ class TestGetNextRoundNumber:
     
     def test_with_incomplete_round(self, in_progress_match):
         for i in range(2):
-            round_obj = Mock(spec=Round)
+            round_obj = Mock()
             round_obj.is_complete = Mock(return_value=True)
             in_progress_match.rounds.append(round_obj)
         
-        incomplete_round = Mock(spec=Round)
+        incomplete_round = Mock()
         incomplete_round.is_complete = Mock(return_value=False)
         in_progress_match.rounds.append(incomplete_round)
         
