@@ -101,6 +101,20 @@ def test_login_with_both_username_and_email_username_priority(auth_client):
 
 ### login error paths (and no redis state created)
 
+def test_register_bad_email(auth_client):
+    resp = auth_client.post("/register", json={"email": "not_an_email",
+                                               "password": "test"})
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "msg" in data and "invalid email" in data["msg"].lower()
+
+def test_login_bad_email(auth_client):
+    resp = auth_client.post("/login", json={"email": "not_an_email",
+                                            "password": "test"})
+    assert resp.status_code == 400
+    data = resp.get_json()
+    assert "msg" in data and "invalid email" in data["msg"].lower()
+
 def test_login_missing_fields(auth_client):
     resp = auth_client.post("/login", json={"email": "nobody@example.com"})
     assert resp.status_code == 400
