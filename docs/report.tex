@@ -1,5 +1,7 @@
 \documentclass[12pt, a4paper]{article}
-
+\usepackage[T1]{fontenc}  % sets font encoding
+\usepackage[utf8]{inputenc}  % sets input encoding
+\usepackage{lmodern}
 \usepackage[margin=1in]{geometry}   % sets standard 1-inch 
 % \usepackage{parskip}   % adds space between paragraphs (modern look)
 
@@ -11,10 +13,14 @@
 \usepackage{tabularx}
 \usepackage{multirow}
 
-\usepackage{listings}   % main package for code
-\usepackage{xcolor}   % required for custom colors in code
-
 \usepackage[hidelinks]{hyperref}
+
+\usepackage[scaled=0.85]{beramono} % code font
+%\usepackage{listings}   % main package for code
+%\usepackage{xcolor}   % required for custom colors in code
+
+% define a custom command for endpoints
+\newcommand{\api}[1]{\texttt{#1}}
 
 \title{
     \textbf{\huge Carusi Cards Game} \\[0.5cm]
