@@ -109,6 +109,38 @@ components:
         password: { type: string }
       required: [id, email, password]
 
+    Player:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        # email: { type: string, format: email }
+        region:
+          type: string
+          enum:
+            - Abruzzo
+            - Basilicata
+            - Calabria
+            - Campania
+            - Emilia-Romagna
+            - Friuli-Venezia Giulia
+            - Lazio
+            - Liguria
+            - Lombardia
+            - Marche
+            - Molise
+            - Piemonte
+            - Puglia
+            - Sardegna
+            - Sicilia
+            - Toscana
+            - Trentino-Alto Adige
+            - Umbria
+            - "Valle d'Aosta"
+            - Veneto        
+      required: [id, username, region]
+      description: Player profile
+
     Card:
       type: object
       properties:
@@ -141,6 +173,7 @@ components:
         updated_at: { type: string, format: date-time }
         rounds:
           type: array
+          nullable: true
           items: { $ref: '#/components/schemas/Round' }
       required: [id, player1_id, player2_id, status, player1_score, player2_score, winner_id, created_at, updated_at]
 
@@ -163,15 +196,6 @@ components:
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
       required: [id, match_id, round_number, category, player1_card_id, player2_card_id, winner_id, completed, created_at, updated_at]
-      
-    Player:
-      type: object
-      properties:
-        id: { type: integer }
-        username: { type: string }
-        # email: { type: string, format: email }
-      required: [id, username]
-      description: Player profile
 
     # utility / error messages
     ResponseMessage:
@@ -190,6 +214,11 @@ components:
   responses:
     UnprocessableContent:
       description: Unprocessable content
+    Authentication.BadRequestError:
+      description: Bad request error, either missing or invalid required fields
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
     Players.BadRequestError:
       description: |
         Bad request error or invalid input for player profile, including:
@@ -197,26 +226,6 @@ components:
         - Username too short
         - Username too long
         - Invalid username
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ResponseMessage'}
-    Players.UsernameRequiredError:
-      description: Username required
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ResponseMessage'}
-    Players.UsernameTooLongError:
-      description: Username length too long
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ResponseMessage'}
-    Players.UsernameTooShortError:
-      description: Username too short
-      content:
-        application/json:
-          schema: { $ref: '#/components/schemas/ResponseMessage'}
-    Players.InvalidUsernameError:
-      description: Invalid username
       content:
         application/json:
           schema: { $ref: '#/components/schemas/ResponseMessage'}
@@ -263,7 +272,13 @@ paths:
           description: User registered
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/User' }
+              schema:
+                type: object
+                properties:
+                  msg: { type: string }
+                  user_id: { type: integer }
+        '400':
+          $ref: '#/components/responses/Authentication.BadRequestError'
         '409':
           description: User already registered 
           content:
@@ -297,13 +312,10 @@ paths:
               schema:
                 type: object
                 properties:
-                  token: { type: string, description: "JWT token" }
-                  id: {type: integer, description: User ID}
+                  access_token: { type: string, description: "JWT token" }
+                  user_id: {type: integer, description: User ID}
         '400':
-          description: Missing required field
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage'}
+          $ref: '#/components/responses/Authentication.BadRequestError'
         '401':
           description: User not registered or invalid credentials
           content:
@@ -373,7 +385,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Player'
         '400':
-            $ref: '#/components/responses/Players.BadRequestError'
+          $ref: '#/components/responses/Players.BadRequestError'
         '409':
           description: Username already taken'
           content:
@@ -457,7 +469,7 @@ paths:
           description: Player not found  
 
   /players/search/{username}:
-    post:
+    get:
       tags: [Players]
       summary: Search for a player
       security:
@@ -635,7 +647,7 @@ paths:
                   status: { type: string }
                   match_id: { type: integer }
                   opponent_id: { type: integer }
-                  token: { type: integer, description: "Queue token"}
+                  queue_token: { type: string }
         '202':
           description: Enqueued and waiting
           content:
@@ -644,7 +656,12 @@ paths:
                 type: object
                 properties:
                   status: { type: string }
-                  token: { type: integer, description: "Queue token"}
+                  queue_token: { type: string }
+        '403':
+          description: Player profile not created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
         '409':
           description: Queue full
           content:
@@ -671,8 +688,13 @@ paths:
                       status: { type: string }
                       match_id: { type: integer }
                       opponent_id: { type: integer }
-                      token: { type: integer, description: "Queue token"}
-                  # TODO
+                      queue_token: { type: string }
+                  - type: object
+                    description: Waiting
+                    properties:
+                      status: { type: string }
+                      queue_token: { type: string }
+                      in_queue: { type: boolean }
                   - type: object
                     description: Rematched
                     properties:
@@ -680,11 +702,6 @@ paths:
                       match_id: { type: integer }
                       opponent_id: { type: integer }
                       source: { type: string }
-                  - type: object
-                    description: Waiting
-                    properties:
-                      status: { type: string }
-                      token: { type: integer, description: "Queue token"}
         '404':
           description: Not queued
           content:
@@ -1017,7 +1034,7 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableContent'
 
-  /cards/{id}:
+  /cards/{cId}:
     get:
       tags: [Cards]
       summary: Get a single card by ID

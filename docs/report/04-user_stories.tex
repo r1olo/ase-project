@@ -1,22 +1,22 @@
 \section{User stories}\label{sec:user-stories}
-The enumeration used below is based on the index of the user stories written in the shared file.
+The numbering below corresponds to the indexes of the User Stories defined in the project documentation.
 
 \vskip 0.5cm
 
 \noindent \textbf{Account}
 \begin{enumerate}[start=2]
     \item \api{POST /register} \\
-        Gateway $\rightarrow$ Authentication Service $\rightarrow$ Users Database $\rightarrow$ Authentication Service $\rightarrow$ Gateway
+        Gateway $\rightarrow$ Authentication $\rightarrow$ \textit{Users} $\rightarrow$ Authentication $\rightarrow$ Gateway
 
     \item \api{POST /login} \\
-        Gateway $\rightarrow$ Authentication Service $\rightarrow$ Users Database $\rightarrow$ Authentication Service $\rightarrow$ Gateway
+        Gateway $\rightarrow$ Authentication $\rightarrow$ \textit{Users} $\rightarrow$ Authentication $\rightarrow$ Gateway
 
     \item
     \begin{enumerate}
         \item \api{GET /players/me} \\
-            Gateway $\rightarrow$ Players Service $\rightarrow$ Players Database $\rightarrow$ Players Service $\rightarrow$ Gateway
+            Gateway $\rightarrow$ Players $\rightarrow$ \textit{Players} $\rightarrow$ Players $\rightarrow$ Gateway
         \item \api{PATCH /players/me} \\
-            Gateway $\rightarrow$ Players Service $\rightarrow$ Players Database $\rightarrow$ Players Service $\rightarrow$ Gateway
+            Gateway $\rightarrow$ Players $\rightarrow$ \textit{Players} $\rightarrow$ Players $\rightarrow$ Gateway
     \end{enumerate}
 \end{enumerate}
   
@@ -25,29 +25,54 @@ The enumeration used below is based on the index of the user stories written in 
 \noindent \textbf{Cards}
 \begin{enumerate}[start=6]
     \item \api{GET /cards} \\
-        Gateway $\rightarrow$ Cards Service $\rightarrow$ Cards Database $\rightarrow$ Cards Service $\rightarrow$ Gateway
+        Gateway $\rightarrow$ Cards $\rightarrow$ \textit{Cards} $\rightarrow$ Cards $\rightarrow$ Gateway
     \item \api{GET /cards/<card\_id>} \\
-        Gateway $\rightarrow$ Cards Service $\rightarrow$ Cards Database $\rightarrow$ Cards Service $\rightarrow$ Gateway
+        Gateway $\rightarrow$ Cards $\rightarrow$ \textit{Cards} $\rightarrow$ Cards $\rightarrow$ Gateway
 \end{enumerate}
 
 \vskip 0.25cm
 
 \noindent \textbf{Game}
 \begin{enumerate}[start=8]
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
+    \item
+    \begin{enumerate}
+        \item \api{POST /enqueue} \\
+            Gateway $\rightarrow$ Matchmaking $\rightarrow$ Players $\rightarrow$ \textit{Players} $\rightarrow$ Players $\rightarrow$ Matchmaking $\rightarrow$ \textit{Queue} $\rightarrow$ Matchmaking $\rightarrow$ Gateway
+        \item \api{POST /matches/create} \\
+            Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+    \end{enumerate}
+
+    \item \api{POST /matches/<match\_id>/deck} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ Card Catalogue $\rightarrow$ \textit{Cards} $\rightarrow$ Card Catalogue $\rightarrow$ Game Engine $\rightarrow$ Gateway
+        
+    \item \api{POST /matches/<match\_id>/moves/<round\_id>} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ \textit{Rounds} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+
+    \item \api{GET /matches/<match\_id>} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+
+    \item
+
+    \item \api{GET /matches/<match\_id>} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+
+    \item \api{GET /matches/<match\_id>/round} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ \textit{Rounds} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+    
+    \item 
+    \begin{enumerate}
+        \item \api{GET /matches/<match\_id>} \\
+            Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+        \item \api{GET /matches/<match\_id>/history} \\
+            Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ \textit{Rounds} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+    \end{enumerate}
 \end{enumerate}
 
 \noindent \textbf{Others}
 \begin{enumerate}[start=17]
-    \item \api{} 
-    \item \api{} 
-    \item \api{} 
+    \item \api{GET /matches/history/{<player\_id}} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ \textit{Rounds} $\rightarrow$ Game Engine $\rightarrow$ Gateway
+    \item Same as above.
+    \item \api{GET /leaderboard} \\
+        Gateway $\rightarrow$ Game Engine $\rightarrow$ \textit{Matches} $\rightarrow$ Game Engine $\rightarrow$ \textit{Rounds} $\rightarrow$ Game Engine $\rightarrow$ Gateway
 \end{enumerate}
