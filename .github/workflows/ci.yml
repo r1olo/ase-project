@@ -179,3 +179,72 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt
+
+  build-and-scan:
+    name: Scan ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: "nginx"
+            image_name: "ci-scan-nginx"
+          - service: "auth"
+            image_name: "ci-scan-auth"
+          - service: "catalogue"
+            image_name: "ci-scan-catalogue"
+          - service: "players"
+            image_name: "ci-scan-players"
+          - service: "game-engine"
+            image_name: "ci-scan-game-engine"
+          - service: "matchmaking"
+            image_name: "ci-scan-matchmaking"
+          
+          # Custom Base Images (Explicit 'image' tag in compose)
+          # We scan these because other services (like catalogue-db) reuse them
+          - service: "auth-db"
+            image_name: "postgres-ssl"
+          - service: "auth-redis"
+            image_name: "redis-ssl"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Docker Compose will fail if the secret files defined in 'secrets:' 
+      # don't exist, even just for building. We create dummy files to satisfy it.
+      - name: Create Dummy Secrets
+        run: |
+          mkdir -p secrets
+          touch secrets/jwtRS256.key secrets/jwtRS256.key.pub
+          touch secrets/nginx.crt secrets/nginx.key
+          touch secrets/auth.crt secrets/auth.key
+          touch secrets/auth-db.crt secrets/auth-db.key
+          touch secrets/players.crt secrets/players.key
+          touch secrets/players-db.crt secrets/players-db.key
+          touch secrets/game-engine.crt secrets/game-engine.key
+          touch secrets/game-engine-db.crt secrets/game-engine-db.key
+          touch secrets/matchmaking.crt secrets/matchmaking.key
+          touch secrets/matchmaking-db.crt secrets/matchmaking-db.key
+          touch secrets/catalogue.crt secrets/catalogue.key
+          touch secrets/catalogue-db.crt secrets/catalogue-db.key
+          touch secrets/auth_db_encryption.key
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Service Image
+        env:
+          COMPOSE_PROJECT_NAME: ci-scan
+        run: |
+          docker compose build ${{ matrix.service }}
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@0.16.1
+        with:
+          image-ref: ${{ matrix.image_name }}
+          format: 'table'
+          exit-code: '1'           # Fail the job if vulnerabilities are found
+          ignore-unfixed: true     # Don't fail on vulns that have no patch
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
