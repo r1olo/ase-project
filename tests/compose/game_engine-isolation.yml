@@ -8,11 +8,11 @@ services:
     ports:
       - "5000:5000"
     secrets:
-      - game_engine.crt
-      - game_engine.key
+      - game-engine.crt
+      - game-engine.key
 
 secrets:
-  game_engine.crt:
-    file: ../../secrets/game_engine.crt
-  game_engine.key:
-    file: ../../secrets/game_engine.key
+  game-engine.crt:
+    file: ../../secrets/game-engine.crt
+  game-engine.key:
+    file: ../../secrets/game-engine.key
