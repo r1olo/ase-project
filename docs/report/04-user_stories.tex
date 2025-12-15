@@ -1,6 +1,53 @@
 \section{User stories}\label{sec:user-stories}
+The enumeration used below is based on the index of the user stories written in the shared file.
 
-\begin{tabular}{ll}
-    2) & \api{register} \\
-    3) & prova
-\end{tabular}
+\vskip 0.5cm
+
+\noindent \textbf{Account}
+\begin{enumerate}[start=2]
+    \item \api{POST /register} \\
+        Gateway $\rightarrow$ Authentication Service $\rightarrow$ Users Database $\rightarrow$ Authentication Service $\rightarrow$ Gateway
+
+    \item \api{POST /login} \\
+        Gateway $\rightarrow$ Authentication Service $\rightarrow$ Users Database $\rightarrow$ Authentication Service $\rightarrow$ Gateway
+
+    \item
+    \begin{enumerate}
+        \item \api{GET /players/me} \\
+            Gateway $\rightarrow$ Players Service $\rightarrow$ Players Database $\rightarrow$ Players Service $\rightarrow$ Gateway
+        \item \api{PATCH /players/me} \\
+            Gateway $\rightarrow$ Players Service $\rightarrow$ Players Database $\rightarrow$ Players Service $\rightarrow$ Gateway
+    \end{enumerate}
+\end{enumerate}
+  
+\vskip 0.25cm
+
+\noindent \textbf{Cards}
+\begin{enumerate}[start=6]
+    \item \api{GET /cards} \\
+        Gateway $\rightarrow$ Cards Service $\rightarrow$ Cards Database $\rightarrow$ Cards Service $\rightarrow$ Gateway
+    \item \api{GET /cards/<card\_id>} \\
+        Gateway $\rightarrow$ Cards Service $\rightarrow$ Cards Database $\rightarrow$ Cards Service $\rightarrow$ Gateway
+\end{enumerate}
+
+\vskip 0.25cm
+
+\noindent \textbf{Game}
+\begin{enumerate}[start=8]
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+\end{enumerate}
+
+\noindent \textbf{Others}
+\begin{enumerate}[start=17]
+    \item \api{} 
+    \item \api{} 
+    \item \api{} 
+\end{enumerate}
