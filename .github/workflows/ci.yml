@@ -181,7 +181,7 @@ jobs:
           pip-audit -r requirements.txt
 
   build-and-scan:
-    name: Scan ${{ matrix.service }}
+    name: scan ${{ matrix.service }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
