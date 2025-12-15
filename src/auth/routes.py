@@ -13,6 +13,7 @@ from flask_jwt_extended import (
 
 import hashlib
 import secrets
+import re
 from sqlalchemy.exc import IntegrityError
 
 from common.extensions import db, redis_manager
@@ -42,6 +43,11 @@ def _revoke_all_refresh_tokens(user_id: int) -> None:
 def _refresh_token_exists(user_id: int, jti: str) -> bool:
     return bool(redis_manager.conn.exists(f"refresh:{user_id}:{jti}"))
 
+# check whether an email is semantically correct
+def _is_valid_email(email: str) -> bool:
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return bool(re.match(pattern, email))
+
 # register a user
 @bp.post("/register")
 def register():
@@ -54,6 +60,10 @@ def register():
     if not email or not password:
         return (jsonify({"msg": "Both email and password are required to register"}),
             400)
+
+    # check email format
+    if not _is_valid_email(email):
+        return jsonify({"msg": "Invalid email format"}), 400
 
     # create a user or fail gracefully
     salt = secrets.token_hex(16)
@@ -81,6 +91,10 @@ def login():
     # check if everything is supplied
     if not email or not password:
         return jsonify({"msg": "Missing email or password"}), 400
+
+    # check email format
+    if not _is_valid_email(email):
+        return jsonify({"msg": "Invalid email format"}), 400
 
     # check if user exists and his password
     user = User.query.filter_by(email_blind_index=get_blind_index(email)).first()
