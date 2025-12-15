@@ -79,7 +79,7 @@
 			"response": []
 		},
 		{
-			"name": "2. POST /matches/create",
+			"name": "2. POST /internal/matches/create",
 			"event": [
 				{
 					"listen": "test",
@@ -115,7 +115,7 @@
 					"raw": "{\n    \"player1_id\": {{player1_id}},\n    \"player2_id\": {{player2_id}}\n}"
 				},
 				"url": {
-					"raw": "{{base_url}}/matches/create",
+					"raw": "{{base_url}}/internal/matches/create",
 					"host": [
 						"{{base_url}}"
 					],

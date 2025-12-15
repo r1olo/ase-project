@@ -88,7 +88,7 @@ def health():
     return jsonify({"status": "ok"}), 200
 
 
-@game_engine.post("/matches/create")
+@game_engine.post("/internal/matches/create")
 def create_match():
     """Create a new match with 2 player IDs."""
     try:

@@ -12,7 +12,7 @@ Environment knobs (override via `LOCUST_ENV_VAR=value`):
 - GATEWAY_URL: base URL for the API Gateway (default: https://localhost:443)
 - AUTH_BASE_URL / PLAYERS_BASE_URL / CATALOGUE_BASE_URL / MATCHMAKING_BASE_URL / GAME_ENGINE_BASE_URL:
   optional service-specific overrides (useful to hit services directly without the gateway).
-- GAME_ENGINE_INTERNAL_URL: optional override for endpoints blocked by the gateway such as /matches/create.
+- GAME_ENGINE_INTERNAL_URL: optional override for endpoints blocked by the gateway such as /internal/matches/create.
 - LOCUST_VERIFY_TLS: "true"/"false" to enable TLS verification (default: false, useful with self-signed certs).
 - LOCUST_REQUEST_TIMEOUT: per-request timeout in seconds (default: 5).
 - LOCUST_MATCH_POLL_RETRIES: status polls after enqueue before giving up (default: 8).
@@ -48,7 +48,7 @@ SERVICE_BASE = {
     "catalogue": os.getenv("CATALOGUE_BASE_URL", DEFAULT_GATEWAY),
     "matchmaking": os.getenv("MATCHMAKING_BASE_URL", DEFAULT_GATEWAY),
     "game_engine": os.getenv("GAME_ENGINE_BASE_URL", DEFAULT_GATEWAY),
-    # Gateway blocks /matches/create, so allow an internal override for direct calls if needed.
+    # Gateway blocks /internal/matches/create, so allow an internal override for direct calls if needed.
     "game_engine_internal": os.getenv(
         "GAME_ENGINE_INTERNAL_URL", os.getenv("GAME_ENGINE_BASE_URL", DEFAULT_GATEWAY)
     ),
