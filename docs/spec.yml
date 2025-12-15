@@ -153,22 +153,9 @@ components:
       properties:
         id: { type: integer }
         username: { type: string }
-        email: { type: string, format: email }
-        profilePicture: { type: string, format: uri }
-        score: { type: integer, description: "Cached" }
-        ranking: { type: integer, description: "Cached" }
-      required: [id, username, email, score, ranking]
-      description: Player profile.
-
-    Friendship:
-      type: object
-      properties:
-        id: { type: integer }
-        player1_id: { type: integer }
-        player2_id: { type: integer }
-        status:
-          type: string
-          enum: [pending, accepted]
+        # email: { type: string, format: email }
+      required: [id, username]
+      description: Player profile
 
     # utility / error messages
     ResponseMessage:
@@ -187,6 +174,16 @@ components:
   responses:
     UnprocessableContent:
       description: Unprocessable content
+    Players.BadRequestError:
+      description: |
+        Bad request error or invalid input for player profile, including:
+        - Username required
+        - Username too short
+        - Username too long
+        - Invalid username
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
     Players.UsernameRequiredError:
       description: Username required
       content:
@@ -360,15 +357,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Player'
         '400':
-          description: |
-            Invalid input for player profile, including:
-            - $ref: '#/components/responses/Players.UsernameRequiredError'
-            - $ref: '#/components/responses/Players.UsernameTooLongError'
-            - $ref: '#/components/responses/Players.UsernameTooShortError'
-            - $ref: '#/components/responses/Players.InvalidUsernameError'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage' }
+            $ref: '#/components/responses/Players.BadRequestError'
         '409':
           description: Username already taken'
           content:
@@ -399,6 +388,15 @@ paths:
     patch:
       tags: [Players]
       summary: Update profile of current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                region: { type: string }
+              required: [region]
       security:
         - bearerAuth: []
       responses:
@@ -428,7 +426,7 @@ paths:
   /players/{pId}:
     get:
       tags: [Players]
-      summary: Get profile of a player
+      summary: Get profile of a player by ID
       security:
         - bearerAuth: []
       parameters:
@@ -458,15 +456,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Player'
         '400':
-          description: |
-            Invalid input for player profile, including:
-            - $ref: '#/components/responses/Players.UsernameRequiredError'
-            - $ref: '#/components/responses/Players.UsernameTooLongError'
-            - $ref: '#/components/responses/Players.UsernameTooShortError'
-            - $ref: '#/components/responses/Players.InvalidUsernameError'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage' }
+            $ref: '#/components/responses/Players.BadRequestError'
         '404':
           description: Player not found
           content:
@@ -528,15 +518,7 @@ paths:
                   username: { type: string }
                   status: { type: string, enum: [accepted, pending] }
         '400':
-          description: |
-            Invalid input for player profile, including:
-            - $ref: '#/components/responses/Players.UsernameRequiredError'
-            - $ref: '#/components/responses/Players.UsernameTooLongError'
-            - $ref: '#/components/responses/Players.UsernameTooShortError'
-            - $ref: '#/components/responses/Players.InvalidUsernameError'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage' }
+            $ref: '#/components/responses/Players.BadRequestError'
         '404':
           description: User player not found, or Target player not found, or Friendship not found
           content:
@@ -557,6 +539,7 @@ paths:
             type: string
           description: Username of the player to send a friend request to.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -575,15 +558,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
         '400':
-          description: |
-            Bad request error or invalid input for player profile, including:
-            - $ref: '#/components/responses/Players.UsernameRequiredError'
-            - $ref: '#/components/responses/Players.UsernameTooLongError'
-            - $ref: '#/components/responses/Players.UsernameTooShortError'
-            - $ref: '#/components/responses/Players.InvalidUsernameError'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage' }
+            $ref: '#/components/responses/Players.BadRequestError'
         '404':
           description: User player not found, or Target player not found
           content:

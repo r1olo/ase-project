@@ -1,7 +1,63 @@
 \documentclass[12pt,a4paper]{report}
 
+\usepackage[margin=1in]{geometry}   % sets standard 1-inch 
+% \usepackage{parskip}   % adds space between paragraphs (modern look)
+
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}   % control of image placement
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+
+\usepackage{listings}   % main package for code
+\usepackage{xcolor}   % required for custom colors in code
+
+\usepackage[hidelinks]{hyperref}
+
+\title{
+    \textbf{\huge Carusi Cards Game} \\
+    Advanced Software Engineering Lab Project \\
+    a.a. 2025/2026}
+\author{
+    \begin{tabular}{c}
+        Francesco Alizzi \\
+        Andrea Riolo Vinciguerra \\
+        Rebecca Rodi \\
+        Francesco Scarfato
+    \end{tabular}}
+\date{16 dicembre 2025}
+
 \begin{document}
 
-This is an example report.
+\maketitle
+\tableofcontents
+
+\newpage
+
+\input{report/01-group}
+
+\newpage
+
+\input{report/02-cards_overview}
+\input{report/03-architecture}
+\input{report/04-user_stories}
+
+\newpage
+
+\input{report/05-game_rules}
+\input{report/06-game_flow}
+
+\newpage
+
+\input{report/07-testing}
+\input{report/08-security}
+\input{report/09-threat_model}
+
+\newpage
+
+\input{report/10-generative_ai}
+\input{report/11-additional_features}
 
 \end{document}
