@@ -74,6 +74,13 @@ components:
       schema:
         type: integer
       description: Card identifier
+    Username:
+      name: username
+      in: path
+      required: true
+      schema:
+        type: string
+      description: Username of the player
 
   ### schemas  
   schemas:
@@ -180,6 +187,26 @@ components:
   responses:
     UnprocessableContent:
       description: Unprocessable content
+    Players.UsernameRequiredError:
+      description: Username required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    Players.UsernameTooLongError:
+      description: Username length too long
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    Players.UsernameTooShortError:
+      description: Username too short
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
+    Players.InvalidUsernameError:
+      description: Invalid username
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ResponseMessage'}
     GameEngine.ValidationError:
       description: Validation error
       content:
@@ -308,7 +335,48 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableContent'
 
-  # players
+  # players        
+  /players:
+    post:
+      tags: [Players]
+      summary: Create player profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username: { type: string }
+                region: { type: string }
+              required: [username, region]
+      security:
+        - bearerAuth: []
+      responses:
+        '201':
+          description: New created player profile for current user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Player'
+        '400':
+          description: |
+            Invalid input for player profile, including:
+            - $ref: '#/components/responses/Players.UsernameRequiredError'
+            - $ref: '#/components/responses/Players.UsernameTooLongError'
+            - $ref: '#/components/responses/Players.UsernameTooShortError'
+            - $ref: '#/components/responses/Players.InvalidUsernameError'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '409':
+          description: Username already taken'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+
   /players/me:
     get:
       tags: [Players]
@@ -317,7 +385,7 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: Player
+          description: Player profile of current user
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Player' }
@@ -335,10 +403,15 @@ paths:
         - bearerAuth: []
       responses:
         '200':
-          description: Profile updated
+          description: Updated player profile
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Player' }
+        '400':
+          description: Invalid region
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
         '404':
           description:  Profile not found
           content:
@@ -351,41 +424,32 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
-                  
-  /players:
-    post:
+
+  /players/{pId}:
+    get:
       tags: [Players]
-      summary: Create player profile
+      summary: Get profile of a player
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
       responses:
-        '201':
-          description: Create a new player profile for current user.
+        '200':
+          description: Player profile
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/Player'
-        '409':
-          description: Username already taken'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage' }
-        '422':
-          $ref: '#/components/responses/UnprocessableContent'
+              schema: { $ref: '#/components/schemas/Player' }
+        '404':
+          description: Player not found  
 
-  /players/search:
+  /players/search/{username}:
     post:
       tags: [Players]
       summary: Search for a player
       security:
         - bearerAuth: []
       parameters:
-        - name: username
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Username of the player to search for.
+        - $ref: '#/components/parameters/Username'
       responses:
         '200':
           description: Player profile
@@ -394,7 +458,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/Player'
         '400':
-          description: Username required
+          description: |
+            Invalid input for player profile, including:
+            - $ref: '#/components/responses/Players.UsernameRequiredError'
+            - $ref: '#/components/responses/Players.UsernameTooLongError'
+            - $ref: '#/components/responses/Players.UsernameTooShortError'
+            - $ref: '#/components/responses/Players.InvalidUsernameError'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
@@ -458,6 +527,16 @@ paths:
                 properties:
                   username: { type: string }
                   status: { type: string, enum: [accepted, pending] }
+        '400':
+          description: |
+            Invalid input for player profile, including:
+            - $ref: '#/components/responses/Players.UsernameRequiredError'
+            - $ref: '#/components/responses/Players.UsernameTooLongError'
+            - $ref: '#/components/responses/Players.UsernameTooShortError'
+            - $ref: '#/components/responses/Players.InvalidUsernameError'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage' }
         '404':
           description: User player not found, or Target player not found, or Friendship not found
           content:
@@ -496,7 +575,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
         '400':
-          description: Bad request
+          description: |
+            Bad request error or invalid input for player profile, including:
+            - $ref: '#/components/responses/Players.UsernameRequiredError'
+            - $ref: '#/components/responses/Players.UsernameTooLongError'
+            - $ref: '#/components/responses/Players.UsernameTooShortError'
+            - $ref: '#/components/responses/Players.InvalidUsernameError'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
@@ -506,7 +590,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
         '409':
-          description: Conflict
+          description: Request conflict
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }

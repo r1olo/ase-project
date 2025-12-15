@@ -13,20 +13,20 @@ bp = Blueprint("players", __name__)
  
 class UsernameError(StrEnum):
     USERNAME_REQUIRED = "Username is required"
-    LENGTH_REQUIRED = "Username too short"
-    LENGTH_EXCEEDED = "Username too long"
-    INVALID_CHARS = "Username contains invalid characters"
+    LENGTH_TOO_SHORT = "Username too short"
+    LENGTH_TOO_LONG = "Username too long"
+    INVALID_USERNAME = "Invalid username"
 
 # Funzione di utilità per validare lo username
 def _validate_username(input: str) -> UsernameError | None:
     if not input:
         return UsernameError.USERNAME_REQUIRED
     if len(input) < 3:
-        return UsernameError.LENGTH_REQUIRED
+        return UsernameError.LENGTH_TOO_SHORT
     if len(input) > 80:
-        return UsernameError.LENGTH_EXCEEDED
+        return UsernameError.LENGTH_TOO_LONG
     if not re.fullmatch(r'[a-zA-Z0-9_-]+', input):
-        return UsernameError.INVALID_CHARS
+        return UsernameError.INVALID_USERNAME
     return None
 
 # Funzione di utilità per validare la regione
@@ -48,22 +48,7 @@ def health():
     return jsonify({"status": "ok"}), 200
 
 # player table
-# 1. GET /players/me
-@bp.get("/players/me")
-@jwt_required()
-def get_my_profile():
-    current_user_id = int(get_jwt_identity()) 
-
-    profile = db.session.execute(
-        db.select(Player).filter_by(user_id=current_user_id)
-    ).scalar_one_or_none()
-
-    if not profile:
-        return jsonify({"msg": "Profile not found", "action": "create_profile"}), 404
-    
-    return jsonify(profile.to_dict()), 200
-
-# 2. POST /players
+# 1. POST /players
 @bp.post("/players")
 @jwt_required()
 def create_profile():
@@ -110,28 +95,22 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. GET /players/search/<id> (Cerca profilo tramite username)
-@bp.get("/players/search/<string:username>")
+# 2. GET /players/me
+@bp.get("/players/me")
 @jwt_required()
-def get_player_by_id(username):
-    # Flask estrae automaticamente "username" dall'URL e lo passa qui.
+def get_my_profile():
+    current_user_id = int(get_jwt_identity()) 
 
-    # Sanificazione dell'input
-    result = _validate_username(username)
-    if result:
-        return jsonify({"msg": result.value}), 400
-
-    # Cerchiamo nel DB usando il campo username
     profile = db.session.execute(
-        db.select(Player).filter_by(username=username)
+        db.select(Player).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
 
-    if profile is None:
-        return jsonify({"msg": "Player not found"}), 404
+    if not profile:
+        return jsonify({"msg": "Profile not found", "action": "create_profile"}), 404
     
     return jsonify(profile.to_dict()), 200
 
-# 4. PATCH /players/me (Modifica profilo)
+# 3. PATCH /players/me (Modifica profilo)
 @bp.patch("/players/me")
 @jwt_required()
 def update_profile():
@@ -170,7 +149,44 @@ def update_profile():
 
     return jsonify(profile.to_dict()), 200
 
-# 5. POST /internal/players/validation
+# 4. GET /players/<player_id> (Trova profilo tramite id)
+@bp.get("/players/<int:player_id>")
+@jwt_required()
+def get_player_by_id(player_id: int):
+    # Flask estrae automaticamente "player_id" dall'URL e lo passa qui.
+
+    # Cerchiamo nel DB
+    profile = db.session.execute(
+        db.select(Player).filter_by(user_id=player_id)
+    ).scalar_one_or_none()
+
+    if profile is None:
+        return jsonify({"msg": "Player not found"}), 404
+    
+    return jsonify(profile.to_dict()), 200
+
+# 5. GET /players/search/<username> (Cerca profilo tramite username)
+@bp.get("/players/search/<string:username>")
+@jwt_required()
+def get_player_by_username(username):
+    # Flask estrae automaticamente "username" dall'URL e lo passa qui.
+
+    # Sanificazione dell'input
+    result = _validate_username(username)
+    if result:
+        return jsonify({"msg": result.value}), 400
+
+    # Cerchiamo nel DB usando il campo username
+    profile = db.session.execute(
+        db.select(Player).filter_by(username=username)
+    ).scalar_one_or_none()
+
+    if profile is None:
+        return jsonify({"msg": "Player not found"}), 404
+    
+    return jsonify(profile.to_dict()), 200
+
+# 6. POST /internal/players/validation
 @bp.post("/internal/players/validation")
 def validate_player():
     payload = request.get_json(silent=True) or {}
@@ -256,9 +272,9 @@ def get_friendship_status(username: str):
 
 # send or respond to a friendship request
 # notice: status of new created friendship is pending by default
-@bp.post("/players/me/friends/<username>")
+@bp.post("/players/me/friends/<string:username>")
 @jwt_required()
-def handle_friend_request(username):
+def handle_friend_request(username: str):
     # input sanitization
     result = _validate_username(username)
     if result:
