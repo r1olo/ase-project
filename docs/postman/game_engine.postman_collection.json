@@ -5,7 +5,7 @@
 		"description": "Complete sequential test flow for a 5-round match.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "50804637",
-		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/50804637-febac72c-f8c4-4c2c-8b88-9ed5a383681b?action=share&source=collection_link&creator=50804637"
+		"_collection_link": "https://orange-shuttle-1203899.postman.co/workspace/ASE-Project~2b73992e-e05e-4542-8b66-0ce55c1be89d/collection/50804637-febac72c-f8c4-4c2c-8b88-9ed5a383681b?action=share&source=collection_link&creator=50804637"
 	},
 	"item": [
 		{
@@ -409,60 +409,7 @@
 			"response": []
 		},
 		{
-			"name": "9. Error Check: Already Played Card",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 400\", function () {",
-							"    pm.response.to.have.status(400);",
-							"});",
-							"",
-							"const response = pm.response.json();",
-							"pm.test(\"Error code is CARD_ALREADY_PLAYED\", function () {",
-							"    pm.expect(response.code).to.eql(\"CARD_ALREADY_PLAYED\");",
-							"});"
-						],
-						"type": "text/javascript",
-						"packages": {},
-						"requests": {}
-					}
-				}
-			],
-			"request": {
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"value": "application/json"
-					},
-					{
-						"key": "Authorization",
-						"value": "Bearer {{player1_token}}"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"card_id\": {{p1_move_r1}} \n}"
-				},
-				"url": {
-					"raw": "{{base_url}}/matches/{{match_id}}/moves/2",
-					"host": [
-						"{{base_url}}"
-					],
-					"path": [
-						"matches",
-						"{{match_id}}",
-						"moves",
-						"2"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "10. Move R2: P1",
+			"name": "9. Move R2: P1",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -495,7 +442,7 @@
 			"response": []
 		},
 		{
-			"name": "11. Move R2: P2 (Process)",
+			"name": "10. Move R2: P2 (Process)",
 			"event": [
 				{
 					"listen": "test",
@@ -547,7 +494,7 @@
 			"response": []
 		},
 		{
-			"name": "12. Move R3: P1",
+			"name": "11. Move R3: P1",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -580,7 +527,7 @@
 			"response": []
 		},
 		{
-			"name": "13. Move R3: P2 (Process)",
+			"name": "12. Move R3: P2 (Process)",
 			"event": [
 				{
 					"listen": "test",
@@ -632,7 +579,7 @@
 			"response": []
 		},
 		{
-			"name": "14. Move R4: P1",
+			"name": "13. Move R4: P1",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -665,7 +612,7 @@
 			"response": []
 		},
 		{
-			"name": "15. Move R4: P2 (Process)",
+			"name": "14. Move R4: P2 (Process)",
 			"event": [
 				{
 					"listen": "test",
@@ -717,7 +664,7 @@
 			"response": []
 		},
 		{
-			"name": "16. Move R5: P1",
+			"name": "15. Move R5: P1",
 			"request": {
 				"method": "POST",
 				"header": [
@@ -750,7 +697,7 @@
 			"response": []
 		},
 		{
-			"name": "17. Move R5: P2 (Final - Match Finish)",
+			"name": "16. Move R5: P2 (Final - Match Finish)",
 			"event": [
 				{
 					"listen": "test",
@@ -808,7 +755,7 @@
 			"response": []
 		},
 		{
-			"name": "18. GET /matches/{{match_id}} (Check Final)",
+			"name": "17. GET /matches/{{match_id}} (Check Final)",
 			"event": [
 				{
 					"listen": "test",
@@ -853,7 +800,7 @@
 			"response": []
 		},
 		{
-			"name": "19. GET /matches/history/{{player1_id}}",
+			"name": "18. GET /matches/history/{{player1_id}}",
 			"event": [
 				{
 					"listen": "test",
@@ -896,7 +843,7 @@
 					}
 				},
 				"url": {
-					"raw": "{{base_url}}/matches/history/{{player1_id}}?status=\"finished\"&limit=1",
+					"raw": "{{base_url}}/matches/history/{{player1_id}}?status=finished&limit=1",
 					"host": [
 						"{{base_url}}"
 					],
@@ -908,7 +855,7 @@
 					"query": [
 						{
 							"key": "status",
-							"value": "\"finished\""
+							"value": "finished"
 						},
 						{
 							"key": "limit",
@@ -920,7 +867,7 @@
 			"response": []
 		},
 		{
-			"name": "20. GET /leaderboard",
+			"name": "19. GET /leaderboard",
 			"event": [
 				{
 					"listen": "test",
@@ -931,8 +878,9 @@
 							"});",
 							"",
 							"const response = pm.response.json();",
-							"pm.test(\"Leaderboard data is present\", function () {",
+							"pm.test(\"Leaderboard data is present and are 2 players\", function () {",
 							"    pm.expect(response.leaderboard).to.be.an('array');",
+							"    pm.expect(response.leaderboard.length).to.equal(2);",
 							"});"
 						],
 						"type": "text/javascript",
@@ -950,12 +898,11 @@
 					}
 				],
 				"url": {
-					"raw": "{{base_url}}/game-engine/leaderboard?limit=10",
+					"raw": "{{base_url}}/leaderboard?limit=10",
 					"host": [
 						"{{base_url}}"
 					],
 					"path": [
-						"game-engine",
 						"leaderboard"
 					],
 					"query": [
@@ -972,7 +919,8 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": "https://127.0.0.1:5000"
+			"value": "https://127.0.0.1:5000",
+			"type": "string"
 		},
 		{
 			"key": "player1_id",

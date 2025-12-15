@@ -100,35 +100,32 @@ class MatchRepository:
         Get leaderboard data as list of (player_id, wins).
         Returns aggregated wins per player, ordered by wins descending.
         """
-        # Player 1 wins
-        player1_wins = db.session.query(
-            Match.player1_id.label('player_id'),
-            func.count(Match.id).label('wins')
+        # 1. Subquery: Find ALL players who have participated in a FINISHED match
+        # We union player1_id and player2_id to get a unique list of participants
+        p1 = db.session.query(Match.player1_id.label('player_id')).filter(Match.status == MatchStatus.FINISHED)
+        p2 = db.session.query(Match.player2_id.label('player_id')).filter(Match.status == MatchStatus.FINISHED)
+        all_participants = p1.union(p2).subquery()
+
+        # 2. Subquery: Count wins for each winner
+        win_counts = db.session.query(
+            Match.winner_id.label('player_id'),
+            func.count(Match.id).label('win_count')
         ).filter(
-            Match.winner_id == Match.player1_id,
-            Match.status == MatchStatus.FINISHED
-        ).group_by(Match.player1_id).subquery()
-        
-        # Player 2 wins
-        player2_wins = db.session.query(
-            Match.player2_id.label('player_id'),
-            func.count(Match.id).label('wins')
-        ).filter(
-            Match.winner_id == Match.player2_id,
-            Match.status == MatchStatus.FINISHED
-        ).group_by(Match.player2_id).subquery()
-        
-        # Union and aggregate
-        leaderboard = db.session.query(
-            func.coalesce(player1_wins.c.player_id, player2_wins.c.player_id).label('player_id'),
-            (func.coalesce(player1_wins.c.wins, 0) + func.coalesce(player2_wins.c.wins, 0)).label('total_wins')
+            Match.status == MatchStatus.FINISHED,
+            Match.winner_id.isnot(None)
+        ).group_by(Match.winner_id).subquery()
+
+        # 3. Main Query: LEFT JOIN Participants -> Wins
+        # coalesce(win_counts.c.win_count, 0) ensures players with no wins return 0 instead of NULL
+        return db.session.query(
+            all_participants.c.player_id,
+            func.coalesce(win_counts.c.win_count, 0).label('total_wins')
         ).outerjoin(
-            player2_wins, player1_wins.c.player_id == player2_wins.c.player_id
+            win_counts, all_participants.c.player_id == win_counts.c.player_id
         ).order_by(
-            desc('total_wins')
+            desc('total_wins'),
+            all_participants.c.player_id # Consistent tie-breaking
         ).limit(limit).offset(offset).all()
-        
-        return leaderboard
 
 
 class RoundRepository:
