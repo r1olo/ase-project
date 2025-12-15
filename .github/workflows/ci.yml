@@ -240,7 +240,7 @@ jobs:
           docker compose build ${{ matrix.service }}
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@0.16.1
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           image-ref: ${{ matrix.image_name }}
           format: 'table'
