@@ -181,7 +181,7 @@ jobs:
           pip-audit -r requirements.txt
 
   build-and-scan:
-    name: scan ${{ matrix.service }}
+    name: trivy for ${{ matrix.image_name }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

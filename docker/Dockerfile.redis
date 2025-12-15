@@ -1,4 +1,4 @@
-FROM redis:7-alpine
+FROM redis:alpine
 
 COPY docker/redis-entrypoint.sh /redis-entrypoint.sh
 RUN chmod +x /redis-entrypoint.sh
