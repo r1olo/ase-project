@@ -1,9 +1,11 @@
 # test authentication module
 import hashlib
 import re
-from auth.models import User, get_blind_index
-from common.extensions import redis_manager as redis
+from auth.models import EncryptedString, User, get_blind_index
+from common.extensions import db, redis_manager as redis
+from cryptography.fernet import Fernet
 from flask_jwt_extended import get_csrf_token
+from unittest.mock import Mock
 
 JWT_PATTERN = re.compile(r"^[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+\.[A-Za-z0-9-_]+$")
 
@@ -274,3 +276,53 @@ def test_logout_requires_csrf_token(auth_client):
     # attempt logout without CSRF header: should fail with 401
     bad = auth_client.post("/logout")
     assert bad.status_code == 401
+
+
+### encryption tests
+
+def test_user_fields_are_encrypted_at_rest(auth_app, tmp_path, monkeypatch):
+    # use a custom key file to ensure we decrypt with the same key used for storage
+    key = Fernet.generate_key()
+    key_path = tmp_path / "auth_enc.key"
+    key_path.write_bytes(key)
+    monkeypatch.setenv("AUTH_ENCRYPTION_KEY", str(key_path))
+
+    email = "enc@example.com"
+    pw_hash = "hashed-password"
+    user = User(email=email, pw_hash=pw_hash, salt="salty")
+    db.session.add(user)
+    db.session.commit()
+
+    row = db.session.execute(
+        db.text(
+            "SELECT email, pw_hash, email_blind_index FROM users WHERE id = :id"
+        ),
+        {"id": user.id},
+    ).mappings().one()
+
+    # email encrypted at rest, pw_hash stored as plain hash
+    assert row["email"] != email
+    assert row["pw_hash"] == pw_hash
+
+    cipher = Fernet(key)
+    assert cipher.decrypt(row["email"].encode()).decode() == email
+    assert row["email_blind_index"] == get_blind_index(email)
+
+
+def test_encrypted_string_randomizes_ciphertext(tmp_path, monkeypatch):
+    key = Fernet.generate_key()
+    key_path = tmp_path / "auth_enc.key"
+    key_path.write_bytes(key)
+    monkeypatch.setenv("AUTH_ENCRYPTION_KEY", str(key_path))
+
+    enc_type = EncryptedString()
+    dummy_dialect = Mock()
+    first = enc_type.process_bind_param("same-value", dummy_dialect)
+    second = enc_type.process_bind_param("same-value", dummy_dialect)
+
+    assert first is not None and second is not None
+    assert first != second
+
+    cipher = Fernet(key)
+    assert cipher.decrypt(first.encode()).decode() == "same-value"
+    assert cipher.decrypt(second.encode()).decode() == "same-value"

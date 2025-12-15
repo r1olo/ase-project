@@ -57,6 +57,7 @@ def register():
 
     # create a user or fail gracefully
     salt = secrets.token_hex(16)
+    # store the salted hash directly (column is a normal string, not encrypted)
     pw_hash = _hash_password(password, salt)
     user = User(email=email, pw_hash=pw_hash, salt=salt)
     db.session.add(user)
