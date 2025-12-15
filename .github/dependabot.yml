@@ -1,0 +1,25 @@
+version: 2
+updates:
+  # 1. Maintain GitHub Actions (e.g., actions/checkout, setup-python)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Optional: limit open PRs so you don't get overwhelmed
+    open-pull-requests-limit: 10
+
+  # 2. Maintain Python dependencies (requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # 3. Maintain Docker Base Images
+  # This finds the docker-compose.yml in root and updates images defined there.
+  # It also looks for Dockerfiles referenced in the compose file.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
