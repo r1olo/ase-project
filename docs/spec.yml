@@ -754,35 +754,6 @@ paths:
           $ref: '#/components/responses/UnprocessableContent'
 
   # matches
-  /matches/create:
-    post:
-      tags: [Game Engine]
-      summary: Create a new match
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                player1_id: { type: integer }
-                player2_id: { type: integer }
-              required: [player1_id, player2_id]
-      responses:
-        '201':
-          description: Match created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Match' }
-        '400':
-          $ref: '#/components/responses/GameEngine.ValidationError'
-        '404':
-          $ref: '#/components/responses/GameEngine.NotFound'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
-
   /matches/{mId}/deck:
     post:
       tags: [Game Engine]

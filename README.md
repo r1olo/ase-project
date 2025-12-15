@@ -14,7 +14,7 @@ Team members:
 
 The cards set represents the 20 regions of Italy.
 
-Each card contains an image representing the region, its total score and the category subscores which it is based upon, namely *Economy*, *Environment*, *Food*, and *Special*.
+Each card is represented by an image of the region, its total score and the category subscores which it is based upon, namely *Economy*, *Environment*, *Food*, and *Special*.
 The scores of Economy, Environment and Food were assigned on the basis of real data, while the Special score was assigned according to subjective criteria.
 
 <p align="center">
