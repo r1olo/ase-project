@@ -3,6 +3,7 @@ Game engine HTTP routes for the card game
 
 This blueprint handles all game logic through the service layer.
 """
+import re
 from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import get_jwt_identity, jwt_required
 
@@ -35,6 +36,48 @@ def _handle_service_error(e: Exception, default_status: int = 500):
     else:
         current_app.logger.error(f"Internal error: {e}", exc_info=True)
         return jsonify({"msg": "Internal server error"}), default_status
+    
+# --- Input Validation Helpers ---
+
+def _validate_id(value, field_name: str) -> int:
+    """Strictly validates that input is a positive integer."""
+    try:
+        if value is None:
+            raise ValueError(f"Missing required field: {field_name}")
+        
+        # Check strictly for int type or a digit-only string (no floats)
+        if isinstance(value, str) and not value.isdigit():
+            raise ValueError(f"Invalid format for {field_name}")
+            
+        val = int(value)
+        if val < 0:
+            raise ValueError(f"{field_name} cannot be negative")
+        return val
+    except (TypeError, ValueError):
+        raise ValueError(f"Invalid integer for {field_name}")
+
+def _validate_ids_list(values, field_name: str) -> list[int]:
+    """Validates a list of integers."""
+    if not isinstance(values, list):
+        raise ValueError(f"{field_name} must be a list")
+    return [_validate_id(v, f"{field_name} item") for v in values]
+
+def _sanitize_string(value, field_name: str) -> str:
+    """Uses Regex to ensure only safe alphanumeric characters."""
+    if not value:
+        return None
+    s_val = str(value).strip()
+    
+    # Strip surrounding quotes if present
+    if s_val.startswith('"') and s_val.endswith('"'):
+        s_val = s_val[1:-1]
+    if s_val.startswith("'") and s_val.endswith("'"):
+        s_val = s_val[1:-1]
+    
+    # Allow only A-Z, 0-9, and underscores
+    if not re.match(r'^[a-zA-Z0-9_]+$', s_val):
+        raise ValueError(f"Invalid characters in {field_name}")
+    return s_val
 
 
 # --- Core API Endpoints ---
@@ -53,9 +96,10 @@ def create_match():
         payload = request.get_json(silent=True) or {}
         current_app.logger.info(f"Payload: {payload}")
         
-        player1_id = payload.get("player1_id")
-        player2_id = payload.get("player2_id")
-        
+        # Get the payload and sanitize
+        player1_id = _validate_id(payload.get("player1_id"), "player1_id")
+        player2_id = _validate_id(payload.get("player2_id"), "player2_id")
+
         current_app.logger.info(f"Creating match: p1={player1_id}, p2={player2_id}")
         match = match_service.create_match(player1_id, player2_id)
         
@@ -78,8 +122,11 @@ def choose_deck(match_id: int):
     Validates the deck.
     """
     payload = request.get_json(silent=True) or {}
-    player_id = int(get_jwt_identity())
-    deck_cards = payload.get("data")
+
+    # Sanitize inputs
+    match_id = _validate_id(match_id, "match_id")
+    player_id = _validate_id(get_jwt_identity(), "auth_token")
+    deck_cards = _validate_ids_list(payload.get("data"), "deck_data")
 
     try:
         match = match_service.submit_deck(match_id, player_id, deck_cards)
@@ -95,8 +142,13 @@ def choose_deck(match_id: int):
 def submit_move(match_id: int, round_number: int):
     """Submit a move (a card) for the current round."""
     payload = request.get_json(silent=True) or {}
-    player_id = int(get_jwt_identity())
-    card_id = payload.get("card_id")
+
+    # Sanitize inputs
+    match_id = _validate_id(match_id, "match_id")
+    round_number = _validate_id(round_number, "round_number")
+    
+    player_id = _validate_id(get_jwt_identity(), "auth_token")
+    card_id = _validate_id(payload.get("card_id"), "card_id")
     
     try:
         result = match_service.submit_move(match_id, player_id, card_id, round_number)
@@ -111,7 +163,10 @@ def submit_move(match_id: int, round_number: int):
 def get_current_round_status(match_id: int):
     """Get the status of the current round, including the active category."""
     try:
-        requester_id = int(get_jwt_identity())
+        # Sanitize inputs
+        requester_id = _validate_id(get_jwt_identity(), "auth_token")
+        match_id = _validate_id(match_id, "match_id")
+
         result = match_service.get_current_round_status(match_id, requester_id)
         current_app.logger.debug(f"Round status check for match {match_id}: {result['round_status']}")
         return jsonify(result), 200
@@ -124,7 +179,10 @@ def get_current_round_status(match_id: int):
 def get_match(match_id: int):
     """Get the match info (without rounds)."""
     try:
-        requester_id = int(get_jwt_identity())
+        # Sanitize inputs
+        requester_id = _validate_id(get_jwt_identity(), "auth_token")
+        match_id = _validate_id(match_id, "match_id")
+
         match = match_service.get_match(match_id, requester_id, include_rounds=False)
         current_app.logger.debug(f"Fetching match {match_id} info")
         return jsonify(match.to_dict(include_rounds=False)), 200
@@ -140,7 +198,10 @@ def get_match_with_rounds(match_id: int):
     Uses eager loading to avoid N+1 queries.
     """
     try:
-        requester_id = int(get_jwt_identity())
+        # Sanitize inputs
+        requester_id = _validate_id(get_jwt_identity(), "auth_token")
+        match_id = _validate_id(match_id, "match_id")
+
         match = match_service.get_match(match_id, requester_id, include_rounds=True)
         current_app.logger.debug(f"Fetching match {match_id} history with {len(match.rounds)} rounds")
         return jsonify(match.to_dict(include_rounds=True)), 200
@@ -180,12 +241,18 @@ def get_player_history(player_id: int):
     - offset: Pagination offset (default: 0)
     - status: Filter by match status (optional: setup, in_progress, finished)
     """
-    limit = min(int(request.args.get('limit', 20)), 100)
-    offset = int(request.args.get('offset', 0))
-    status_filter = request.args.get('status', '').upper()
-    requester_id = int(get_jwt_identity())
 
     try:
+        # Sanitize inputs
+        player_id = _validate_id(player_id, "player_id")
+        requester_id = _validate_id(get_jwt_identity(), "auth_token")
+
+        limit = _validate_id(request.args.get('limit', 20), "limit")
+        offset = _validate_id(request.args.get('offset', 0), "offset")
+        
+        raw_status = request.args.get('status', '')
+        status_filter = _sanitize_string(raw_status, "status")
+
         from .models import MatchStatus
         
         # Parse status filter

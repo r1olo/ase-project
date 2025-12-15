@@ -447,7 +447,7 @@
 					"raw": "{\n    \"card_id\": {{p1_move_r1}} \n}"
 				},
 				"url": {
-					"raw": "{{base_url}}/matches/{{match_id}}/moves/5",
+					"raw": "{{base_url}}/matches/{{match_id}}/moves/2",
 					"host": [
 						"{{base_url}}"
 					],
@@ -455,7 +455,7 @@
 						"matches",
 						"{{match_id}}",
 						"moves",
-						"5"
+						"2"
 					]
 				}
 			},
@@ -972,7 +972,7 @@
 	"variable": [
 		{
 			"key": "base_url",
-			"value": ""
+			"value": "https://127.0.0.1:5000"
 		},
 		{
 			"key": "player1_id",

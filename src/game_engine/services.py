@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 from flask import current_app
 
 from common.extensions import db
-from .game_engine import GameEngine, MoveSubmissionStatus, CARD_CATEGORIES, _normalize_id
+from .game_engine import GameEngine, MoveSubmissionStatus, CARD_CATEGORIES
 from .repositories import MatchRepository, RoundRepository
 from .models import Match, Round, MatchStatus
 
@@ -46,18 +46,16 @@ class MatchService:
         Raises:
             ValueError: If validation fails
         """
-        p1 = _normalize_id(player1_id)
-        p2 = _normalize_id(player2_id)
         # Validate
-        is_valid, error_msg = self.game_engine.validate_match_creation(p1, p2)
+        is_valid, error_msg = self.game_engine.validate_match_creation(player1_id, player2_id)
         if not is_valid:
             raise ValueError(error_msg)
         
         # Create
-        match = self.match_repo.create(p1, p2)
+        match = self.match_repo.create(player1_id, player2_id)
         self._get_db_session().commit()
         
-        current_app.logger.info(f"Match {match.id} created between players {p1} and {p2}")
+        current_app.logger.info(f"Match {match.id} created between players {player1_id} and {player2_id}")
         return match
     
     def submit_deck(self, match_id: int, player_id: int, deck_card_ids: List[int]) -> Match:
@@ -65,17 +63,15 @@ class MatchService:
         if not match:
             raise LookupError("Match not found")
 
-        normalized_ids = [_normalize_id(cid) for cid in deck_card_ids] if isinstance(deck_card_ids, list) else deck_card_ids
-
         # Validate business rules (still checks duplicates, size, etc.)
         is_valid, error_msg = self.game_engine.validate_deck_submission(
-            normalized_ids, player_id, match
+            deck_card_ids, player_id, match
         )
         if not is_valid:
             raise ValueError(error_msg)
 
         # Fetch card stats (will use mock in testing mode)
-        validated_deck = self._fetch_card_stats_from_ids(normalized_ids)
+        validated_deck = self._fetch_card_stats_from_ids(deck_card_ids)
 
         # Store deck
         if player_id == match.player1_id:
@@ -96,8 +92,7 @@ class MatchService:
         Submit a move for a specific round, ensuring that the round number matches
         the currently active round.
         """
-        normalized_player_id = _normalize_id(player_id)
-
+        
         # Lock match for concurrency
         match = self.match_repo.find_by_id_with_lock(match_id)
         if not match:
@@ -119,24 +114,21 @@ class MatchService:
         # Fetch completed rounds for validation
         all_rounds = self.round_repo.find_completed_rounds(match_id)
 
-        # Validate move
-        normalized_card_id = _normalize_id(card_id)
-
         is_valid, err = self.game_engine.validate_move_submission(
-            normalized_player_id, normalized_card_id, match, current_round, all_rounds
+            player_id, card_id, match, current_round, all_rounds
         )
         if not is_valid:
             raise ValueError(err)
 
         # Record move
-        is_player1 = normalized_player_id == match.player1_id
+        is_player1 = player_id == match.player1_id
         if is_player1:
-            current_round.player1_card_id = normalized_card_id
+            current_round.player1_card_id = card_id
         else:
-            current_round.player2_card_id = normalized_card_id
+            current_round.player2_card_id = card_id
 
         current_app.logger.info(
-            f"Player {normalized_player_id} played card {normalized_card_id} in round {current_round.round_number}"
+            f"Player {player_id} played card {card_id} in round {current_round.round_number}"
         )
 
         # Check if the round is now complete
@@ -413,7 +405,7 @@ class MatchService:
         # Convert to dict: { card_id: card_data }
         mapped = {}
         for card in data:
-            cid = _normalize_id(card.get("id"))
+            cid = int(card.get("id"))
             card["id"] = cid
             mapped[cid] = card
         return mapped

@@ -15,20 +15,6 @@ from .models import Match, MatchStatus, Round, CARD_CATEGORIES
 MAX_ROUNDS = 5
 DECK_SIZE = 5
 
-# --- Helpers ---
-
-def _normalize_id(value: Any):
-    """
-    Normalize identifiers that may arrive as strings or ints.
-    Best-effort conversion to int when possible, otherwise returns the original.
-    """
-    try:
-        if isinstance(value, bool):
-            return value
-        return int(value)
-    except (TypeError, ValueError):
-        return value
-
 # --- Enums ---
 
 class RoundStatus(Enum):
@@ -66,41 +52,65 @@ class GameEngine:
     """
     
     @staticmethod
-    def validate_match_creation(player1_id: Any, player2_id: Any) -> Tuple[bool, Optional[str]]:
+    def validate_match_creation(player1_id: int, player2_id: int) -> Tuple[bool, Optional[str]]:
         """
         Validate match creation parameters.
+        
+        Args:
+            player1_id: Must be a positive integer
+            player2_id: Must be a positive integer
         
         Returns:
             Tuple of (is_valid, error_message)
         """
-        p1 = _normalize_id(player1_id)
-        p2 = _normalize_id(player2_id)
-        if not isinstance(p1, int) or not isinstance(p2, int):
-            return False, "player1_id and player2_id must be integers"
+        # Strict type checking - reject non-integers including booleans
+        if not isinstance(player1_id, int) or isinstance(player1_id, bool):
+            return False, "player1_id must be an integer"
         
-        if p1 == p2:
+        if not isinstance(player2_id, int) or isinstance(player2_id, bool):
+            return False, "player2_id must be an integer"
+        
+        # Validate positive integers
+        if player1_id < 0 or player2_id < 0:
+            return False, "Player IDs must be non-negative"
+        
+        if player1_id == player2_id:
             return False, "Player IDs must be different"
         
         return True, None
     
     @staticmethod
     def validate_deck_submission(deck_card_ids: List[int], player_id: int, match: Match) -> Tuple[bool, Optional[str]]:
-
         """
         Validate a deck submission with all business rules.
+        
+        Args:
+            deck_card_ids: List of card IDs (must be positive integers)
+            player_id: Must be a positive integer
+            match: The Match object
         
         Returns:
             Tuple of (is_valid, error_message)
         """
-        normalized_ids = [_normalize_id(cid) for cid in deck_card_ids] if isinstance(deck_card_ids, list) else deck_card_ids
         # Type validation
-        if not isinstance(player_id, int) or not isinstance(normalized_ids, list):
-            return False, "player_id (int) and deck (list) are required"
-        if not all(isinstance(cid, int) for cid in normalized_ids):
-            return False, "Deck IDs must be integers"
+        if not isinstance(player_id, int) or isinstance(player_id, bool):
+            return False, "player_id must be an integer"
         
-        if not normalized_ids:
+        if player_id < 0:
+            return False, "player_id must be non-negative"
+        
+        if not isinstance(deck_card_ids, list):
+            return False, "deck must be a list"
+        
+        if not deck_card_ids:
             return False, "Deck cannot be empty"
+        
+        # Validate all card IDs are integers
+        for idx, card_id in enumerate(deck_card_ids):
+            if not isinstance(card_id, int) or isinstance(card_id, bool):
+                return False, f"Card ID at index {idx} must be an integer"
+            if card_id < 0:
+                return False, f"Card ID at index {idx} must be non-negative"
         
         # Match status validation
         if match.status != MatchStatus.SETUP:
@@ -111,11 +121,11 @@ class GameEngine:
             return False, "Player is not part of this match"
         
         # Deck size validation
-        if len(normalized_ids) != DECK_SIZE:
+        if len(deck_card_ids) != DECK_SIZE:
             return False, f"Deck must contain {DECK_SIZE} cards"
         
         # Uniqueness validation
-        if len(normalized_ids) != len(set(normalized_ids)):
+        if len(deck_card_ids) != len(set(deck_card_ids)):
             return False, "Deck cannot contain duplicate cards"
         
         return True, None
@@ -129,8 +139,8 @@ class GameEngine:
     
     @staticmethod
     def validate_move_submission(
-        player_id: Any, 
-        card_id: Any, 
+        player_id: int, 
+        card_id: int, 
         match: Match, 
         current_round: Optional[Round],
         all_rounds: List[Round]
@@ -139,8 +149,8 @@ class GameEngine:
         Validate a move submission with all business rules.
         
         Args:
-            player_id: ID of the player submitting the move
-            card_id: ID of the card being played
+            player_id: Must be a positive integer
+            card_id: Must be a positive integer
             match: The Match object
             current_round: The current Round object (may be None if just created)
             all_rounds: List of all completed rounds in this match
@@ -148,12 +158,23 @@ class GameEngine:
         Returns:
             Tuple of (is_valid, error_dict with msg and code)
         """
-        pid = _normalize_id(player_id)
-        cid = _normalize_id(card_id)
-        # Type validation
-        if not isinstance(pid, int) or not isinstance(cid, int):
+        # Strict type validation - reject non-integers including booleans
+        if not isinstance(player_id, int) or isinstance(player_id, bool):
             return False, {
-                "msg": "player_id (int) and card_id (int) are required",
+                "msg": "player_id must be an integer",
+                "code": ValidationError.INVALID_TYPES.value
+            }
+        
+        if not isinstance(card_id, int) or isinstance(card_id, bool):
+            return False, {
+                "msg": "card_id must be an integer",
+                "code": ValidationError.INVALID_TYPES.value
+            }
+        
+        # Validate positive integers
+        if player_id < 0 or card_id < 0:
+            return False, {
+                "msg": "IDs must be non-negative",
                 "code": ValidationError.INVALID_TYPES.value
             }
         
@@ -165,22 +186,22 @@ class GameEngine:
             }
         
         # Player validation
-        if pid not in [match.player1_id, match.player2_id]:
+        if player_id not in [match.player1_id, match.player2_id]:
             return False, {
                 "msg": "Player is not part of this match",
                 "code": ValidationError.NOT_PARTICIPANT.value
             }
         
         # Deck validation
-        player_deck = match.player1_deck if pid == match.player1_id else match.player2_deck
+        player_deck = match.player1_deck if player_id == match.player1_id else match.player2_deck
         if not player_deck:
             return False, {
                 "msg": "Player deck not found or not set",
                 "code": ValidationError.NO_DECK.value
             }
         
-        # Card in deck validation
-        if cid not in player_deck and str(cid) not in player_deck:
+        # Card in deck validation - check both int and string keys
+        if card_id not in player_deck and str(card_id) not in player_deck:
             return False, {
                 "msg": f"Card {card_id} is not in the player's deck",
                 "code": ValidationError.CARD_NOT_IN_DECK.value
@@ -188,7 +209,7 @@ class GameEngine:
         
         # Already submitted this round validation
         if current_round:
-            is_player1 = pid == match.player1_id
+            is_player1 = player_id == match.player1_id
             if is_player1 and current_round.player1_card_id is not None:
                 return False, {
                     "msg": "Player has already submitted a move for this round",
@@ -203,9 +224,9 @@ class GameEngine:
         # Card already played validation (check all previous rounds)
         for round_obj in all_rounds:
             prior_card = (
-                round_obj.player1_card_id if pid == match.player1_id else round_obj.player2_card_id
+                round_obj.player1_card_id if player_id == match.player1_id else round_obj.player2_card_id
             )
-            if prior_card is not None and cid == _normalize_id(prior_card):
+            if prior_card is not None and card_id == prior_card:
                 return False, {
                     "msg": f"Card {card_id} has already been played by this player",
                     "code": ValidationError.CARD_ALREADY_PLAYED.value
@@ -224,7 +245,7 @@ class GameEngine:
         return current_round.is_complete()
     
     @staticmethod
-    def get_card_stats(match: Match, player_id: int, card_id: str) -> Dict[str, float]:
+    def get_card_stats(match: Match, player_id: int, card_id: int) -> Dict[str, float]:
         """
         Retrieve card stats from the match's deck data.
         
@@ -240,13 +261,15 @@ class GameEngine:
             KeyError: If card not found in deck
         """
         deck = match.player1_deck if player_id == match.player1_id else match.player2_deck
-        cid = _normalize_id(card_id)
+        
+        # Try both int and string keys for compatibility with catalogue service
         if isinstance(deck, dict):
-            if cid in deck:
-                return deck[cid]
-            if str(cid) in deck:
-                return deck[str(cid)]
-        return deck[str(cid)]
+            if card_id in deck:
+                return deck[card_id]
+            if str(card_id) in deck:
+                return deck[str(card_id)]
+        
+        raise KeyError(f"Card {card_id} not found in player deck")
     
     @staticmethod
     def calculate_round_scores(
