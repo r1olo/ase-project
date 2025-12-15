@@ -28,9 +28,9 @@ tags:
   - name: Players
     description: Player profile, score, ranking, and match history.
   - name: Matchmaking
-    description: Enqueue/dequeue players and check queue status.
+    description: Enqueue/dequeue players, and check queue status.
   - name: Game Engine
-    description: Manage matches, manage rounds, play cards, and handle forfeits.
+    description: Manage matches and rounds in order to play the game.
   - name: Cards
     description: Card catalogue browsing.
   - name: Utilities
@@ -81,6 +81,22 @@ components:
       schema:
         type: string
       description: Username of the player
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 20
+      description: Number of items to return
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+      description: Pagination offset
 
   ### schemas  
   schemas:
@@ -721,6 +737,147 @@ paths:
           $ref: '#/components/responses/UnprocessableContent'
 
   # matches
+  /matches/create:
+    post:
+      tags: [Game Engine]
+      summary: Create a new match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                player1_id: { type: integer }
+                player2_id: { type: integer }
+              required: [player1_id, player2_id]
+      responses:
+        '201':
+          description: Match created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/{mId}/deck:
+    post:
+      tags: [Game Engine]
+      summary: Submit deck for current match
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    type: integer
+              required: [data]
+      responses:
+        '200':
+          description: Deck accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Match' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/{mId}/moves/{rId}:
+    post:
+      tags: [Game Engine]
+      summary: Submit move for current round in current match
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/RoundId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                card_id: { type: integer }
+              required: [card_id]
+      responses:
+        '200':
+          description: Move accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  winner_id : { type: integer }
+                  drawed: { type: boolean }
+                  completed: { type: boolean }
+                  scores: 
+                    type: object
+                    properties:
+                      player1_score: { type: integer }
+                      player2_score: { type: integer }
+                  next_round: { type: integer }
+                  next_category: { type: string }
+                  game_status: { type: string }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/{mId}/round:
+    get:
+      tags: [Game Engine]
+      summary: Get status of last round in current match
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/MatchId'
+      responses:
+        '200':
+          description: Current round status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  match_id: { type: integer }
+                  current_round: { type: integer }
+                  current_category: { type: string }
+                  round_status: { type: string }
+                  round: { $ref: '#/components/schemas/Round' }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
   /matches/{mId}:
     get:
       tags: [Game Engine]
@@ -767,145 +924,35 @@ paths:
         '503':
           $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
-  /matches/create:
-    post:
-      tags: [Game Engine]
-      summary: Get match and rounds by ID
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                player1_id: { type: integer }
-                player2_id: { type: integer }
-              required: [player1_id, player2_id]
-      responses:
-        '201':
-          description: Match with rounds
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Match' }
-        '400':
-          $ref: '#/components/responses/GameEngine.ValidationError'
-        '404':
-          $ref: '#/components/responses/GameEngine.NotFound'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
-
-  /matches/{mId}/deck:
-    post:
-      tags: [Game Engine]
-      summary: Submit deck for current match
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                player_id: { type: integer }
-                # TODO
-                data:
-                  type: array
-                  items:
-                    type: integer
-              required: [player_id, data]
-      responses:
-        '200':
-          description: Deck accepted
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Match' }
-        '400':
-          $ref: '#/components/responses/GameEngine.ValidationError'
-        '404':
-          $ref: '#/components/responses/GameEngine.NotFound'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
-
-  /matches/{mId}/moves/{rId}:
-    post:
-      tags: [Game Engine]
-      summary: Submit move for current round in current match
-      security:
-        - bearerAuth: []
-      parameters:
-        - $ref: '#/components/parameters/MatchId'
-        - $ref: '#/components/parameters/RoundId'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                player_id: { type: integer }
-                card_id: { type: integer }
-              required: [player_id, data]
-      responses:
-        '200':
-          description: Move accepted
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
-                  winner_id : { type: integer }
-                  # TODO
-                  drawed: { type: boolean }
-                  completed: { type: boolean }
-                  scores: 
-                    type: object
-                    properties:
-                      player1_score: { type: integer }
-                      player2_score: { type: integer }
-                  next_round: { type: integer }
-                  next_category: { type: integer }
-                  game_status: { type: string } # TODO
-        '400':
-          $ref: '#/components/responses/GameEngine.ValidationError'
-        '404':
-          $ref: '#/components/responses/GameEngine.NotFound'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
-
-  /matches/{mId}/round:
+  /matches/history/{pId}:
     get:
       tags: [Game Engine]
-      summary: Get status of last round in current match
+      summary: Get match history for a specific player
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/PlayerId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [setup, in_progress, finished]
+          description: Filter by match status
       responses:
         '200':
-          description: Bho
+          description: Match history
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  match_id: { type: integer }
-                  current_round : { type: integer }
-                  # TODO
-                  current_category: { type: string }
-                  round_status: { type: string }
-                  round: { $ref: '#/components/schemas/Round' }
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Match'
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
         '404':
@@ -922,10 +969,32 @@ paths:
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/MatchId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
       responses:
-        '202':
-          description: Forfeit accepted
+        '200':
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        player_id: { type: integer }
+                        username: { type: string }
+                        wins: { type: integer }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
   # card catalogue
   /cards:
@@ -971,21 +1040,16 @@ paths:
           $ref: '#/components/responses/UnprocessableContent'
   
   # utilities
-  /_meta:
+  /health:
     get:
       tags: [Utilities]
-      summary: API metadata and capabilities
+      summary: Health check
       responses:
         '200':
-          description: Server capability flags and versions
+          description: Service is healthy
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  openapiVersion: { type: string }
-                  buildRef: { type: string }
-                  features:
-                    type: object
-                    additionalProperties: { type: boolean }
-                    
+                  status: { type: string }
