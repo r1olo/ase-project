@@ -1,4 +1,4 @@
-FROM nginx:1.25-alpine
+FROM nginx:alpine
 
 COPY src/api_gateway/nginx.conf /etc/nginx/nginx.conf.template
 
