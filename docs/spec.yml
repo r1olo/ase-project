@@ -178,6 +178,8 @@ components:
       scheme: bearer
       bearerFormat: JWT
   responses:
+    UnprocessableContent:
+      description: Unprocessable content
     GameEngine.ValidationError:
       description: Validation error
       content:
@@ -288,6 +290,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /logout:
     post:
@@ -301,6 +305,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   # players
   /players/me:
@@ -320,6 +326,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
     patch:
       tags: [Players]
       summary: Update profile of current user
@@ -336,6 +344,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '500':
           description: Internal server error
           content:
@@ -360,6 +370,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /players/search:
     post:
@@ -391,6 +403,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /players/me/friends:
     get:
@@ -418,6 +432,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /players/me/friends/{username}:
     get:
@@ -447,6 +463,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
     post:
       tags: [Players]
       summary: Send or respond to a friendship request
@@ -492,6 +510,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
     delete:
       tags: [Players]
       summary: Remove friendship
@@ -519,6 +539,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   # matchmaking
   /enqueue:
@@ -553,6 +575,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
   /status:
     get:
       tags: [Matchmaking]
@@ -603,6 +627,8 @@ paths:
                 properties:
                   status: { type: string }
                   msg: { type: string }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /dequeue:
     post:
@@ -632,6 +658,8 @@ paths:
                       match_id: { type: integer }
                       opponent_id: { type: integer }
                   - $ref: '#/components/schemas/ResponseMessage'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   # matches
   /matches/{mId}:
@@ -858,6 +886,8 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/Card' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
 
   /cards/{id}:
     get:
@@ -873,41 +903,13 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Card' }
-        '400':
-          description: Invalid card
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ResponseMessage'}
         '404':
           description: Card not found
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
-
-  /internal/cards/validation:
-    get:
-      tags: [Card]
-      summary: Validate selected deck
-      description: Check if cards in deck are contained in catalogue
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                data:
-                  type: array
-                  items: { type: integer }
-      responses:
-          '200':
-            description: Validation result
-            content:
-              application/json:
-                schema:
-                  type: object
-                  properties:
-                    data: { $ref: '#/components/schemas/Card' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
   
   # utilities
   /_meta:

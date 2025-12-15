@@ -9,7 +9,7 @@ bp = Blueprint("catalogue", __name__)
 # check service status
 @bp.get("/health")
 def health():
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok"}), 200
 
 # get all cards details from db
 @bp.get("/cards")
@@ -20,7 +20,7 @@ def get_all_cards():
 
     # convert to json
     cards_list = [card.to_dict(relative=True) for card in cards]
-    return jsonify({"data": cards_list})
+    return jsonify({"data": cards_list}), 200
 
 # get card details given its identifier
 @bp.get("/cards/<int:card_id>")
@@ -28,11 +28,11 @@ def get_all_cards():
 def get_single_card(card_id: int):
     # fetch card by id
     card = Card.query.filter_by(id=card_id).first()
-    if not card:
+    if card is None:
         return jsonify({"msg": "Card not found"}), 404
 
     # convert to json
-    return jsonify(card.to_dict(relative=True))
+    return jsonify(card.to_dict(relative=True)), 200
 
 # check if deck is valid
 @bp.post("/internal/cards/validation")
@@ -41,18 +41,23 @@ def validate_deck():
     cards = []
     
     data = payload.get("data")
+    # input sanitization
     if data is None:
-        return jsonify({"msg": "Invalid deck"}), 400
+        return jsonify({"msg": "Missing deck"}), 400
+    if not isinstance(data, list):
+        return jsonify({"msg": "Invalid deck format"}), 400
+    if len(data) == 0:
+        return jsonify({"msg": "Empty deck"}), 400
 
     # checks each card in the payload
     for card_id in data:
         # case no card ID or card ID is not a number
-        if not card_id or not (isinstance(card_id, int) or card_id.isdigit()):
-            return jsonify({"msg": "Empty deck"}), 400
+        if card_id is None or not (isinstance(card_id, int) or card_id.isdigit()):
+            return jsonify({"msg": "Invalid deck"}), 400
         
         # case no match or match is wrong
         card = Card.query.filter_by(id=int(card_id)).first()
-        if not card:
-            return jsonify({"msg": "Invalid deck"}), 400
+        if card is None:
+            return jsonify({"msg": "Invalid deck card"}), 400
         cards.append(card.to_dict(relative=True))
-    return jsonify({"data": cards})
+    return jsonify({"data": cards}), 200

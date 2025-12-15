@@ -11,7 +11,107 @@
 			"name": "Players",
 			"item": [
 				{
-					"name": "create a new player",
+					"name": "try to create new player with invalid username",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Create new profile with invalid username\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\" : \"Zizzi!\",\n    \"region\": \"Toscana\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "try to create new player with invalid region",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Create new profile with invalid region\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\" : \"Zizzi\",\n    \"region\": \"Tuscany\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create new player profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Create new player profile\", function () {\r",
+									"    pm.response.to.have.status(201);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('username');\r",
+									"    pm.expect(jsonData).to.have.property('region');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "POST",
 						"header": [],
@@ -38,6 +138,24 @@
 				},
 				{
 					"name": "get my profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Get my profile player\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('username');\r",
+									"    pm.expect(jsonData).to.have.property('region');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "GET",
 						"header": [],
@@ -55,13 +173,31 @@
 					"response": []
 				},
 				{
-					"name": "modify my profile",
+					"name": "update my profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Edit current player profile\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('username');\r",
+									"    pm.expect(jsonData).to.have.property('region');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"method": "PATCH",
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"region\": \"Sicilia\"\n}\n\n",
+							"raw": "{\n    \"region\": \"Sicilia\"\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -82,7 +218,24 @@
 					"response": []
 				},
 				{
-					"name": "check if user has a player profile",
+					"name": "validate player profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Check user has a player profile\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('valid');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"request": {
 						"auth": {
 							"type": "noauth"
@@ -113,7 +266,22 @@
 					"response": []
 				},
 				{
-					"name": "get profile of a player",
+					"name": "try to get player profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Get missing player profile\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
 					"protocolProfileBehavior": {
 						"disableBodyPruning": true
 					},
@@ -122,7 +290,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "",
+							"raw": "pm.test(\"Check user has a player profile\", function () {\r\n    pm.response.to.have.status(200);\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData).to.have.property('valid');\r\n});",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -130,27 +298,27 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url_global}}/players/search/0",
+							"raw": "{{base_url_global}}/players/search/:username",
 							"host": [
 								"{{base_url_global}}"
 							],
 							"path": [
 								"players",
 								"search",
-								"0"
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Gabibbo"
+								}
 							]
 						}
 					},
 					"response": []
-				}
-			],
-			"description": "APIs for handling players-related operations."
-		},
-		{
-			"name": "Friendship",
-			"item": [
+				},
 				{
-					"name": "create new profile player",
+					"name": "create new player profile",
 					"event": [
 						{
 							"listen": "test",
@@ -159,7 +327,8 @@
 									"pm.test(\"Create new profile player\", function () {\r",
 									"    pm.response.to.have.status(201);\r",
 									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData).to.have.property('username')\r",
+									"    pm.expect(jsonData).to.have.property('username');\r",
+									"    pm.expect(jsonData).to.have.property('region');\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -169,6 +338,16 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{jwt_token}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "POST",
 						"header": [],
 						"body": {
@@ -189,10 +368,71 @@
 								"players"
 							]
 						},
-						"description": "Create a new profile player for current user, in order to use it later to test friendship dedicated endpoints."
+						"description": "Create a new player profile, in order to use it later to test friendship dedicated endpoints."
 					},
 					"response": []
 				},
+				{
+					"name": "get player profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Get player profile\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('username');\r",
+									"    pm.expect(jsonData).to.have.property('region');\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "pm.test(\"Check user has a player profile\", function () {\r\n    pm.response.to.have.status(200);\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData).to.have.property('valid');\r\n});",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url_global}}/players/search/:username",
+							"host": [
+								"{{base_url_global}}"
+							],
+							"path": [
+								"players",
+								"search",
+								":username"
+							],
+							"variable": [
+								{
+									"key": "username",
+									"value": "Gabibbo"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "APIs for handling players-related operations."
+		},
+		{
+			"name": "Friendship",
+			"item": [
 				{
 					"name": "try to add friend",
 					"event": [
@@ -478,7 +718,7 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Validate friendship between players\", function () {\r",
+									"pm.test(\"Check friendship between players\", function () {\r",
 									"    pm.response.to.have.status(200);\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.valid).to.be.a(\"boolean\");\r",

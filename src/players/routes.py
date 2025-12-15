@@ -1,20 +1,51 @@
 """Players HTTP routes."""
 from __future__ import annotations
+from enum import StrEnum
 from flask import Blueprint, jsonify, request
+import re
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from common.extensions import db
 from .models import Player, Friendship, Region
 
-
 bp = Blueprint("players", __name__)
+ 
+class UsernameError(StrEnum):
+    USERNAME_REQUIRED = "Username is required"
+    LENGTH_REQUIRED = "Username too short"
+    LENGTH_EXCEEDED = "Username too long"
+    INVALID_CHARS = "Username contains invalid characters"
 
+# Funzione di utilità per validare lo username
+def _validate_username(input: str) -> UsernameError | None:
+    if not input:
+        return UsernameError.USERNAME_REQUIRED
+    if len(input) < 3:
+        return UsernameError.LENGTH_REQUIRED
+    if len(input) > 80:
+        return UsernameError.LENGTH_EXCEEDED
+    if not re.fullmatch(r'[a-zA-Z0-9_-]+', input):
+        return UsernameError.INVALID_CHARS
+    return None
+
+# Funzione di utilità per validare la regione
+def _validate_region(region_input: str | None) -> str | None:
+    """
+    Restituisce la regione valida se presente nell'Enum, None se vuota.
+    Solleva ValueError se la stringa non è valida.
+    """
+    cleaned = (region_input or "").strip()
+    if not cleaned:
+        return None
+    
+    # Controlla se il valore esiste nell'Enum (es. "Sicilia")
+    # Se cleaned non è nell'enum, questa riga lancerà ValueError
+    return Region(cleaned).value
 
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
-
 
 # player table
 # 1. GET /players/me
@@ -32,20 +63,6 @@ def get_my_profile():
     
     return jsonify(profile.to_dict()), 200
 
-# Funzione di utilità per validare la regione
-def validate_region(region_input: str | None) -> str | None:
-    """
-    Restituisce la regione valida se presente nell'Enum, None se vuota.
-    Solleva ValueError se la stringa non è valida.
-    """
-    cleaned = (region_input or "").strip()
-    if not cleaned:
-        return None
-    
-    # Controlla se il valore esiste nell'Enum (es. "Sicilia")
-    # Se cleaned non è nell'enum, questa riga lancerà ValueError
-    return Region(cleaned).value
-
 # 2. POST /players
 @bp.post("/players")
 @jwt_required()
@@ -61,13 +78,15 @@ def create_profile():
 
     payload = request.get_json(silent=True) or {}
     
-    username = (payload.get("username") or "").strip()
-    if not username:
-        return jsonify({"msg": "username is required"}), 400
+    username = (payload.get("username") or "")
+    # Sanificazione dell'input
+    result = _validate_username(username)
+    if result:
+        return jsonify({"msg": result.value}), 400
 
     # Validazione Region
     try:
-        region_value = validate_region(payload.get("region"))
+        region_value = _validate_region(payload.get("region"))
     except ValueError:
         # Se l'utente ha scritto "sicilia" invece di "Sicilia"
         valid_regions = [r.value for r in Region]
@@ -91,19 +110,23 @@ def create_profile():
 
     return jsonify(new_profile.to_dict()), 201
 
-# 3. GET /players/search/<user_id> (Cerca profilo tramite ID)
-@bp.get("/players/search/<int:id>")
+# 3. GET /players/search/<id> (Cerca profilo tramite username)
+@bp.get("/players/search/<string:username>")
 @jwt_required()
-def get_player_by_id(id):
-    # Flask estrae automaticamente "id" dall'URL e lo passa qui.
-    # <int:...> assicura che se l'utente scrive "abc", restituisce 404 automaticamente.
+def get_player_by_id(username):
+    # Flask estrae automaticamente "username" dall'URL e lo passa qui.
 
-    # Cerchiamo nel DB usando il campo user_id
+    # Sanificazione dell'input
+    result = _validate_username(username)
+    if result:
+        return jsonify({"msg": result.value}), 400
+
+    # Cerchiamo nel DB usando il campo username
     profile = db.session.execute(
-        db.select(Player).filter_by(user_id=id)
+        db.select(Player).filter_by(username=username)
     ).scalar_one_or_none()
 
-    if not profile:
+    if profile is None:
         return jsonify({"msg": "Player not found"}), 404
     
     return jsonify(profile.to_dict()), 200
@@ -129,7 +152,7 @@ def update_profile():
     if "region" in payload:
         try:
             # Validiamo usando la stessa logica (Enum)
-            profile.region = validate_region(payload.get("region"))
+            profile.region = _validate_region(payload.get("region"))
         except ValueError:
             valid_regions = [r.value for r in Region]
             return jsonify({
@@ -170,9 +193,11 @@ def validate_player():
 
     return jsonify({"valid": exists}), 200
 
-
 # friendship table
 def _get_friendship_by_ids(player1_id: int, player2_id: int) -> Friendship | None:
+    if not isinstance(player1_id, int) or not isinstance(player2_id, int):
+        return None
+
     # swap values if necessary
     if player1_id > player2_id:
         player1_id, player2_id = player2_id, player1_id
@@ -196,6 +221,8 @@ def get_my_friends():
         )
     ).all()
 
+    if not friends:
+        return jsonify({"data": []}), 200
     friends_list = [
         {"username": username, "status": "accepted" if accepted else "pending"}
         for username, accepted in friends
@@ -203,9 +230,14 @@ def get_my_friends():
     return jsonify({"data": friends_list}), 200
 
 # check friendship status between current user and user with param username
-@bp.get("/players/me/friends/<username>")
+@bp.get("/players/me/friends/<string:username>")
 @jwt_required()
 def get_friendship_status(username: str):
+    # input sanitization
+    result = _validate_username(username)
+    if result:
+        return jsonify({"msg": result.value}), 400
+    
     current_user_id = int(get_jwt_identity())
     current_player = Player.query.filter_by(user_id=current_user_id).first()
     if not current_player:
@@ -227,6 +259,11 @@ def get_friendship_status(username: str):
 @bp.post("/players/me/friends/<username>")
 @jwt_required()
 def handle_friend_request(username):
+    # input sanitization
+    result = _validate_username(username)
+    if result:
+        return jsonify({"msg": result.value}), 400
+    
     current_user_id = int(get_jwt_identity())
     current_player = Player.query.filter_by(user_id=current_user_id).first()
     if not current_player:
