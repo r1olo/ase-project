@@ -13,7 +13,7 @@ def _create_app(config) -> Flask:
     app = Flask(__name__)
     app.config.from_object(config)
 
-    # --- Inizializzazione Estensioni ---
+    # Initialization extensions
     db.init_app(app)
     jwt.init_app(app) 
 

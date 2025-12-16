@@ -17,7 +17,7 @@ class UsernameError(StrEnum):
     LENGTH_TOO_LONG = "Username too long"
     INVALID_USERNAME = "Invalid username"
 
-# Funzione di utilità per validare lo username
+# Utility function to validate username
 def _validate_username(input: str) -> UsernameError | None:
     if not input:
         return UsernameError.USERNAME_REQUIRED
@@ -29,25 +29,25 @@ def _validate_username(input: str) -> UsernameError | None:
         return UsernameError.INVALID_USERNAME
     return None
 
-# Funzione di utilità per validare la regione
+# Utility function to validate region
 def _validate_region(region_input: str | None) -> str | None:
     """
-    Restituisce la regione valida se presente nell'Enum, None se vuota.
-    Solleva ValueError se la stringa non è valida.
+    Returns the valid region if present in the Enum, None if empty.
+    Raises ValueError if the string is invalid.
     """
     cleaned = (region_input or "").strip()
     if not cleaned:
         return None
     
-    # Controlla se il valore esiste nell'Enum (es. "Sicilia")
-    # Se cleaned non è nell'enum, questa riga lancerà ValueError
+    # Check if the value exists in the Enum (e.g. "Sicilia")
+    # If cleaned is not in the enum, this line will raise ValueError
     return Region(cleaned).value
 
 @bp.get("/health")
 def health():
     return jsonify({"status": "ok"}), 200
 
-# player table
+# Player table
 # 1. POST /players
 @bp.post("/players")
 @jwt_required()
@@ -64,16 +64,16 @@ def create_profile():
     payload = request.get_json(silent=True) or {}
     
     username = (payload.get("username") or "")
-    # Sanificazione dell'input
+    # Input sanitization
     result = _validate_username(username)
     if result:
         return jsonify({"msg": result.value}), 400
 
-    # Validazione Region
+    # Region validation
     try:
         region_value = _validate_region(payload.get("region"))
     except ValueError:
-        # Se l'utente ha scritto "sicilia" invece di "Sicilia"
+        # If user typed "sicilia" instead of "Sicilia"
         valid_regions = [r.value for r in Region]
         return jsonify({
             "msg": "Invalid region", 
@@ -110,13 +110,13 @@ def get_my_profile():
     
     return jsonify(profile.to_dict()), 200
 
-# 3. PATCH /players/me (Modifica profilo)
+# 3. PATCH /players/me (Update profile)
 @bp.patch("/players/me")
 @jwt_required()
 def update_profile():
     current_user_id = int(get_jwt_identity())
 
-    # Recuperiamo il profilo esistente
+    # Retrieve existing profile
     profile = db.session.execute(
         db.select(Player).filter_by(user_id=current_user_id)
     ).scalar_one_or_none()
@@ -124,13 +124,13 @@ def update_profile():
     if not profile:
         return jsonify({"msg": "Profile not found"}), 404
 
-    # Leggiamo i dati inviati
+    # Read sent data
     payload = request.get_json(silent=True) or {}
 
-    # Aggiorniamo la REGION solo se presente nel payload
+    # Update REGION only if present in payload
     if "region" in payload:
         try:
-            # Validiamo usando la stessa logica (Enum)
+            # Validate using the same logic (Enum)
             profile.region = _validate_region(payload.get("region"))
         except ValueError:
             valid_regions = [r.value for r in Region]
@@ -139,8 +139,8 @@ def update_profile():
                 "valid_options": valid_regions
             }), 400
 
-    # Non tocchiamo 'username' o 'user_id'. 
-    # Se l'utente prova a inviarli, vengono semplicemente ignorati.
+    # Do not touch 'username' or 'user_id'. 
+    # If user tries to send them, they are simply ignored.
     try:
         db.session.commit()
     except Exception:
@@ -149,13 +149,13 @@ def update_profile():
 
     return jsonify(profile.to_dict()), 200
 
-# 4. GET /players/<player_id> (Trova profilo tramite id)
+# 4. GET /players/<player_id> (Find profile by ID)
 @bp.get("/players/<int:player_id>")
 @jwt_required()
 def get_player_by_id(player_id: int):
-    # Flask estrae automaticamente "player_id" dall'URL e lo passa qui.
+    # Flask automatically extracts "player_id" from URL and passes it here.
 
-    # Cerchiamo nel DB
+    # Search in DB
     profile = db.session.execute(
         db.select(Player).filter_by(user_id=player_id)
     ).scalar_one_or_none()
@@ -165,18 +165,18 @@ def get_player_by_id(player_id: int):
     
     return jsonify(profile.to_dict()), 200
 
-# 5. GET /players/search/<username> (Cerca profilo tramite username)
+# 5. GET /players/search/<username> (Search profile by username)
 @bp.get("/players/search/<string:username>")
 @jwt_required()
 def get_player_by_username(username):
-    # Flask estrae automaticamente "username" dall'URL e lo passa qui.
+    # Flask automatically extracts "username" from URL and passes it here.
 
-    # Sanificazione dell'input
+    # Input sanitization
     result = _validate_username(username)
     if result:
         return jsonify({"msg": result.value}), 400
 
-    # Cerchiamo nel DB usando il campo username
+    # Search in DB using username field
     profile = db.session.execute(
         db.select(Player).filter_by(username=username)
     ).scalar_one_or_none()
@@ -191,35 +191,35 @@ def get_player_by_username(username):
 def validate_player():
     payload = request.get_json(silent=True) or {}
     
-    # Estraiamo il valore grezzo
+    # Extract raw value
     target_user_id = payload.get("user_id")
 
-    # Controllo RIGOROSO del tipo:
-    # Accetta solo interi veri (es. 123 o 0).
-    # Rifiuta stringhe (es. "123"), booleani, float o None.
+    # RIGOROUS type check:
+    # Accepts only real integers (e.g. 123 or 0).
+    # Rejects strings (e.g. "123"), booleani, floats or None.
     if type(target_user_id) is not int:
         return jsonify({"msg": "user_id must be a valid integer (no strings allowed)"}), 400
 
-    # Se siamo qui, target_user_id è sicuramente un intero (es. 123 o 0)
+    # If here, target_user_id is definitely an integer (e.g. 123 or 0)
     
-    # Verifica nel DB
+    # Verify in DB
     exists = db.session.execute(
         db.select(Player.id).filter_by(user_id=target_user_id)
     ).first() is not None
 
     return jsonify({"valid": exists}), 200
 
-# friendship table
+# Friendship table
 def _get_friendship_by_ids(player1_id: int, player2_id: int) -> Friendship | None:
     if not isinstance(player1_id, int) or not isinstance(player2_id, int):
         return None
 
-    # swap values if necessary
+    # Swap values if necessary
     if player1_id > player2_id:
         player1_id, player2_id = player2_id, player1_id
     return Friendship.query.filter_by(player1_id=player1_id, player2_id=player2_id).first()
 
-# get friends list of current user
+# 7. GET /players/me/friends (Get friends list)
 @bp.get("/players/me/friends")
 @jwt_required()
 def get_my_friends():
@@ -228,7 +228,7 @@ def get_my_friends():
     if not current_player:
         return jsonify({"msg": "User player not found"}), 404
 
-    # get the list of friends of the current user
+    # Get the list of friends of the current user
     friends = Player.query.with_entities(Player.username, Friendship.accepted).join(
         Friendship,
         or_(
@@ -245,11 +245,11 @@ def get_my_friends():
     ]
     return jsonify({"data": friends_list}), 200
 
-# check friendship status between current user and user with param username
+# 8. GET /players/me/friends/<username> (Check friendship status)
 @bp.get("/players/me/friends/<string:username>")
 @jwt_required()
 def get_friendship_status(username: str):
-    # input sanitization
+    # Input sanitization
     result = _validate_username(username)
     if result:
         return jsonify({"msg": result.value}), 400
@@ -270,12 +270,12 @@ def get_friendship_status(username: str):
     status = "accepted" if friendship.accepted else "pending"
     return jsonify({"username": username, "status": status}), 200
 
-# send or respond to a friendship request
-# notice: status of new created friendship is pending by default
+# 9. POST /players/me/friends/<username> (Handle friend request)
+# Note: status of new created friendship is pending by default
 @bp.post("/players/me/friends/<string:username>")
 @jwt_required()
 def handle_friend_request(username: str):
-    # input sanitization
+    # Input sanitization
     result = _validate_username(username)
     if result:
         return jsonify({"msg": result.value}), 400
@@ -293,9 +293,9 @@ def handle_friend_request(username: str):
         return jsonify({"msg": "You cannot add yourself as a friend"}), 400
 
     friendship = _get_friendship_by_ids(current_player.id, target_player.id)
-    # case: friendship does not exist
+    # Case: friendship does not exist
     if not friendship:
-        # create new request
+        # Create new request
         if current_player.id < target_player.id:
             p1, p2 = current_player.id, target_player.id
         else:
@@ -311,15 +311,15 @@ def handle_friend_request(username: str):
         db.session.commit()
         return jsonify({"msg": "Friend request sent"}), 201
 
-    # case: friendship exists
+    # Case: friendship exists
     if friendship.accepted:
         return jsonify({"msg": "You are already friends"}), 409
 
-    # case: pending friendship request - check requester
+    # Case: pending friendship request - check requester
     if friendship.requester_id == current_player.id:
         return jsonify({"msg": "Friend request is pending"}), 409
 
-    # case: incoming request - process response
+    # Case: incoming request - process response
     payload = request.get_json(silent=True) or {}
     accepted = payload.get("accepted")
     if accepted is None:
@@ -334,7 +334,7 @@ def handle_friend_request(username: str):
     db.session.commit()
     return jsonify({"msg": msg}), 200
 
-# remove friendship between current user and user with param username
+# 10. DELETE /players/me/friends/<username> (Remove friend)
 @bp.delete("/players/me/friends/<username>")
 @jwt_required()
 def remove_friend(username):
@@ -351,7 +351,7 @@ def remove_friend(username):
     if not friendship:
         return jsonify({"msg": "Friendship not found"}), 404
     
-    # if friendship request is still pending, so that the status accepted is set to false, only the requester user can remove it
+    # If friendship request is still pending, so that the status accepted is set to false, only the requester user can remove it
     if not friendship.accepted and not friendship.requester_id == current_player.id:
         return jsonify({"msg": "Only requester can remove friendship"}), 409
 
@@ -359,21 +359,21 @@ def remove_friend(username):
     db.session.commit()
     return jsonify({"msg": "Friendship removed"}), 200
 
-# check if two players are friends
+# 11. POST /internal/players/friendship/validation (Validate friendship)
 @bp.post("/internal/players/friendship/validation")
 def validate_friendship():
     payload = request.get_json(silent=True) or {}
     user1_id, user2_id = payload.get("player1_id"), payload.get("player2_id")
 
-    # check if both keys are specified
+    # Check if both keys are specified
     if user1_id is None or user2_id is None:
         return jsonify({"msg": "Both player IDs are required"}), 400
     
-    # check if values are in the expected format
+    # Check if values are in the expected format
     if not isinstance(user1_id, int) or not isinstance(user2_id, int):
         return jsonify({"msg": "Invalid player IDs"}), 400
     
-    # check if both players exist
+    # Check if both players exist
     player1 = Player.query.filter_by(user_id=user1_id).first()
     if not player1:
         return jsonify({"msg": "First player not found"}), 404
