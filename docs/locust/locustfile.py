@@ -222,13 +222,6 @@ class FullSystemUser(HttpUser):
 
     # ---- Tasks ----
 
-    @task(1)
-    def health_checks(self) -> None:
-        """Basic liveness probes."""
-        self._request("GET", "/catalogue/health", name="catalogue_health")
-        self._request("GET", "/players/health", name="players_health")
-        self._request("GET", "/game_engine/health", name="game_engine_health")
-
     @task(2)
     def profiles_and_friendships(self) -> None:
         """Profile CRUD + friendship flow with a peer (player2 by default)."""
