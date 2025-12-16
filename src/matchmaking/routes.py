@@ -1,4 +1,3 @@
-# https endpoints for matchmaking
 import json
 import time
 import uuid
@@ -12,23 +11,27 @@ from common.extensions import redis_manager
 
 bp = Blueprint("matchmaking", __name__)
 
-WAITING = "waiting"
-MATCHED = "matched"
+WAITING = "Waiting"
+MATCHED = "Matched"
+ERROR = "Error"
+
+# --- Redis Configuration ---
 
 def _queue_key():
-    """Retrieve the Redis key for the matchmaking queue."""
     return current_app.config.get("MATCHMAKING_QUEUE_KEY", "matchmaking:queue")
 
-def _status_key():
-    """Retrieve the Redis key for queue status snapshots."""
-    return current_app.config.get("MATCHMAKING_STATUS_KEY") or f"{_queue_key()}:status"
+def _active_key():
+    """Hash mapping user_id -> current_queue_token."""
+    return current_app.config.get("MATCHMAKING_ACTIVE_KEY", "matchmaking:active_pointers")
+
+def _token_key(token):
+    """Key for a specific token's payload."""
+    return f"matchmaking:token:{token}"
 
 def _redis():
-    """Return the Redis connection."""
     return redis_manager.conn
 
 def _load_status(raw):
-    """Parse a JSON payload stored in Redis."""
     if not raw:
         return None
     try:
@@ -36,362 +39,346 @@ def _load_status(raw):
     except (TypeError, ValueError):
         return None
 
+# --- Payload Builders ---
 
-def _waiting_payload(token, queued_at):
-    """Build a status payload for a waiting player."""
+def _waiting_payload(token, queued_at=None):
     return {
         "status": WAITING,
-        "token": token,
-        "match_id": None,
-        "opponent_id": None,
-        "queued_at": queued_at,
-        "updated_at": queued_at,
+        "queue_token": token,
+        "queued_at": queued_at or time.time(),
     }
 
-def _matched_payload(token, match_id, opponent_id, queued_at):
-    """Build a status payload for a matched player."""
-    now = time.time()
-    payload = {
+def _matched_payload(token, match_id, opponent_id):
+    return {
         "status": MATCHED,
-        "token": token,
+        "queue_token": token,
         "match_id": match_id,
         "opponent_id": opponent_id,
-        "matched_at": now,
-        "updated_at": now,
     }
-    if queued_at:
-        payload["queued_at"] = queued_at
-    return payload
 
-def _tokens_for_players(conn, status_key, player_ids):
-    """Retrieve queue tokens for a list of players."""
-    raw_entries = conn.hmget(status_key, *player_ids)
-    tokens = {}
-    for player_id, raw in zip(player_ids, raw_entries):
-        payload = _load_status(raw)
-        if payload and payload.get("token"):
-            tokens[player_id] = payload["token"]
-    return tokens
+# --- Atomic Operations ---
 
-def _ensure_tokens(conn, status_key, player_ids, provided=None):
-    """Ensure every player has an associated token."""
-    tokens = dict(provided or {})
-    missing = [pid for pid in player_ids if not tokens.get(pid)]
-    if missing:
-        stored = _tokens_for_players(conn, status_key, missing)
-        tokens.update({pid: tok for pid, tok in stored.items() if tok})
-    for pid in player_ids:
-        if not tokens.get(pid):
-            tokens[pid] = uuid.uuid4().hex
-    return tokens
+def _set_token_status(pipe, token, payload, ttl=3600):
+    """Helper to set token payload with expiry in a pipeline."""
+    pipe.setex(_token_key(token), ttl, json.dumps(payload))
 
-def _store_waiting_statuses(conn, status_key, player_tokens, start_time=None):
-    """Persist waiting status snapshots for the given players."""
-    timestamp = start_time or time.time()
-    with conn.pipeline() as pipe:
-        for player_id, token in player_tokens.items():
-            pipe.hset(status_key, player_id, json.dumps(_waiting_payload(token, timestamp)))
-            timestamp += 1e-6  # keep ordering stable
-        pipe.execute()
-
-def _store_matched_statuses(conn, status_key, player_tokens, player_ids, match_id):
-    """Persist matched status snapshots for both players."""
-    if len(player_ids) != 2:
-        return
-    opponents = {player_ids[0]: player_ids[1], player_ids[1]: player_ids[0]}
-    with conn.pipeline() as pipe:
-        for player_id in player_ids:
-            existing = _load_status(conn.hget(status_key, player_id))
-            queued_at = existing.get("queued_at") if existing else None
-            token = player_tokens.get(player_id) or (existing or {}).get("token") or uuid.uuid4().hex
-            payload = _matched_payload(token, match_id, opponents[player_id], queued_at)
-            pipe.hset(status_key, player_id, json.dumps(payload))
-        pipe.execute()
-
-def _enqueue_atomic(conn, queue_key, status_key, user_id, max_size):
-    """Run an enqueue operation inside a Redis transaction and return status + metadata."""
+def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
+    """
+    Atomically enqueue a user.
+    1. If User has an Active Token that is WAITING -> Return it.
+    2. If User has an Active Token that is MATCHED -> Generate NEW token, enqueue.
+    3. If User has no Active Token -> Generate NEW token, enqueue.
+    """
     while True:
-        with conn.pipeline() as pipe:
-            try:
-                pipe.watch(queue_key, status_key)
-                existing_status = _load_status(pipe.hget(status_key, user_id))
-                if (
-                    existing_status
-                    and existing_status.get("status") == MATCHED
-                    and existing_status.get("match_id")
-                ):
-                    pipe.unwatch()
-                    token = existing_status.get("token") or uuid.uuid4().hex
-                    return "already_matched", None, token, {user_id: token}, existing_status
+        try:
+            with conn.pipeline() as pipe:
+                pipe.watch(queue_key, active_key)
+                
+                # Check for an active queue pointer
+                existing_token = pipe.hget(active_key, user_id)
+                
+                if existing_token:
+                    # Check the actual status of this token
+                    token_status_raw = conn.get(_token_key(existing_token))
+                    token_payload = _load_status(token_status_raw)
+                    
+                    # If explicitly WAITING, return existing (Idempotency)
+                    if token_payload and token_payload.get("status") == WAITING:
+                        pipe.unwatch()
+                        return WAITING, None, existing_token, None
 
-                already_waiting = pipe.zscore(queue_key, user_id)
+                    # If MATCHED or Expired, we treat them as 'new' for the queue
+                    # (The old token remains in Redis with its own TTL for query purposes)
+
+                # Check queue limit
                 queue_len = pipe.zcard(queue_key)
-                if (not already_waiting and max_size and max_size > 0 and queue_len >= max_size):
+                if max_size and max_size > 0 and queue_len >= max_size:
                     pipe.unwatch()
-                    return "full", None, None, None, existing_status
+                    return "full", None, None, None
 
-                token = (existing_status or {}).get("token") or uuid.uuid4().hex
-                queue_after_add = queue_len + (0 if already_waiting else 1)
-                should_add = already_waiting is None
-                should_update_status = existing_status is None or existing_status.get("status") != WAITING
-                should_match = queue_after_add >= 2
-                if not should_add and not should_match and not should_update_status:
-                    pipe.unwatch()
-                    return WAITING, None, token, None, existing_status
-
+                # Generate NEW token
+                new_token = uuid.uuid4().hex
                 now = time.time()
+                queue_member = f"{user_id}:{new_token}"
+
+                # Optimization: Check if this addition triggers a match
+                # (Simple logic: if 1+ people waiting, we likely match)
+                should_match = queue_len >= 1
+
                 pipe.multi()
-                if should_add:
-                    pipe.zadd(queue_key, {user_id: now})
-                if should_add or should_update_status:
-                    pipe.hset(status_key, user_id, json.dumps(_waiting_payload(token, now)))
+                # 1. Update Active Pointer
+                pipe.hset(active_key, user_id, new_token)
+                # 2. Add to Queue
+                pipe.zadd(queue_key, {queue_member: now})
+                # 3. Create Status Key (1 hour TTL for waiting)
+                _set_token_status(pipe, new_token, _waiting_payload(new_token, now), ttl=3600)
+
                 if should_match:
                     pipe.zpopmin(queue_key, 2)
+
                 results = pipe.execute()
+
                 if should_match:
-                    popped = results[-1]
-                    players = [entry[0] for entry in popped]
-                    player_tokens = _ensure_tokens(conn, status_key, players, {user_id: token})
-                    return "matched", players, token, player_tokens, existing_status
-                return WAITING, None, token, None, existing_status
+                    popped = results[-1] # [(member, score), ...]
+                    
+                    # Handle Match Success
+                    if len(popped) == 2:
+                        # popped members are "user_id:token"
+                        p1_data = popped[0][0].split(":")
+                        p2_data = popped[1][0].split(":")
+                        
+                        players = [p1_data[0], p2_data[0]]
+                        tokens = {p1_data[0]: p1_data[1], p2_data[0]: p2_data[1]}
+                        
+                        return MATCHED, players, new_token, tokens
+                    
+                    # Edge Case: We popped < 2 (Concurrent race where someone dequeued).
+                    # We must re-queue anyone we popped to ensure they don't get lost.
+                    if popped:
+                        _requeue_popped_atomic(conn, queue_key, popped)
+                        # If we are one of them, return Waiting
+                        for p in popped:
+                            if p[0] == queue_member:
+                                return WAITING, None, new_token, None
+                
+                return WAITING, None, new_token, None
+
+        except WatchError:
+            continue
+
+def _requeue_popped_atomic(conn, queue_key, popped_entries):
+    """Recover from a failed match pop by putting users back in queue."""
+    with conn.pipeline() as pipe:
+        for member, score in popped_entries:
+            pipe.zadd(queue_key, {member: score})
+        pipe.execute()
+
+def _dequeue_atomic(conn, queue_key, active_key, user_id, token_in_query):
+    """
+    Remove user from queue if and only if the token matches and is WAITING.
+    Does NOT remove token if status is MATCHED (returns 'too_late').
+    """
+    token_k = _token_key(token_in_query)
+    
+    while True:
+        try:
+            with conn.pipeline() as pipe:
+                pipe.watch(active_key, token_k)
+                
+                status_raw = pipe.get(token_k)
+                payload = _load_status(status_raw)
+
+                # 1. Invalid Token
+                if not payload:
+                    pipe.unwatch()
+                    return "invalid_token"
+                
+                # 2. Already Matched
+                if payload.get("status") == MATCHED:
+                    pipe.unwatch()
+                    return "too_late"
+
+                # 3. Waiting - Attempt Removal
+                queue_member = f"{user_id}:{token_in_query}"
+                active_token = pipe.hget(active_key, user_id)
+
+                pipe.multi()
+                pipe.zrem(queue_key, queue_member)
+                pipe.delete(token_k) # Clean up the token key
+                
+                # Only remove the Active Pointer if it still points to THIS token
+                if active_token == token_in_query:
+                    pipe.hdel(active_key, user_id)
+                
+                pipe.execute()
+                return "removed"
+        except WatchError:
+            continue
+
+def _revert_match_failure(conn, queue_key, active_key, player_ids, player_tokens):
+    """
+    Revert players to queue on Engine Failure.
+    CRITICAL: Check if player has re-enqueued (Active Token changed) before reverting.
+    If they re-enqueued, DO NOT overwrite their new state; just orphan the failed token.
+    If they haven't, put them back in queue with the OLD token.
+    """
+    timestamp = time.time()
+    
+    for pid in player_ids:
+        old_token = player_tokens[pid]
+        old_member = f"{pid}:{old_token}"
+        
+        while True:
+            try:
+                with conn.pipeline() as pipe:
+                    pipe.watch(active_key)
+                    current_active = pipe.hget(active_key, pid)
+                    
+                    # Case A: User has already re-enqueued (Active token is different)
+                    # We do nothing to the Queue or Active Pointer. 
+                    if current_active and current_active != old_token:
+                        pipe.unwatch()
+                        break
+                    
+                    # Case B: User is still "Active" with this token (or pointer is missing)
+                    # We put them back in queue using the OLD token.
+                    pipe.multi()
+                    pipe.zadd(queue_key, {old_member: timestamp})
+                    pipe.hset(active_key, pid, old_token) # Ensure pointer is set
+                    _set_token_status(pipe, old_token, _waiting_payload(old_token, timestamp), ttl=3600)
+                    pipe.execute()
+                    break
             except WatchError:
                 continue
 
-def _requeue_players_atomic(conn, queue_key, status_key, player_tokens):
-    """Atomically re-enqueue players (and refresh their waiting snapshots) if match creation fails."""
-    timestamp = time.time()
-    with conn.pipeline() as pipe:
-        for player_id, token in player_tokens.items():
-            pipe.zadd(queue_key, {player_id: timestamp})
-            pipe.hset(status_key, player_id, json.dumps(_waiting_payload(token, timestamp)))
-            timestamp += 1e-6  # maintain order for identical timestamps
-        pipe.execute()
+# --- External Interactions ---
 
-def _lookup_active_match(user_id):
-    """Ask the game engine for an active match for this user (used if Redis state was lost)."""
+def call_game_engine(player_ids):
+    """
+    Call Game Engine.
+    Returns: (response_dict, status_code, is_success_bool)
+    """
+    # 1. Mock Mode (Testing)
+    if current_app.config.get("TESTING", False):
+        mock_id = uuid.uuid4().int
+        return {"id": mock_id, "status": "mock_started"}, 200, True
+
+    # 2. Real Implementation
     base_url = current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000").rstrip("/")
     timeout = current_app.config.get("GAME_ENGINE_REQUEST_TIMEOUT", 3)
-    for status in ("SETUP", "IN_PROGRESS"):
-        try:
-            resp = requests.get(
-                f"{base_url}/matches/history/{user_id}",
-                params={"status": status, "limit": 1},
-                timeout=timeout,
-                verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False)
-            )
-        except requests.RequestException as exc:
-            current_app.logger.warning("Game engine status lookup failed: %s", exc)
-            continue
-        if not (200 <= resp.status_code < 300):
-            continue
-        try:
-            payload = resp.json()
-        except ValueError:
-            continue
-        matches = payload.get("matches") or []
-        if not matches:
-            continue
-        match_info = matches[0]
-        match_id = match_info.get("id")
-        if match_id:
-            return {"match_id": match_id, "opponent_id": match_info.get("opponent_id")}
-    return None
-
-def call_game_engine(player_ids, player_tokens=None):
-    """Create a match in the game engine and handle failures."""
-    conn = _redis()
-    queue_key = _queue_key()
-    status_key = _status_key()
-    player_tokens = _ensure_tokens(conn, status_key, player_ids, player_tokens)
-
-    current_app.logger.info("match found for players %s", player_ids)
-    base_url = current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000").rstrip("/")
-    timeout = current_app.config.get("GAME_ENGINE_REQUEST_TIMEOUT", 3)
-
-    def _as_int(value):
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return value
-
-    payload = {
-        "player1_id": _as_int(player_ids[0]),
-        "player2_id": _as_int(player_ids[1]),
-    }
+    payload = {"player1_id": int(player_ids[0]), "player2_id": int(player_ids[1])}
 
     try:
-        resp = requests.post(f"{base_url}/internal/matches/create",
-             json=payload,
-             timeout=timeout,
-             verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False))
+        resp = requests.post(
+            f"{base_url}/internal/matches/create",
+            json=payload,
+            timeout=timeout,
+            verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False)
+        )
     except requests.RequestException as exc:
         current_app.logger.error("Game engine unavailable: %s", exc)
-        _requeue_players_atomic(conn, queue_key, status_key, player_tokens)
-        return jsonify({"msg": "Game engine unavailable, players re-queued"}), 503
+        return {"msg": "Game engine unavailable"}, 503, False
 
     if 200 <= resp.status_code < 300:
         try:
             data = resp.json()
         except ValueError:
-            data = {"msg": "Match created"}
-        match_id = data.get("id") or data.get("match_id")
-        if match_id:
-            _store_matched_statuses(conn, status_key, player_tokens, player_ids, match_id)
-        return jsonify(data), resp.status_code
-
-    current_app.logger.warning(
-        "Game engine failed to create match (%s): %s", resp.status_code, resp.text
-    )
-    _requeue_players_atomic(conn, queue_key, status_key, player_tokens)
-    try:
-        error_payload = resp.json()
-    except ValueError:
-        error_payload = {"msg": "Failed to create match"}
-    if "msg" not in error_payload:
-        error_payload["msg"] = "Failed to create match"
-    error_payload["status"] = "requeued"
-    return jsonify(error_payload), resp.status_code
+            data = {"id": None}
+        return data, resp.status_code, True
+    
+    # Engine returned 4xx or 5xx
+    current_app.logger.error("Game engine error: %s", resp.text)
+    return {"msg": "Failed to create match"}, resp.status_code, False
 
 
 def _validate_player_profile(user_id):
-    """Check if the user has a valid player profile."""
-    if current_app.config.get("TESTING"):
-        return True
-
+    if current_app.config.get("TESTING"): return True
     base_url = current_app.config.get("PLAYERS_URL", "https://players:5000").rstrip("/")
-    # Using internal endpoint for validation
-    url = f"{base_url}/internal/players/validation"
-    
     try:
-        resp = requests.post(
-            url, 
-            json={"user_id": int(user_id)}, 
+        resp = requests.post(f"{base_url}/internal/players/validation",
+            json={"user_id": int(user_id)},
             timeout=3,
-            verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False)
-        )
-        if resp.status_code == 200:
-            data = resp.json()
-            return data.get("valid", False)
-        current_app.logger.warning("Player validation returned status %s", resp.status_code)
+            verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False))
+        return resp.json().get("valid", False) if resp.status_code == 200 else False
+    except requests.RequestException:
         return False
-    except requests.RequestException as exc:
-        current_app.logger.error("Player service validation failed: %s", exc)
-        return False
+
+# --- API Routes ---
 
 @bp.post("/enqueue")
 @jwt_required()
 def enqueue():
-    """Enqueue the authenticated user into the matchmaking queue."""
     conn = _redis()
-    queue_key = _queue_key()
-    status_key = _status_key()
     user_id = str(get_jwt_identity())
-    
-    # Validation Check
+
     if not _validate_player_profile(user_id):
-        return jsonify({"msg": "You must create a profile first"}), 403
+        return jsonify({"status": ERROR, "msg": "Profile required"}), 403
 
     max_size = current_app.config.get("MATCHMAKING_MAX_QUEUE_SIZE")
-    status, players, queue_token, player_tokens, existing_status = _enqueue_atomic(
-        conn, queue_key, status_key, user_id, max_size
+    
+    # Atomic Enqueue
+    status_code, players, token, player_tokens = _enqueue_atomic(
+        conn, _queue_key(), _active_key(), user_id, max_size
     )
-    if status == "full":
-        return jsonify({"msg": "Queue is full"}), 409
-    if status == "already_matched" and existing_status:
-        public_payload = {
-            "status": "Matched",
-            "match_id": existing_status.get("match_id"),
-            "opponent_id": existing_status.get("opponent_id"),
-            "queue_token": existing_status.get("token"),
-        }
-        return jsonify(public_payload), 200
-    if status == "matched" and players:
-        return call_game_engine(players, player_tokens)
-    return jsonify({"status": "Waiting", "queue_token": queue_token}), 202
+
+    if status_code == "full":
+        return jsonify({"status": ERROR, "msg": "Queue is full"}), 409
+
+    if status_code == MATCHED:
+        # Match triggered immediately
+        engine_data, http_code, success = call_game_engine(players)
+        
+        if not success:
+            # Handle Failure: Revert players safely
+            # Note: We pass the player_tokens map so we know WHICH token to try and revert for each user
+            _revert_match_failure(conn, _queue_key(), _active_key(), players, player_tokens)
+            return jsonify(_waiting_payload(token)), 200
+            
+        # Handle Success: Persist 'Matched' status
+        assert players is not None
+        assert player_tokens is not None
+        match_id = engine_data.get("id") or engine_data.get("match_id")
+        opponents = {players[0]: players[1], players[1]: players[0]}
+        
+        with conn.pipeline() as pipe:
+            for pid in players:
+                tok = player_tokens[pid]
+                m_payload = _matched_payload(tok, match_id, opponents[pid])
+                # Set TTL to 10 minutes (600s)
+                _set_token_status(pipe, tok, m_payload, ttl=600)
+                # Clear active pointer (allows re-queuing immediately if they want)
+                pipe.hdel(_active_key(), pid)
+            pipe.execute()
+
+        # Return response for THIS user
+        opponent_id = players[1] if players[0] == user_id else players[0]
+        return jsonify(_matched_payload(token, match_id, opponent_id)), 200
+
+    # Default: successfully queued (Waiting)
+    return jsonify(_waiting_payload(token)), 202
 
 @bp.get("/status")
 @jwt_required()
 def status():
-    """Expose polling status for the authenticated user."""
     conn = _redis()
-    queue_key = _queue_key()
-    status_key = _status_key()
-    user_id = str(get_jwt_identity())
-    token_filter = request.args.get("token")
-    payload = _load_status(conn.hget(status_key, user_id))
+    token_in_query = request.args.get("token")
+    
+    if not token_in_query:
+        return jsonify({"status": ERROR, "msg": "Token required"}), 400
 
-    if payload and token_filter and payload.get("token") != token_filter:
-        return (
-            jsonify({"status": "Stale", "msg": "Provided token does not match active queue entry"}),
-            409,
-        )
+    # Direct lookup by token key (Independent of current queue status)
+    payload_raw = conn.get(_token_key(token_in_query))
+    payload = _load_status(payload_raw)
 
-    if payload and payload.get("status") == MATCHED and payload.get("match_id"):
-        # delete the cache entry so it is not returned again
-        conn.hdel(status_key, user_id)
-        return jsonify(
-            {
-                "status": "Matched",
-                "match_id": payload.get("match_id"),
-                "opponent_id": payload.get("opponent_id"),
-                "queue_token": payload.get("token"),
-            }
-        ), 200
+    if not payload:
+        return jsonify({"status": ERROR, "msg": "Invalid token"}), 404
 
-    if payload and payload.get("status") == WAITING:
-        in_queue = conn.zscore(queue_key, user_id) is not None
-        return jsonify(
-            {
-                "status": "Waiting",
-                "queue_token": payload.get("token"),
-                "in_queue": in_queue,
-            }
-        ), 200
-
-    # fallback: if Redis lost state, ask the game engine for an active match
-    fallback = _lookup_active_match(user_id)
-    if fallback:
-        return jsonify(
-            {
-                "status": "Matched",
-                "match_id": fallback["match_id"],
-                "opponent_id": fallback.get("opponent_id"),
-                "source": "game_engine",
-            }
-        ), 200
-
-    # if the player is still in queue but status was missing, hydrate a fresh waiting snapshot
-    in_queue = conn.zscore(queue_key, user_id) is not None
-    if in_queue:
-        token = uuid.uuid4().hex
-        _store_waiting_statuses(conn, status_key, {user_id: token})
-        return jsonify({"status": "Waiting", "queue_token": token, "in_queue": True}), 200
-
-    return jsonify({"status": "NotQueued"}), 404
+    return jsonify(payload), 200
 
 @bp.post("/dequeue")
 @jwt_required()
 def dequeue():
-    """Dequeue the authenticated user from the matchmaking queue."""
     conn = _redis()
-    queue_key = _queue_key()
-    status_key = _status_key()
     user_id = str(get_jwt_identity())
-    status_payload = _load_status(conn.hget(status_key, user_id))
-    if status_payload and status_payload.get("status") == MATCHED:
-        return jsonify(
-            {
-                "status": "Matched",
-                "match_id": status_payload.get("match_id"),
-                "opponent_id": status_payload.get("opponent_id"),
-            }
-        ), 409
+    token_in_query = request.args.get("token")
 
-    with conn.pipeline() as pipe:
-        pipe.zrem(queue_key, user_id)
-        pipe.hdel(status_key, user_id)
-        removed, _ = pipe.execute()
+    if not token_in_query:
+        return jsonify({"status": ERROR, "msg": "Token required"}), 400
 
-    if removed:
-        return jsonify({"status": "Removed"}), 200
-    return jsonify({"msg": "Player not found in queue"}), 409
+    result = _dequeue_atomic(conn, _queue_key(), _active_key(), user_id, token_in_query)
+
+    if result == "invalid_token":
+        return jsonify({"status": ERROR, "msg": "Invalid token"}), 404
+    
+    if result == "too_late":
+        payload_raw = conn.get(_token_key(token_in_query))
+        payload = _load_status(payload_raw) or {}
+        return jsonify({
+            "status": "TooLate",
+            "msg": "Match already found",
+            "match_id": payload.get("match_id"),
+            "opponent_id": payload.get("opponent_id"),
+            "queue_token": token_in_query
+        }), 409
+
+    return jsonify({"status": "Removed"}), 200

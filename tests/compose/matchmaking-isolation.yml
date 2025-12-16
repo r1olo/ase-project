@@ -1,0 +1,18 @@
+services:
+  matchmaking:
+    build:
+      context: ../..
+      dockerfile: src/matchmaking/Dockerfile_test
+    environment:
+      FLASK_APP: matchmaking.app:create_test_app
+    ports:
+      - "5000:5000"
+    secrets:
+      - matchmaking.crt
+      - matchmaking.key
+
+secrets:
+  matchmaking.crt:
+    file: ../../secrets/matchmaking.crt
+  matchmaking.key:
+    file: ../../secrets/matchmaking.key

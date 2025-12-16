@@ -59,7 +59,7 @@ class Config:
             "MATCHMAKING_JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey")
         )
 
-class TestConfig(Config):
+class TestConfig:
     # JWT
     JWT_SECRET_KEY = "test-secret" # nosec
     JWT_COOKIE_SECURE = False
