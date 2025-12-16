@@ -381,7 +381,6 @@ Package caption Info: float package is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
 Package hyperref Info: Link coloring OFF on input line 48.
- (report.out) (report.out)
 \@outlinefile=\write3
 \openout3 = `report.out'.
 
@@ -414,135 +413,185 @@ File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 LaTeX Font Info:    Trying to load font information for U+msb on input line 51.
  (C:\Users\Rebecca\AppData\Local\Programs\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-) (report.toc
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <12> on input line 4.
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 4.
-LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 4.
- [1
-
-{C:/Users/Rebecca/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ec.enc}])
+)
+No file report.toc.
 \tf@toc=\write4
 \openout4 = `report.toc'.
 
- [2] (report/01-group.tex) (report/02-cards_overview.tex
+[1
+
+{C:/Users/Rebecca/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ec.enc}] (report/01-group.tex) (report/02-cards_overview.tex
 LaTeX Font Info:    Trying to load font information for TS1+lmr on input line 8.
  (C:\Users\Rebecca\AppData\Local\Programs\MiKTeX\tex/latex/lm\ts1lmr.fd
 File: ts1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-<../assets/cards/01-abruzzo.png, id=146, 578.16pt x 867.24pt>
+<../assets/cards/01-abruzzo.png, id=12, 578.16pt x 867.24pt>
 File: ../assets/cards/01-abruzzo.png Graphic file (type png)
 <use ../assets/cards/01-abruzzo.png>
 Package pdftex.def Info: ../assets/cards/01-abruzzo.png  used on input line 18.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/02-basilicata.png, id=147, 578.16pt x 867.24pt>
+<../assets/cards/02-basilicata.png, id=13, 578.16pt x 867.24pt>
 File: ../assets/cards/02-basilicata.png Graphic file (type png)
 <use ../assets/cards/02-basilicata.png>
 Package pdftex.def Info: ../assets/cards/02-basilicata.png  used on input line 19.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/03-calabria.png, id=148, 578.16pt x 867.24pt>
+<../assets/cards/03-calabria.png, id=14, 578.16pt x 867.24pt>
 File: ../assets/cards/03-calabria.png Graphic file (type png)
 <use ../assets/cards/03-calabria.png>
 Package pdftex.def Info: ../assets/cards/03-calabria.png  used on input line 20.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/04-campania.png, id=149, 578.16pt x 867.24pt>
+<../assets/cards/04-campania.png, id=15, 578.16pt x 867.24pt>
 File: ../assets/cards/04-campania.png Graphic file (type png)
 <use ../assets/cards/04-campania.png>
 Package pdftex.def Info: ../assets/cards/04-campania.png  used on input line 21.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/05-emilia_romagna.png, id=150, 578.16pt x 867.24pt>
+<../assets/cards/05-emilia_romagna.png, id=16, 578.16pt x 867.24pt>
 File: ../assets/cards/05-emilia_romagna.png Graphic file (type png)
 <use ../assets/cards/05-emilia_romagna.png>
 Package pdftex.def Info: ../assets/cards/05-emilia_romagna.png  used on input line 22.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/06-friuli_venezia_giulia.png, id=151, 578.16pt x 867.24pt>
+<../assets/cards/06-friuli_venezia_giulia.png, id=17, 578.16pt x 867.24pt>
 File: ../assets/cards/06-friuli_venezia_giulia.png Graphic file (type png)
 <use ../assets/cards/06-friuli_venezia_giulia.png>
 Package pdftex.def Info: ../assets/cards/06-friuli_venezia_giulia.png  used on input line 23.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/07-lazio.png, id=152, 578.16pt x 867.24pt>
+<../assets/cards/07-lazio.png, id=18, 578.16pt x 867.24pt>
 File: ../assets/cards/07-lazio.png Graphic file (type png)
 <use ../assets/cards/07-lazio.png>
 Package pdftex.def Info: ../assets/cards/07-lazio.png  used on input line 24.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/08-liguria.png, id=153, 578.16pt x 867.24pt>
+<../assets/cards/08-liguria.png, id=19, 578.16pt x 867.24pt>
 File: ../assets/cards/08-liguria.png Graphic file (type png)
 <use ../assets/cards/08-liguria.png>
 Package pdftex.def Info: ../assets/cards/08-liguria.png  used on input line 25.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/09-lombardia.png, id=154, 578.16pt x 867.24pt>
+<../assets/cards/09-lombardia.png, id=20, 578.16pt x 867.24pt>
 File: ../assets/cards/09-lombardia.png Graphic file (type png)
 <use ../assets/cards/09-lombardia.png>
 Package pdftex.def Info: ../assets/cards/09-lombardia.png  used on input line 26.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/10-marche.png, id=155, 578.16pt x 867.24pt>
+<../assets/cards/10-marche.png, id=21, 578.16pt x 867.24pt>
 File: ../assets/cards/10-marche.png Graphic file (type png)
 <use ../assets/cards/10-marche.png>
 Package pdftex.def Info: ../assets/cards/10-marche.png  used on input line 27.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/11-molise.png, id=156, 578.16pt x 867.24pt>
+<../assets/cards/11-molise.png, id=22, 578.16pt x 867.24pt>
 File: ../assets/cards/11-molise.png Graphic file (type png)
 <use ../assets/cards/11-molise.png>
 Package pdftex.def Info: ../assets/cards/11-molise.png  used on input line 28.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/12-piemonte.png, id=157, 578.16pt x 867.24pt>
+<../assets/cards/12-piemonte.png, id=23, 578.16pt x 867.24pt>
 File: ../assets/cards/12-piemonte.png Graphic file (type png)
 <use ../assets/cards/12-piemonte.png>
 Package pdftex.def Info: ../assets/cards/12-piemonte.png  used on input line 29.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/13-puglia.png, id=158, 578.16pt x 867.24pt>
+<../assets/cards/13-puglia.png, id=24, 578.16pt x 867.24pt>
 File: ../assets/cards/13-puglia.png Graphic file (type png)
 <use ../assets/cards/13-puglia.png>
 Package pdftex.def Info: ../assets/cards/13-puglia.png  used on input line 30.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/14-sardegna.png, id=159, 578.16pt x 867.24pt>
+<../assets/cards/14-sardegna.png, id=25, 578.16pt x 867.24pt>
 File: ../assets/cards/14-sardegna.png Graphic file (type png)
 <use ../assets/cards/14-sardegna.png>
 Package pdftex.def Info: ../assets/cards/14-sardegna.png  used on input line 31.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/15-sicilia.png, id=160, 578.16pt x 867.24pt>
+<../assets/cards/15-sicilia.png, id=26, 578.16pt x 867.24pt>
 File: ../assets/cards/15-sicilia.png Graphic file (type png)
 <use ../assets/cards/15-sicilia.png>
 Package pdftex.def Info: ../assets/cards/15-sicilia.png  used on input line 32.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/16-toscana.png, id=161, 578.16pt x 867.24pt>
+<../assets/cards/16-toscana.png, id=27, 578.16pt x 867.24pt>
 File: ../assets/cards/16-toscana.png Graphic file (type png)
 <use ../assets/cards/16-toscana.png>
 Package pdftex.def Info: ../assets/cards/16-toscana.png  used on input line 33.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/17-trentino_alto_adige.png, id=162, 578.16pt x 867.24pt>
+<../assets/cards/17-trentino_alto_adige.png, id=28, 578.16pt x 867.24pt>
 File: ../assets/cards/17-trentino_alto_adige.png Graphic file (type png)
 <use ../assets/cards/17-trentino_alto_adige.png>
 Package pdftex.def Info: ../assets/cards/17-trentino_alto_adige.png  used on input line 34.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/18-umbria.png, id=163, 578.16pt x 867.24pt>
+<../assets/cards/18-umbria.png, id=29, 578.16pt x 867.24pt>
 File: ../assets/cards/18-umbria.png Graphic file (type png)
 <use ../assets/cards/18-umbria.png>
 Package pdftex.def Info: ../assets/cards/18-umbria.png  used on input line 35.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/19-valle_aosta.png, id=164, 578.16pt x 867.24pt>
+<../assets/cards/19-valle_aosta.png, id=30, 578.16pt x 867.24pt>
 File: ../assets/cards/19-valle_aosta.png Graphic file (type png)
 <use ../assets/cards/19-valle_aosta.png>
 Package pdftex.def Info: ../assets/cards/19-valle_aosta.png  used on input line 36.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-<../assets/cards/20-veneto.png, id=165, 578.16pt x 867.24pt>
+<../assets/cards/20-veneto.png, id=31, 578.16pt x 867.24pt>
 File: ../assets/cards/20-veneto.png Graphic file (type png)
 <use ../assets/cards/20-veneto.png>
 Package pdftex.def Info: ../assets/cards/20-veneto.png  used on input line 37.
 (pdftex.def)             Requested size: 81.5309pt x 122.28615pt.
-) [3{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ts1.enc}] [4 <../assets/cards/01-abruzzo.png (PNG copy)> <../assets/cards/02-basilicata.png (PNG copy)> <../assets/cards/03-calabria.png (PNG copy)> <../assets/cards/04-campania.png (PNG copy)> <../assets/cards/05-emilia_romagna.png (PNG copy)> <../assets/cards/06-friuli_venezia_giulia.png (PNG copy)> <../assets/cards/07-lazio.png (PNG copy)> <../assets/cards/08-liguria.png (PNG copy)> <../assets/cards/09-lombardia.png (PNG copy)> <../assets/cards/10-marche.png (PNG copy)> <../assets/cards/11-molise.png (PNG copy)> <../assets/cards/12-piemonte.png (PNG copy)> <../assets/cards/13-puglia.png (PNG copy)> <../assets/cards/14-sardegna.png (PNG copy)> <../assets/cards/15-sicilia.png (PNG copy)> <../assets/cards/16-toscana.png (PNG copy)> <../assets/cards/17-trentino_alto_adige.png (PNG copy)> <../assets/cards/18-umbria.png (PNG copy)> <../assets/cards/19-valle_aosta.png (PNG copy)> <../assets/cards/20-veneto.png (PNG copy)>] (report/03-architecture.tex
-<images/architecture_report.png, id=177, 1563.8425pt x 1164.35pt>
+) [2{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-ts1.enc}] [3 <../assets/cards/01-abruzzo.png (PNG copy)> <../assets/cards/02-basilicata.png (PNG copy)> <../assets/cards/03-calabria.png (PNG copy)> <../assets/cards/04-campania.png (PNG copy)> <../assets/cards/05-emilia_romagna.png (PNG copy)> <../assets/cards/06-friuli_venezia_giulia.png (PNG copy)> <../assets/cards/07-lazio.png (PNG copy)> <../assets/cards/08-liguria.png (PNG copy)> <../assets/cards/09-lombardia.png (PNG copy)> <../assets/cards/10-marche.png (PNG copy)> <../assets/cards/11-molise.png (PNG copy)> <../assets/cards/12-piemonte.png (PNG copy)> <../assets/cards/13-puglia.png (PNG copy)> <../assets/cards/14-sardegna.png (PNG copy)> <../assets/cards/15-sicilia.png (PNG copy)> <../assets/cards/16-toscana.png (PNG copy)> <../assets/cards/17-trentino_alto_adige.png (PNG copy)> <../assets/cards/18-umbria.png (PNG copy)> <../assets/cards/19-valle_aosta.png (PNG copy)> <../assets/cards/20-veneto.png (PNG copy)>] (report/03-architecture.tex
+<images/architecture_report.png, id=45, 1563.8425pt x 1164.35pt>
 File: images/architecture_report.png Graphic file (type png)
 <use images/architecture_report.png>
 Package pdftex.def Info: images/architecture_report.png  used on input line 4.
 (pdftex.def)             Requested size: 452.9679pt x 337.24422pt.
- [5 <./images/architecture_report.png>]) (report/04-user_stories.tex [6]
+ [4 <./images/architecture_report.png>]) (report/04-user_stories.tex [5]
 LaTeX Font Info:    Trying to load font information for T1+fvm on input line 10.
  (C:\Users\Rebecca\AppData\Local\Programs\MiKTeX\tex/latex/bera\t1fvm.fd
 File: t1fvm.fd 2004/09/07 scalable font definitions for T1/fvm.
 )
 LaTeX Font Info:    Font shape `T1/fvm/m/n' will be
 (Font)              scaled to size 10.20007pt on input line 10.
- [7{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc}{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathsy.enc}]) [8] (report/05-game_rules.
+ [6{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/base/8r.enc}{C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/enc/dvips/lm/lm-mathsy.enc}]) [7] (report/05-game_rules.tex) (report/06-game_flow.tex
+
+LaTeX Warning: Reference `item:play-round' on page 8 undefined on input line 17.
+
+) [8] (report/07-testing.tex) (report/08-security.tex (report/08a-security_data.tex) (report/08b-security_auth.tex) (report/08c-security_analyses.tex)) (report/09-threat_model.tex
+<images/model.drawio.png, id=113, 2290.5575pt x 2009.5075pt>
+File: images/model.drawio.png Graphic file (type png)
+<use images/model.drawio.png>
+Package pdftex.def Info: images/model.drawio.png  used on input line 3.
+(pdftex.def)             Requested size: 452.9679pt x 397.387pt.
+ [9] [10 <./images/model.drawio.png>]
+<images/boundaries.drawio.png, id=138, 2290.5575pt x 2107.875pt>
+File: images/boundaries.drawio.png Graphic file (type png)
+<use images/boundaries.drawio.png>
+Package pdftex.def Info: images/boundaries.drawio.png  used on input line 55.
+(pdftex.def)             Requested size: 452.9679pt x 416.8395pt.
+
+Overfull \hbox (17.62482pt too wide) in paragraph at lines 55--56
+[][] 
+ []
+
+[11] [12 <./images/boundaries.drawio.png>]) [13] (report/10-generative_ai.tex) (report/11-additional_features.tex) [14] (report.aux)
+ ***********
+LaTeX2e <2025-11-01>
+L3 programming layer <2025-11-06>
+ ***********
+
+
+LaTeX Warning: There were undefined references.
+
+
+LaTeX Warning: Label(s) may have changed. Rerun to get cross-references right.
+
+
+Package rerunfilecheck Warning: File `report.out' has changed.
+(rerunfilecheck)                Rerun to get outlines right
+(rerunfilecheck)                or use package `bookmark'.
+
+Package rerunfilecheck Info: Checksums for `report.out':
+(rerunfilecheck)             Before: <no file>
+(rerunfilecheck)             After:  96DC69192CB5393109DC5B5CA3AF989A;3536.
+ ) 
+Here is how much of TeX's memory you used:
+ 12430 strings out of 467871
+ 205549 string characters out of 5417407
+ 608794 words of memory out of 5000000
+ 41005 multiletter control sequences out of 15000+600000
+ 688382 words of font info for 87 fonts, out of 8000000 for 9000
+ 1141 hyphenation exceptions out of 8191
+ 75i,12n,79p,483b,589s stack positions out of 10000i,1000n,20000p,200000b,200000s
+<C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/bera/fvmr8a.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmbx12.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr12.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmr17.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmri12.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/lm/lmsy10.pfb><C:/Users/Rebecca/AppData/Local/Programs/MiKTeX/fonts/type1/public/amsfonts/symbols/msam10.pfb>
+Output written on report.pdf (14 pages, 2437878 bytes).
+PDF statistics:
+ 227 PDF objects out of 1000 (max. 8388607)
+ 89 named destinations out of 1000 (max. 500000)
+ 116 words of extra memory for PDF output out of 10000 (max. 10000000)
+
