@@ -1,0 +1,42 @@
+\contentsline {section}{\numberline {1}Group and Members}{3}{section.1}%
+\contentsline {section}{\numberline {2}Cards Overview}{3}{section.2}%
+\contentsline {section}{\numberline {3}Architecture}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Design Choices}{6}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Inter-Service Communication}{6}{subsection.3.2}%
+\contentsline {section}{\numberline {4}User Stories}{7}{section.4}%
+\contentsline {paragraph}{Account}{7}{section*.3}%
+\contentsline {paragraph}{Cards}{7}{section*.4}%
+\contentsline {paragraph}{Game}{7}{section*.5}%
+\contentsline {paragraph}{Others}{8}{section*.6}%
+\contentsline {section}{\numberline {5}Game Rules}{9}{section.5}%
+\contentsline {section}{\numberline {6}Game Flow}{9}{section.6}%
+\contentsline {section}{\numberline {7}Testing}{10}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Unit Testing}{10}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Isolation Testing}{10}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}System and Integration Testing}{10}{subsection.7.3}%
+\contentsline {paragraph}{Continuous Integration}{10}{section*.7}%
+\contentsline {section}{\numberline {8}Security}{11}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Data}{11}{subsection.8.1}%
+\contentsline {subsubsection}{\numberline {8.1.1}Input Sanitization}{11}{subsubsection.8.1.1}%
+\contentsline {subsubsection}{\numberline {8.1.2}Encryption at Rest}{11}{subsubsection.8.1.2}%
+\contentsline {subsection}{\numberline {8.2}Authorization and Authentication}{11}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Analyses}{13}{subsection.8.3}%
+\contentsline {subsubsection}{\numberline {8.3.1}Static Analysis}{13}{subsubsection.8.3.1}%
+\contentsline {subsubsection}{\numberline {8.3.2}Docker Scout}{13}{subsubsection.8.3.2}%
+\contentsline {section}{\numberline {9}Threat Model}{13}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Work from a Model}{13}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Identify Assets}{13}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Identify Attack Surfaces}{14}{subsection.9.3}%
+\contentsline {paragraph}{External Attack Surfaces}{14}{section*.10}%
+\contentsline {paragraph}{Internal Attack Surfaces}{14}{section*.11}%
+\contentsline {subsection}{\numberline {9.4}Identify Trust Boundaries}{14}{subsection.9.4}%
+\contentsline {subsection}{\numberline {9.5}Identify Threats (STRIDE)}{15}{subsection.9.5}%
+\contentsline {paragraph}{S - Spoofing}{15}{section*.12}%
+\contentsline {paragraph}{T - Tampering}{15}{section*.13}%
+\contentsline {paragraph}{R - Repudiation}{15}{section*.14}%
+\contentsline {paragraph}{I - Information Disclosure}{16}{section*.15}%
+\contentsline {paragraph}{D - Denial of Service}{16}{section*.16}%
+\contentsline {paragraph}{E - Elevation of Privilege}{16}{section*.17}%
+\contentsline {subsection}{\numberline {9.6}Mitigate Threats}{16}{subsection.9.6}%
+\contentsline {section}{\numberline {10}Use of Generative AI}{17}{section.10}%
+\contentsline {section}{\numberline {11}Additional Features}{17}{section.11}%
