@@ -225,7 +225,8 @@ def _revert_match_failure(conn, queue_key, active_key, player_ids, player_tokens
                     pipe.multi()
                     pipe.zadd(queue_key, {old_member: timestamp})
                     pipe.hset(active_key, pid, old_token) # Ensure pointer is set
-                    _set_token_status(pipe, old_token, _waiting_payload(old_token, timestamp), ttl=3600)
+                    _set_token_status(pipe, old_token,
+                                      _waiting_payload(old_token, timestamp), ttl=3600)
                     pipe.execute()
                     break
             except WatchError:
@@ -285,6 +286,7 @@ def _validate_player_profile(user_id):
 
 # --- API Routes ---
 
+# TODO: when re-enqueueing with an existing token, return original timestamp
 @bp.post("/enqueue")
 @jwt_required()
 def enqueue():

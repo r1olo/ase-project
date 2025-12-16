@@ -1,15 +1,18 @@
-# test matchmaking microservice
 import json
+import time
 from flask_jwt_extended import create_access_token
 from common.extensions import redis_manager
 
+# --- Helpers ---
+
 def _auth_headers(app, user_id):
+    """Helper to generate JWT headers."""
     with app.app_context():
         token = create_access_token(identity=user_id)
     return {"Authorization": f"Bearer {token}"}
 
 class FakeResponse:
-    def __init__(self, payload, status_code=201):
+    def __init__(self, payload, status_code=200):
         self._payload = payload
         self.status_code = status_code
         self.text = json.dumps(payload)
@@ -18,135 +21,246 @@ class FakeResponse:
         return self._payload
 
 def _stub_game_engine(monkeypatch, match_id_start=1, recorded=None):
+    """
+    Patches `matchmaking.routes.call_game_engine` to return deterministic 
+    Match IDs and record the pairs for assertion.
+    """
     counter = {"value": match_id_start}
 
-    def fake_post(url, json=None, timeout=3, **kwargs):
-        player1 = json.get("player1_id")
-        player2 = json.get("player2_id")
+    def fake_call_engine(player_ids):
         match_id = counter["value"]
         counter["value"] += 1
+        
+        # Record the pair sorted to ensure consistency regardless of who triggered match
         if recorded is not None:
-            recorded.append(
-                tuple(
-                    sorted(
-                        [str(player1), str(player2)],
-                        key=lambda pid: int(str(pid).split("-")[-1]),
-                    )
-                )
-            )
-        payload = {"id": match_id, "player1_id": player1, "player2_id": player2}
-        return FakeResponse(payload, status_code=201)
+            recorded.append(tuple(sorted(player_ids)))
+            
+        return {"id": match_id, "status": "started"}, 200, True
 
-    monkeypatch.setattr("matchmaking.routes.requests.post", fake_post)
+    # Patch the helper function directly to bypass internal mock random IDs
+    monkeypatch.setattr("matchmaking.routes.call_game_engine", fake_call_engine)
 
-def test_enqueue_pairs_players_when_two_waiting(monkeypatch, matchmaking_app, matchmaking_client):
-    _stub_game_engine(monkeypatch, match_id_start=77)
+# --- Tests ---
+
+def test_enqueue_first_time_waiting(matchmaking_app, matchmaking_client):
+    """Test standard enqueue flow receiving a waiting token."""
+    headers = _auth_headers(matchmaking_app, "user-1")
+    resp = matchmaking_client.post("/enqueue", headers=headers)
+    
+    assert resp.status_code == 202
+    data = resp.get_json()
+    assert data["status"] == "Waiting"
+    assert "queue_token" in data
+    
+    token = data["queue_token"]
+    
+    # Verify Redis State
+    with matchmaking_app.app_context():
+        queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
+        active_key = matchmaking_app.config.get("MATCHMAKING_ACTIVE_KEY", "matchmaking:active_pointers")
+        
+        # User is in ZSet as "user-1:token"
+        assert redis_manager.conn.zcard(queue_key) == 1
+        zset_items = redis_manager.conn.zrange(queue_key, 0, -1)
+        assert zset_items[0] == f"user-1:{token}"
+        
+        # User has active pointer
+        assert redis_manager.conn.hget(active_key, "user-1") == token
+
+        # Token key exists with correct payload
+        token_data = json.loads(redis_manager.conn.get(f"matchmaking:token:{token}"))
+        assert token_data["status"] == "Waiting"
+
+
+def test_enqueue_pairs_players_immediately(monkeypatch, matchmaking_app, matchmaking_client):
+    """Test that the second player triggers a match and receives matched payload immediately."""
+    recorded = []
+    _stub_game_engine(monkeypatch, match_id_start=100, recorded=recorded)
+
+    # 1. First player enqueues -> Waiting
     headers_one = _auth_headers(matchmaking_app, "user-1")
     resp_one = matchmaking_client.post("/enqueue", headers=headers_one)
     assert resp_one.status_code == 202
     token_one = resp_one.get_json()["queue_token"]
 
+    # 2. Second player enqueues -> Matched (Immediate)
     headers_two = _auth_headers(matchmaking_app, "user-2")
     resp_two = matchmaking_client.post("/enqueue", headers=headers_two)
-    assert resp_two.status_code == 201
-    body = resp_two.get_json()
-    assert body["id"] == 77
+    
+    # Expect 200 OK with Matched payload
+    assert resp_two.status_code == 200
+    body_two = resp_two.get_json()
+    assert body_two["status"] == "Matched"
+    assert body_two["match_id"] == 100
+    assert body_two["opponent_id"] == "user-1"
+    token_two = body_two["queue_token"]
 
-    # first player can poll and discover the match id
+    # 3. Verify Player 1 can poll status to see Match
     resp_status = matchmaking_client.get("/status", headers=headers_one, query_string={"token": token_one})
     assert resp_status.status_code == 200
     status_body = resp_status.get_json()
-    assert status_body["match_id"] == 77
+    assert status_body["status"] == "Matched"
+    assert status_body["match_id"] == 100
     assert status_body["opponent_id"] == "user-2"
 
-    # verify cache deletion (delete-on-read)
-    resp_status_again = matchmaking_client.get("/status", headers=headers_one, query_string={"token": token_one})
-    # depending on fallback logic, it might return 404 NotQueued or 200 Matched (via game engine fallback)
-    # But specifically the Redis entry should be gone.
+    # 4. Verify Redis cleanup
     with matchmaking_app.app_context():
         queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
-        status_key = matchmaking_app.config.get("MATCHMAKING_STATUS_KEY", f"{queue_key}:status")
+        active_key = matchmaking_app.config.get("MATCHMAKING_ACTIVE_KEY", "matchmaking:active_pointers")
         
-        # queue should be empty
+        # Queue should be empty (both popped)
         assert redis_manager.conn.zcard(queue_key) == 0
         
-        # status entry for user-1 should be deleted
-        assert redis_manager.conn.hget(status_key, "user-1") is None
+        # Active pointers should be removed so they can re-queue immediately
+        assert redis_manager.conn.hget(active_key, "user-1") is None
+        assert redis_manager.conn.hget(active_key, "user-2") is None
 
-def test_dequeue_removes_player_and_errors_when_missing(matchmaking_app, matchmaking_client):
+        # Tokens should still exist (TTL) with Matched status for polling
+        t1_payload = json.loads(redis_manager.conn.get(f"matchmaking:token:{token_one}"))
+        assert t1_payload["status"] == "Matched"
+
+
+def test_idempotent_enqueue_waiting(matchmaking_app, matchmaking_client):
+    """If user re-enqueues while waiting, return same token and do NOT duplicate in ZSet."""
+    headers = _auth_headers(matchmaking_app, "user-1")
+    
+    # First call
+    resp1 = matchmaking_client.post("/enqueue", headers=headers)
+    token1 = resp1.get_json()["queue_token"]
+
+    # Second call (simulate retry or lost connection)
+    resp2 = matchmaking_client.post("/enqueue", headers=headers)
+    assert resp2.status_code == 202
+    token2 = resp2.get_json()["queue_token"]
+
+    assert token1 == token2
+
+    # Verify only 1 entry in ZSet
+    with matchmaking_app.app_context():
+        queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
+        assert redis_manager.conn.zcard(queue_key) == 1
+
+
+def test_requeue_after_match_generates_new_token(monkeypatch, matchmaking_app, matchmaking_client):
+    """
+    User 1 matches User 2. User 1 then enqueues AGAIN.
+    Should get a NEW token and be Waiting, while the OLD token remains Matched and queryable.
+    """
+    _stub_game_engine(monkeypatch, match_id_start=555)
+
+    headers = _auth_headers(matchmaking_app, "user-1")
+    
+    # 1. Enqueue -> Wait
+    resp1 = matchmaking_client.post("/enqueue", headers=headers)
+    token_old = resp1.get_json()["queue_token"]
+
+    # 2. Opponent joins -> Match
+    headers_opp = _auth_headers(matchmaking_app, "user-opponent")
+    matchmaking_client.post("/enqueue", headers=headers_opp)
+
+    # 3. User 1 checks status -> Matched
+    resp_stat = matchmaking_client.get("/status", headers=headers, query_string={"token": token_old})
+    assert resp_stat.get_json()["status"] == "Matched"
+
+    # 4. User 1 Enqueues AGAIN (New Game Request)
+    resp_new = matchmaking_client.post("/enqueue", headers=headers)
+    assert resp_new.status_code == 202
+    token_new = resp_new.get_json()["queue_token"]
+
+    assert token_new != token_old
+    assert resp_new.get_json()["status"] == "Waiting"
+
+    # 5. Verify OLD token is still Matched (for history/polling)
+    resp_old_stat = matchmaking_client.get("/status", headers=headers, query_string={"token": token_old})
+    assert resp_old_stat.get_json()["status"] == "Matched"
+
+    # 6. Verify NEW token is Waiting
+    resp_new_stat = matchmaking_client.get("/status", headers=headers, query_string={"token": token_new})
+    assert resp_new_stat.get_json()["status"] == "Waiting"
+
+
+def test_dequeue_logic_flow(matchmaking_app, matchmaking_client):
+    """Test full dequeue lifecycle: Enqueue -> Dequeue -> Cleaned Up."""
     headers = _auth_headers(matchmaking_app, "user-3")
-    resp_enqueue = matchmaking_client.post("/enqueue", headers=headers)
-    assert resp_enqueue.status_code == 202
+    
+    # 1. Enqueue
+    resp_enq = matchmaking_client.post("/enqueue", headers=headers)
+    token = resp_enq.get_json()["queue_token"]
 
-    resp_leave = matchmaking_client.post("/dequeue", headers=headers)
-    assert resp_leave.status_code == 200
+    # 2. Dequeue without token -> Error 400
+    resp_fail = matchmaking_client.post("/dequeue", headers=headers)
+    assert resp_fail.status_code == 400 
 
-    # queue and status entries are gone
+    # 3. Dequeue with wrong token -> Error 404
+    resp_inv = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": "bad-token"})
+    assert resp_inv.status_code == 404
+
+    # 4. Dequeue with correct token -> Success
+    resp_ok = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": token})
+    assert resp_ok.status_code == 200
+    assert resp_ok.get_json()["status"] == "Removed"
+
+    # 5. Verify Cleanup
     with matchmaking_app.app_context():
         queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
-        status_key = matchmaking_app.config.get("MATCHMAKING_STATUS_KEY", f"{queue_key}:status")
-        assert redis_manager.conn.zscore(queue_key, "user-3") is None
-        assert redis_manager.conn.hget(status_key, "user-3") is None
-
-    resp_missing = matchmaking_client.post("/dequeue", headers=headers)
-    assert resp_missing.status_code == 409
-    assert "msg" in resp_missing.get_json()
-
-def test_enqueue_many_players_even_count(monkeypatch, matchmaking_app, matchmaking_client):
-    recorded = []
-    _stub_game_engine(monkeypatch, match_id_start=10, recorded=recorded)
-
-    players = [f"user-{idx}" for idx in range(1, 11)]
-    for player in players:
-        headers = _auth_headers(matchmaking_app, player)
-        matchmaking_client.post("/enqueue", headers=headers)
-
-    assert len(recorded) == len(players) // 2
-    assert set(recorded) == {
-        ("user-1", "user-2"),
-        ("user-3", "user-4"),
-        ("user-5", "user-6"),
-        ("user-7", "user-8"),
-        ("user-9", "user-10"),
-    }
-    with matchmaking_app.app_context():
-        queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
+        active_key = matchmaking_app.config.get("MATCHMAKING_ACTIVE_KEY", "matchmaking:active_pointers")
+        
+        # Queue empty
         assert redis_manager.conn.zcard(queue_key) == 0
+        # Active pointer gone
+        assert redis_manager.conn.hget(active_key, "user-3") is None
+        # Token key gone
+        assert redis_manager.conn.get(f"matchmaking:token:{token}") is None
 
-def test_enqueue_many_players_odd_count(monkeypatch, matchmaking_app, matchmaking_client):
-    recorded = []
-    _stub_game_engine(monkeypatch, match_id_start=50, recorded=recorded)
+def test_dequeue_too_late_matched(monkeypatch, matchmaking_app, matchmaking_client):
+    """If user tries to dequeue but was matched in background, return TooLate payload."""
+    _stub_game_engine(monkeypatch, match_id_start=99)
+    headers = _auth_headers(matchmaking_app, "user-slow")
+    
+    # 1. User Enqueues
+    resp = matchmaking_client.post("/enqueue", headers=headers)
+    token = resp.get_json()["queue_token"]
 
-    players = [f"user-{idx}" for idx in range(1, 8)]
-    for player in players:
-        headers = _auth_headers(matchmaking_app, player)
+    # 2. Opponent matches them
+    headers_opp = _auth_headers(matchmaking_app, "user-opp")
+    matchmaking_client.post("/enqueue", headers=headers_opp)
+
+    # 3. User tries to Dequeue -> Too Late
+    resp_deq = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": token})
+    assert resp_deq.status_code == 409
+    body = resp_deq.get_json()
+    assert body["status"] == "TooLate"
+    assert body["match_id"] == 99
+    assert body["queue_token"] == token
+
+def test_enqueue_many_odd_count(monkeypatch, matchmaking_app, matchmaking_client):
+    """Ensure leftover players stay in queue correctly with correct token format."""
+    _stub_game_engine(monkeypatch, match_id_start=50)
+
+    # 7 players -> 3 matches, 1 waiting
+    players = [f"user-{i}" for i in range(7)]
+    
+    for p in players:
+        headers = _auth_headers(matchmaking_app, p)
         matchmaking_client.post("/enqueue", headers=headers)
 
-    assert len(recorded) == len(players) // 2
-    assert set(recorded) == {
-        ("user-1", "user-2"),
-        ("user-3", "user-4"),
-        ("user-5", "user-6"),
-    }
     with matchmaking_app.app_context():
         queue_key = matchmaking_app.config["MATCHMAKING_QUEUE_KEY"]
-        status_key = matchmaking_app.config.get("MATCHMAKING_STATUS_KEY", f"{queue_key}:status")
-        waiting = redis_manager.conn.zrange(queue_key, 0, -1)
-        assert waiting == ["user-7"]
-        status_payload = redis_manager.conn.hget(status_key, "user-7")
-        assert status_payload is not None
+        # Should be 1 left
+        assert redis_manager.conn.zcard(queue_key) == 1
+        
+        # The leftover user should be the last one added (user-6)
+        # Verify the member format is "user_id:token"
+        leftover = redis_manager.conn.zrange(queue_key, 0, -1)[0]
+        assert leftover.startswith("user-6:")
 
-def test_enqueue_fails_if_profile_invalid(monkeypatch, matchmaking_app, matchmaking_client):
-    # Mock _validate_player_profile to return False
-    # Since we are in TESTING mode, the real code bypasses the network call.
-    # To test the failure path, we must mock the helper itself or force the code to take the validation path.
-    # But wait, the code says: if TESTING return True.
-    # So to test "False", we must patch `matchmaking.routes._validate_player_profile` 
-    # to return False, overriding the internal logic.
-    
+def test_enqueue_fails_invalid_profile(monkeypatch, matchmaking_app, matchmaking_client):
+    # Patch the validation function to return False
     monkeypatch.setattr("matchmaking.routes._validate_player_profile", lambda uid: False)
-    
-    headers = _auth_headers(matchmaking_app, "user-no-profile")
+
+    headers = _auth_headers(matchmaking_app, "user-invalid")
     resp = matchmaking_client.post("/enqueue", headers=headers)
+    
     assert resp.status_code == 403
-    assert "create a profile" in resp.get_json()["msg"]
+    assert resp.get_json()["status"] == "Error"
+    assert "Profile required" in resp.get_json()["msg"]

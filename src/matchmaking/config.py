@@ -73,3 +73,8 @@ class TestConfig:
 
     # disable cert verification
     MATCHMAKING_ENABLE_VERIFY = False
+
+    # variable stuff
+    MATCHMAKING_QUEUE_KEY = "matchmaking:queue"
+    MATCHMAKING_STATUS_KEY = "matchmaking:queue:status"
+    MATCHMAKING_MAX_QUEUE_SIZE = 500
