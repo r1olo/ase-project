@@ -828,36 +828,7 @@ paths:
         '422':
           $ref: '#/components/responses/UnprocessableContent'
 
-  # matches - internal endpoint
-  /internal/matches/create:
-    post:
-      tags: [Game Engine]
-      summary: Create a new match (internal)
-      description: |
-        Internal endpoint used by the matchmaking service to create matches.
-        Not intended for direct client use.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                player1_id: { type: integer }
-                player2_id: { type: integer }
-              required: [player1_id, player2_id]
-      responses:
-        '201':
-          description: Match created
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Match' }
-        '400':
-          $ref: '#/components/responses/GameEngine.ValidationError'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
-
-  # matches - public endpoints
+  # matches
   /matches/{match_id}/deck:
     post:
       tags: [Game Engine]
@@ -974,6 +945,8 @@ paths:
           $ref: '#/components/responses/GameEngine.ValidationError'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '500':
           $ref: '#/components/responses/GameEngine.InternalServerError'
         '503':
@@ -1019,6 +992,8 @@ paths:
           $ref: '#/components/responses/GameEngine.ValidationError'
         '403':
           $ref: '#/components/responses/GameEngine.PermissionDenied'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
@@ -1045,6 +1020,8 @@ paths:
           $ref: '#/components/responses/GameEngine.PermissionDenied'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '500':
           $ref: '#/components/responses/GameEngine.InternalServerError'
 
@@ -1065,9 +1042,144 @@ paths:
               schema: { $ref: '#/components/schemas/Match' }
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '403':
           $ref: '#/components/responses/GameEngine.PermissionDenied'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
-          $ref: '#/components/responses/GameEngine
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /matches/history/{player_id}:
+    get:
+      tags: [Game Engine]
+      summary: Get match history for a specific player
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PlayerId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [setup, in_progress, finished]
+          description: Filter by match status
+      responses:
+        '200':
+          description: Match history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Match'
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  /leaderboard:
+    get:
+      tags: [Game Engine]
+      summary: Get leaderboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        player_id: { type: integer }
+                        username: { type: string }
+                        wins: { type: integer }
+        '400':
+          $ref: '#/components/responses/GameEngine.ValidationError'
+        '404':
+          $ref: '#/components/responses/GameEngine.NotFound'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+
+  # card catalogue
+  /cards:
+    get:
+      tags: [Cards]
+      summary: Get all cards of the game
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: A list of cards
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Card' }
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+
+  /cards/{card_id}:
+    get:
+      tags: [Cards]
+      summary: Get a single card by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Requested card
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Card' }
+        '404':
+          description: Card not found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ResponseMessage'}
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+  
+  # utilities
+  /health:
+    get:
+      tags: [Utilities]
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  
