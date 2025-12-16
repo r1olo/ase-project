@@ -25,3 +25,40 @@ Di seguito sono elencati gli asset critici identificati nel sistema:
     \item \textbf{A7: Ranking \& Reputation} \\
     Integrity of player scores, match history/results, leaderboards, and reputation systems (protection against tampering or cheating).
 \end{itemize}
+\subsection{Identify Attack Surfaces}
+The possible attack surfaces identified in the architecture are:
+
+\begin{itemize}
+    \item \textbf{Network Attack Surface}: Consists of the API Gateway (Nginx), which handles TLS termination and serves as the entry point for all external traffic.
+    
+    \item \textbf{Application Attack Surface}: Composed of the public REST API endpoints.
+    
+    \item \textbf{Internal Attack Surface}: Represented by the internal Docker network, inter-service communication, and access to persistent datastores protected by credentials injected via Docker secrets.
+    
+    \item \textbf{Supply Chain Attack Surface}: Includes external Python dependencies and base Docker images. Vulnerabilities in these third-party components could be exploited to compromise the application runtime.
+\end{itemize}
+
+\subsubsection*{External Attack Surfaces}
+These are publicly exposed areas where any user (authenticated or anonymous) can interact with the system via the internet.
+
+\begin{itemize}
+    \item \textbf{API Gateway (Network Endpoint)}: The Nginx. It acts as the single public entry point, handling TLS termination and routing traffic to upstream services. Vulnerabilities here (e.g., DDoS susceptibility) affect the entire system.
+    
+    \item \textbf{Public API Endpoints}: The set of RESTful routes defined in the OpenAPI specification reachable through the Gateway. This includes:
+    \begin{itemize}
+        \item \textbf{Unauthenticated Entry Points}: \texttt{/login}, \texttt{/register}, and \texttt{/health}, accessible by any anonymous actor.
+        \item \textbf{Authenticated Entry Points}: Routes like \texttt{/players}, \texttt{/matches}, and \texttt{/enqueue}. Although they require a valid JWT, they remain externally exposed and susceptible to attacks from malicious registered users.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection*{Internal Attack Surfaces}
+These are privileged areas accessible only by trusted systems (other microservices).
+
+\begin{itemize}
+    \item \textbf{Internal Service APIs}: They are designed for inter-service communication that are not routed by the API Gateway. The 
+    \texttt{/internal/players/validation} endpoint, for example, is used by the Game Engine to verify user existence.
+    
+    \item \textbf{Backend Data Services}: The persistence layer, including PostgreSQL databases and Redis caches. These utilize the internal Docker network and are protected by credentials injected via Docker Secrets, accessible only to specific containers.
+    
+    \item \textbf{Infrastructure \& Deployment}: The CI/CD pipelines (GitHub Actions) and the Docker orchestration environment. Access to these components allows modification of the source code, secrets, or runtime configuration, representing a critical internal surface.
+\end{itemize}
