@@ -15,7 +15,6 @@ In addition, all the databases intended for the isolation tests, and related to 
 In order to test Game Engine Service, we mock the communication with Card Catalogue Service and avoid the communication with Players Service, so that it is possible to verify the correct behavior of the game logic without relying on the actual services.
 For instance, the cards are loaded directly from the JSON file.
 
-
 \subsection{System and Integration Testing}
 A dedicated Postman collection, located in \mbox{\texttt{docs/\allowbreak\_postman/}}, orchestrates complex user flows that span multiple services, such as a user registering and logging (Authentication Service), player profile creation (Player Service), joining and playing a match (Matchmaking Service and Game Engine Service).
 
