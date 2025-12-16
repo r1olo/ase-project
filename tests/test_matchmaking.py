@@ -188,15 +188,18 @@ def test_dequeue_logic_flow(matchmaking_app, matchmaking_client):
     token = resp_enq.get_json()["queue_token"]
 
     # 2. Dequeue without token -> Error 400
+    # Note: Sending empty JSON or no body should result in 400
     resp_fail = matchmaking_client.post("/dequeue", headers=headers)
     assert resp_fail.status_code == 400 
 
     # 3. Dequeue with wrong token -> Error 404
-    resp_inv = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": "bad-token"})
+    # UPDATED: Sending token in JSON body
+    resp_inv = matchmaking_client.post("/dequeue", headers=headers, json={"token": "bad-token"})
     assert resp_inv.status_code == 404
 
     # 4. Dequeue with correct token -> Success
-    resp_ok = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": token})
+    # UPDATED: Sending token in JSON body
+    resp_ok = matchmaking_client.post("/dequeue", headers=headers, json={"token": token})
     assert resp_ok.status_code == 200
     assert resp_ok.get_json()["status"] == "Removed"
 
@@ -226,7 +229,8 @@ def test_dequeue_too_late_matched(monkeypatch, matchmaking_app, matchmaking_clie
     matchmaking_client.post("/enqueue", headers=headers_opp)
 
     # 3. User tries to Dequeue -> Too Late
-    resp_deq = matchmaking_client.post("/dequeue", headers=headers, query_string={"token": token})
+    # UPDATED: Sending token in JSON body
+    resp_deq = matchmaking_client.post("/dequeue", headers=headers, json={"token": token})
     assert resp_deq.status_code == 409
     body = resp_deq.get_json()
     assert body["status"] == "TooLate"
