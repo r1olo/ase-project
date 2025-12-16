@@ -104,12 +104,12 @@ Other supporting elements include the `cards/` directory (images plus JSON used 
 A single match goes through several services and HTTP endpoints:
 
 1. **Authentication** &ndash; Players register and log in through the Authentication service to obtain a JWT access token plus a refresh cookie. That token is attached to subsequent `Authorization: Bearer` headers so that all the downstream services within the system can immediately authenticate the player, extracting its `user_id`.
-2. **Profile setup** &ndash; Players must call the Players service (`POST /players/<user_id>`) to create their public profile. This step is mandatory before initiating a match, as the Game Engine requires a full profile to proceed. This guarantees a proper separation of concerns between user credentials and public player profiles.
-3. **Queueing** Ready players call `POST /enqueue` on Matchmaking service that stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`. Each enqueue returns a queue token; clients poll `GET /status` with their JWT (and optional token) until a match ID appears. As soon as the second player arrives, the oldest two Redis entries are popped atomically and the Game Engine is invoked to form the match while both players' status snapshots are updated in Redis.
-4. **Match creation** &ndash; Once the Matchmaking service calls the Game Engine with the two players' IDs, a new match is created and stored within the database. Matched IDs are persisted alongside queue tokens so that both players can discover the match even if only one received the immediate HTTP response.
-5. **Deck selection** &ndash; Each player submits exactly 10 unique card IDs via `POST /game/matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
-6. **Rounds** &ndash; Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /game/matches/<match_id>/rounds/<round_id>` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the round row is updated, both moves are analyzed through and the winner is computed, and either the next round begins (with a fresh random category) or the match ends when all the rounds have been played.
-7. **Status tracking** &ndash; Clients can poll `/game/matches/<match_id>/round/<round_id>` to see whether both moves have been submitted, fetch `/game/matches/<match_id>` for a summary without moves, or `/game/matches/<match_id>/history` for the entire round log.
+2. **Profile setup** &ndash; Players must call the Players Service (`POST /players`) to create their public profile. This step is mandatory before initiating a match, as the Game Engine requires a full profile to proceed. This guarantees a proper separation of concerns between user credentials and public player profiles.
+3. **Queueing** Ready players call `POST /enqueue` on Matchmaking Service that stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`. Each enqueue returns a queue token; clients poll `GET /status` with their JWT (and optional token) until a match ID appears. As soon as the second player arrives, the oldest two Redis entries are popped atomically and the Game Engine is invoked to form the match while both players' status snapshots are updated in Redis.
+4. **Match creation** &ndash; Once the Matchmaking Service calls the Game Engine with the two players' IDs, a new match is created and stored within the database. Matched IDs are persisted alongside queue tokens so that both players can discover the match even if only one received the immediate HTTP response.
+5. **Deck selection** &ndash; Each player submits exactly 10 unique card IDs via `POST /matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
+6. **Rounds** &ndash; Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /matches/<match_id>/moves/<round_id>` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the round row is updated, both moves are analyzed through and the winner is computed, and either the next round begins (with a fresh random category) or the match ends when all the rounds have been played.
+7. **Status tracking** &ndash; Clients can poll `/matches/<match_id>/round` to see whether both moves have been submitted, fetch `/matches/<match_id>` for a summary without moves, or `/matches/<match_id>/history` for the entire round log.
 8. **Completion** &ndash; When the match is over, its status is set to finished, and the `winner_id` (or `None` for a draw) is stored in the database.
 
 
@@ -142,10 +142,3 @@ Key suites:
 
 - `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis.
 - `tests/test_catalogue.py` checks cards and card by id, and validates decks submitted by players.
-<!--
-- `tests/test_matchmaking.py` uses `fakeredis` to populate the lobby, ensures `_enqueue_atomic` pairs players fairly, and validates `/dequeue` when players leave or were already matched.
-- `tests/test_game_engine.py` covers the pure business logic in `game_engine/GameEngine`—score calculation, per-round winners, match finalization, and round advancement.
-- `tests/test_game_engine_api.py` drives the `/game/**` endpoints end-to-end by creating a match, monkeypatching the catalogue lookup, submitting decks/moves for both players, and confirming that the match history records every move until `FINISHED`.
- -->
-
-## Credits

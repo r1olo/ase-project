@@ -1,1 +1,18 @@
 \subsection{Data}\label{subsec:security-data}
+
+\subsubsection{Input Sanitization}
+The username field provided in the request body sent by the client must be sanitized before being processed.
+
+The username is used by the Players Service to store personal information about the user as a player.
+To ensure the input is safe, the following operations are performed:
+\begin{enumerate}
+    \item verify that the key exists and the value is not empty;
+    \item validate if the length is within the allowed range;
+    \item ensure the string contains only allowed characters.
+\end{enumerate}
+
+\subsubsection{Encryption at Rest}
+To protect users' sensitive information, all data stored in the Users Database is encrypted at rest.
+This sensitive information primarily consists of user credentials.
+
+The database itself performs field-level encryption, automatically encrypting data when written and decrypting it when read by the Players Service.
