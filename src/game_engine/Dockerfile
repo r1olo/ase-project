@@ -18,4 +18,5 @@ COPY src/common /app/common
 
 EXPOSE 5000
 
-CMD ["flask", "--app=game_engine.app", "run", "--cert=/run/secrets/game-engine.crt", "--key=/run/secrets/game-engine.key", "--host=0.0.0.0", "--port=5000"]
+#CMD ["flask", "--app=game_engine.app", "run", "--cert=/run/secrets/game-engine.crt", "--key=/run/secrets/game-engine.key", "--host=0.0.0.0", "--port=5000"]
+CMD ["gunicorn", "--workers=4", "--threads=8", "--bind=0.0.0.0:5000", "--certfile=/run/secrets/game-engine.crt", "--keyfile=/run/secrets/game-engine.key", "game_engine.app:create_app()"]

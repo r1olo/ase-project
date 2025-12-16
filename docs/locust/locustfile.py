@@ -1,28 +1,28 @@
 """
-Locust performance suite for the full card-game platform.
+Comprehensive Locust suite for the entire platform.
 
-This file drives realistic end-to-end flows across:
-- Auth (/register, /login, /refresh)
-- Players (profile CRUD and friendships)
-- Catalogue (card listing + single card fetch)
-- Matchmaking (enqueue/status/dequeue)
-- Game Engine (match creation via matchmaking, deck submission, move rounds, history, leaderboard)
+Coverage (mirrors integration Postman flow):
+- Auth: happy path + invalid registrations, token refresh.
+- Players: create/update profile, lookup by id/username, friendships (request, accept, list),
+  and internal validation endpoints.
+- Catalogue: list, single card, missing card, deck validation success/failure.
+- Matchmaking: enqueue → status polling → dequeue (both success and TooLate),
+  match setup through the game engine.
+- Game engine: deck submission, five rounds of moves, round status, match snapshot,
+  full history, per-player history, and leaderboard.
 
-Environment knobs (override via `LOCUST_ENV_VAR=value`):
-- GATEWAY_URL: base URL for the API Gateway (default: https://localhost:443)
-- AUTH_BASE_URL / PLAYERS_BASE_URL / CATALOGUE_BASE_URL / MATCHMAKING_BASE_URL / GAME_ENGINE_BASE_URL:
-  optional service-specific overrides (useful to hit services directly without the gateway).
-- GAME_ENGINE_INTERNAL_URL: optional override for endpoints blocked by the gateway such as /internal/matches/create.
-- LOCUST_VERIFY_TLS: "true"/"false" to enable TLS verification (default: false, useful with self-signed certs).
-- LOCUST_REQUEST_TIMEOUT: per-request timeout in seconds (default: 5).
-- LOCUST_MATCH_POLL_RETRIES: status polls after enqueue before giving up (default: 8).
-- LOCUST_MATCH_POLL_INTERVAL: seconds between matchmaking status polls (default: 1.0).
+Configuration (env vars):
+- GATEWAY_URL: base URL (default: https://localhost). Override with `-H` as usual.
+- LOCUST_VERIFY_TLS: "true"/"false" (default false) for self-signed gateways.
+- LOCUST_REQUEST_TIMEOUT: seconds per request (default 8).
+- LOCUST_MATCH_POLL_RETRIES: attempts when waiting for a match (default 10).
+- LOCUST_MATCH_POLL_INTERVAL: seconds between status polls (default 0.8).
 """
 from __future__ import annotations
 
 import os
 import random
-import string
+import threading
 import uuid
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
@@ -30,480 +30,464 @@ from typing import Dict, List, Optional, Tuple
 import gevent
 from locust import HttpUser, between, task
 
-# ---- Configuration helpers ----
+# ---- Configuration ----
+
+GATEWAY_URL = os.getenv("GATEWAY_URL", "https://localhost")
+VERIFY_TLS = os.getenv("LOCUST_VERIFY_TLS", "false").lower() in {"1", "true", "yes", "on"}
+REQUEST_TIMEOUT = float(os.getenv("LOCUST_REQUEST_TIMEOUT", "8"))
+MATCH_POLL_RETRIES = int(os.getenv("LOCUST_MATCH_POLL_RETRIES", "10"))
+MATCH_POLL_INTERVAL = float(os.getenv("LOCUST_MATCH_POLL_INTERVAL", "0.8"))
+
+# Regions copied from players.models.Region
+REGIONS = [
+    "Abruzzo",
+    "Basilicata",
+    "Calabria",
+    "Campania",
+    "Emilia-Romagna",
+    "Friuli-Venezia Giulia",
+    "Lazio",
+    "Liguria",
+    "Lombardia",
+    "Marche",
+    "Molise",
+    "Piemonte",
+    "Puglia",
+    "Sardegna",
+    "Sicilia",
+    "Toscana",
+    "Trentino-Alto Adige",
+    "Umbria",
+    "Valle d'Aosta",
+    "Veneto",
+]
+
+# Decks and moves from Postman integration collection
+DECK1 = [8, 9, 12, 16, 7]
+DECK2 = [4, 15, 13, 14, 5]
+MISSING_CARD_ID = 99999
+INVALID_DECK = [-1, -2, -3]
 
 
-def _bool_env(name: str, default: bool = False) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.lower() in {"1", "true", "yes", "on"}
-
-
-DEFAULT_GATEWAY = os.getenv("GATEWAY_URL", "https://localhost:443")
-
-SERVICE_BASE = {
-    "auth": os.getenv("AUTH_BASE_URL", DEFAULT_GATEWAY),
-    "players": os.getenv("PLAYERS_BASE_URL", DEFAULT_GATEWAY),
-    "catalogue": os.getenv("CATALOGUE_BASE_URL", DEFAULT_GATEWAY),
-    "matchmaking": os.getenv("MATCHMAKING_BASE_URL", DEFAULT_GATEWAY),
-    "game_engine": os.getenv("GAME_ENGINE_BASE_URL", DEFAULT_GATEWAY),
-    # Gateway blocks /internal/matches/create, so allow an internal override for direct calls if needed.
-    "game_engine_internal": os.getenv(
-        "GAME_ENGINE_INTERNAL_URL", os.getenv("GAME_ENGINE_BASE_URL", DEFAULT_GATEWAY)
-    ),
-}
-
-VERIFY_TLS = _bool_env("LOCUST_VERIFY_TLS", False)
-REQUEST_TIMEOUT = float(os.getenv("LOCUST_REQUEST_TIMEOUT", "5"))
-MATCH_POLL_RETRIES = int(os.getenv("LOCUST_MATCH_POLL_RETRIES", "8"))
-MATCH_POLL_INTERVAL = float(os.getenv("LOCUST_MATCH_POLL_INTERVAL", "1.0"))
-
-
-# ---- Data classes ----
-
+# ---- Shared state helpers ----
 
 @dataclass
-class PlayerContext:
+class PlayerCtx:
     email: str
     password: str
     username: str
+    region: str
     user_id: Optional[int] = None
-    access_token: Optional[str] = None
-    refresh_cookie: Dict[str, str] = field(default_factory=dict)
-    deck: List[int] = field(default_factory=list)
+    jwt: Optional[str] = None
+    refresh_cookies: Dict[str, str] = field(default_factory=dict)
+    last_queue_token: Optional[str] = None
+    last_match_id: Optional[int] = None
 
 
-# ---- Utility functions ----
+players_lock = threading.Lock()
+players_registry: List[PlayerCtx] = []
 
 
 def _rand_email() -> str:
-    return f"locust-{uuid.uuid4().hex[:10]}@example.com"
-
-
-def _rand_password() -> str:
-    return uuid.uuid4().hex
+    return f"locust_{uuid.uuid4().hex[:10]}@example.com"
 
 
 def _rand_username(prefix: str) -> str:
-    letters = "".join(random.choices(string.ascii_lowercase, k=5))
-    return f"{prefix}-{letters}"
-
-
-def _service_url(service: str, path: str) -> str:
-    base = SERVICE_BASE.get(service, DEFAULT_GATEWAY).rstrip("/")
-    return f"{base}{path}"
+    return f"{prefix}_{uuid.uuid4().hex[:6]}"
 
 
 # ---- Locust user ----
 
 
-class GameSystemUser(HttpUser):
+class FullSystemUser(HttpUser):
     """
-    A virtual user that exercises end-to-end flows across all microservices.
-
-    Each Locust user owns two player identities so matches, friendships, and deck
-    submissions can be run without relying on other virtual users.
+    Each Locust user owns two player identities so matchmaking and friendships
+    can run without coordinating across workers.
     """
 
-    host = DEFAULT_GATEWAY
-    wait_time = between(1, 3)
+    host = GATEWAY_URL
+    wait_time = between(0.5, 2.0)
 
-    def on_start(self):
-        self.cards: List[int] = []
-        self.player_a = PlayerContext(
+    def on_start(self) -> None:
+        # Configure TLS verification once for this client session
+        self.client.verify = VERIFY_TLS
+        self.did_dequeue_once = False
+
+        self.player1 = PlayerCtx(
             email=_rand_email(),
-            password=_rand_password(),
+            password="Passw0rd!",
             username=_rand_username("alpha"),
+            region=random.choice(REGIONS),
         )
-        self.player_b = PlayerContext(
+        self.player2 = PlayerCtx(
             email=_rand_email(),
-            password=_rand_password(),
+            password="Passw0rd!",
             username=_rand_username("beta"),
+            region=random.choice(REGIONS),
         )
 
-        # Bootstrap both identities and cache the catalogue list once.
-        for player in (self.player_a, self.player_b):
-            self._register_and_login(player)
-            self._ensure_profile(player)
+        for player in (self.player1, self.player2):
+            self._register_login_profile(player)
+            self._store_player(player)
 
-        self.cards = self._load_catalogue_cards(self.player_a)
-        if not self.cards:
-            # Default to a safe fallback range; service seeds 20 cards.
-            self.cards = list(range(1, 21))
+    # ---- HTTP helpers ----
 
-    # ---- Task helpers ----
+    def _request(self, method: str, path: str, *, player: Optional[PlayerCtx] = None,
+                 name: Optional[str] = None, **kwargs):
+        headers = kwargs.pop("headers", {}) or {}
+        if player and player.jwt:
+            headers.setdefault("Authorization", f"Bearer {player.jwt}")
+        kwargs.setdefault("timeout", REQUEST_TIMEOUT)
+        return self.client.request(method, path, headers=headers, name=name, **kwargs)
 
-    def _register_and_login(self, player: PlayerContext) -> None:
-        # Registration is idempotent; conflict just means user exists.
-        self.client.post(
-            _service_url("auth", "/register"),
+    def _register_login_profile(self, player: PlayerCtx) -> None:
+        self._request(
+            "POST",
+            "/register",
             json={"email": player.email, "password": player.password},
             name="auth_register",
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
         )
-
-        resp = self.client.post(
-            _service_url("auth", "/login"),
+        resp = self._request(
+            "POST",
+            "/login",
             json={"email": player.email, "password": player.password},
             name="auth_login",
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        if not resp or not resp.ok:
-            return
-
-        data = resp.json() if resp.content else {}
-        player.access_token = data.get("access_token")
-        player.user_id = data.get("user_id")
-        # Capture refresh cookies for later /refresh or /logout calls.
-        player.refresh_cookie = self.client.cookies.get_dict()
-        # Clear cookies so subsequent logins do not reuse them implicitly.
-        self.client.cookies.clear()
-
-    def _auth_headers(self, player: PlayerContext) -> Dict[str, str]:
-        headers: Dict[str, str] = {}
-        if player.access_token:
-            headers["Authorization"] = f"Bearer {player.access_token}"
-        return headers
-
-    def _ensure_profile(self, player: PlayerContext) -> None:
-        headers = self._auth_headers(player)
-        resp = self.client.get(
-            _service_url("players", "/players/me"),
-            name="players_me_get",
-            headers=headers,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        if resp.status_code == 404:
-            payload = {"username": player.username}
-            self.client.post(
-                _service_url("players", "/players"),
-                json=payload,
-                headers=headers,
-                name="players_create",
-                verify=VERIFY_TLS,
-                timeout=REQUEST_TIMEOUT,
-            )
-
-    def _load_catalogue_cards(self, player: PlayerContext) -> List[int]:
-        headers = self._auth_headers(player)
-        resp = self.client.get(
-            _service_url("catalogue", "/cards"),
-            name="catalogue_cards",
-            headers=headers,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        if not resp or not resp.ok:
-            return []
-        try:
-            payload = resp.json()
-        except ValueError:
-            return []
-        cards = payload.get("data") or []
-        return [card["id"] for card in cards if isinstance(card, dict) and "id" in card]
-
-    def _refresh_access_token(self, player: PlayerContext) -> None:
-        if not player.refresh_cookie:
-            return
-        headers = self._auth_headers(player)
-        csrf = player.refresh_cookie.get("csrf_refresh_token")
-        if csrf:
-            headers["X-CSRF-TOKEN"] = csrf
-        resp = self.client.post(
-            _service_url("auth", "/refresh"),
-            name="auth_refresh",
-            headers=headers,
-            cookies=player.refresh_cookie,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
         )
         if resp and resp.ok:
-            try:
-                player.access_token = resp.json().get("access_token", player.access_token)
-            except ValueError:
-                pass
+            payload = self._safe_json(resp)
+            player.jwt = payload.get("access_token")
+            player.user_id = payload.get("user_id")
+            player.refresh_cookies = self.client.cookies.get_dict()
+        # Clear cookies so refresh is explicit
+        self.client.cookies.clear()
 
-    def _sample_deck(self) -> List[int]:
-        deck_size = 5  # Game engine constant
-        if len(self.cards) < deck_size:
-            return list(range(1, deck_size + 1))
-        return random.sample(self.cards, deck_size)
+        # Create profile if missing
+        self._request(
+            "POST",
+            "/players",
+            player=player,
+            json={"username": player.username, "region": player.region},
+            name="players_create",
+        )
 
-    def _enqueue_player(self, player: PlayerContext) -> Tuple[Optional[str], Optional[str]]:
-        headers = self._auth_headers(player)
-        resp = self.client.post(
-            _service_url("matchmaking", "/enqueue"),
-            name="matchmaking_enqueue",
+    def _refresh_token(self, player: PlayerCtx) -> None:
+        if not player.refresh_cookies:
+            return
+        headers = {}
+        csrf = player.refresh_cookies.get("csrf_refresh_token")
+        if csrf:
+            headers["X-CSRF-TOKEN"] = csrf
+        resp = self._request(
+            "POST",
+            "/refresh",
             headers=headers,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
+            cookies=player.refresh_cookies,
+            name="auth_refresh",
         )
-        if not resp:
-            return None, None
-        try:
-            payload = resp.json()
-        except ValueError:
-            return None, None
+        if resp and resp.ok:
+            payload = self._safe_json(resp)
+            player.jwt = payload.get("access_token", player.jwt)
 
-        # Immediate match (rare) returns match id
-        if "match_id" in payload:
-            return payload.get("queue_token"), str(payload.get("match_id"))
-        return payload.get("queue_token"), None
+    def _store_player(self, player: PlayerCtx) -> None:
+        with players_lock:
+            players_registry.append(player)
 
-    def _poll_match_status(self, player: PlayerContext, token: Optional[str]) -> Optional[str]:
-        headers = self._auth_headers(player)
-        params = {"token": token} if token else None
-        for _ in range(MATCH_POLL_RETRIES):
-            resp = self.client.get(
-                _service_url("matchmaking", "/status"),
-                name="matchmaking_status",
-                headers=headers,
-                params=params,
-                verify=VERIFY_TLS,
-                timeout=REQUEST_TIMEOUT,
-            )
-            if resp and resp.status_code == 200:
-                try:
-                    payload = resp.json()
-                except ValueError:
-                    payload = {}
-                if payload.get("status") == "Matched":
-                    return str(payload.get("match_id"))
-            gevent.sleep(MATCH_POLL_INTERVAL)
-        return None
-
-    def _submit_deck(self, player: PlayerContext, match_id: str) -> List[int]:
-        deck = self._sample_deck()
-        headers = self._auth_headers(player)
-        self.client.post(
-            _service_url("game_engine", f"/matches/{match_id}/deck"),
-            name="game_engine_deck",
-            json={"data": deck},
-            headers=headers,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        return deck
-
-    def _play_round(self, match_id: str, round_number: int, decks: Dict[int, List[int]]) -> None:
-        # Each deck is keyed by user_id; pop one card per player and submit.
-        for player in (self.player_a, self.player_b):
-            if not decks.get(player.user_id):
-                continue
-            card_id = decks[player.user_id].pop()
-            headers = self._auth_headers(player)
-            self.client.post(
-                _service_url("game_engine", f"/matches/{match_id}/moves/{round_number}"),
-                name="game_engine_move",
-                json={"card_id": card_id},
-                headers=headers,
-                verify=VERIFY_TLS,
-                timeout=REQUEST_TIMEOUT,
-            )
-
-    def _current_round(self, match_id: str) -> Optional[int]:
-        resp = self.client.get(
-            _service_url("game_engine", f"/matches/{match_id}/round"),
-            name="game_engine_round_status",
-            headers=self._auth_headers(self.player_a),
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        if not resp or resp.status_code != 200:
+    def _pick_peer(self, exclude: PlayerCtx) -> Optional[PlayerCtx]:
+        with players_lock:
+            candidates = [p for p in players_registry if p.user_id and p is not exclude]
+        if not candidates:
             return None
+        return random.choice(candidates)
+
+    def _safe_json(self, resp) -> Dict:
         try:
-            payload = resp.json()
+            return resp.json() if resp and resp.content else {}
         except ValueError:
-            return None
-        return payload.get("current_round_number") or 1
+            return {}
 
     # ---- Tasks ----
 
     @task(1)
-    def health_checks(self):
-        """Probe all public health endpoints."""
-        self.client.get(
-            _service_url("catalogue", "/health"),
-            name="catalogue_health",
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.get(
-            _service_url("players", "/health"),
-            name="players_health",
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.get(
-            _service_url("game_engine", "/health"),
-            name="game_engine_health",
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
+    def health_and_auth_negatives(self) -> None:
+        """Auth validation negatives."""
 
-    @task(3)
-    def browse_cards_and_profiles(self):
-        """Exercise catalogue + profile endpoints."""
-        headers_a = self._auth_headers(self.player_a)
-        headers_b = self._auth_headers(self.player_b)
-
-        # Fetch catalogue list and a random single card
-        cards_resp = self.client.get(
-            _service_url("catalogue", "/cards"),
-            name="catalogue_cards",
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
+        # Invalid email and missing password flows
+        self._request(
+            "POST",
+            "/register",
+            json={"email": "invalid_email", "password": "x"},
+            name="auth_register_invalid_email",
         )
-        if cards_resp and cards_resp.ok:
-            try:
-                data = cards_resp.json().get("data") or []
-            except ValueError:
-                data = []
-            if data:
-                card_id = random.choice(data).get("id")
-                if card_id is not None:
-                    self.client.get(
-                        _service_url("catalogue", f"/cards/{card_id}"),
-                        name="catalogue_card",
-                        headers=headers_a,
-                        verify=VERIFY_TLS,
-                        timeout=REQUEST_TIMEOUT,
-                    )
-
-        # Profile lookup/update
-        self.client.get(
-            _service_url("players", "/players/me"),
-            name="players_me_get",
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.patch(
-            _service_url("players", "/players/me"),
-            name="players_me_patch",
-            json={"region": random.choice(["north", "center", "south", "islands"])},
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-
-        # Friend search + request/accept flow (idempotent enough for repeated runs)
-        self.client.post(
-            _service_url("players", "/players/search"),
-            name="players_search",
-            json={"username": self.player_b.username},
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.post(
-            _service_url("players", f"/players/me/friends/{self.player_b.username}"),
-            name="players_friend_request",
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.post(
-            _service_url("players", f"/players/me/friends/{self.player_a.username}"),
-            name="players_friend_accept",
-            json={"accepted": True},
-            headers=headers_b,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.get(
-            _service_url("players", "/players/me/friends"),
-            name="players_friends_list",
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
+        self._request(
+            "POST",
+            "/register",
+            json={"not_email": "bad"},
+            name="auth_register_missing_fields",
         )
 
     @task(2)
-    def refresh_and_leaderboard(self):
-        """Refresh access token, fetch leaderboard and personal history."""
-        self._refresh_access_token(self.player_a)
-
-        headers_a = self._auth_headers(self.player_a)
-        self.client.get(
-            _service_url("game_engine", "/leaderboard"),
-            name="game_engine_leaderboard",
-            headers=headers_a,
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
+    def profiles_and_friendships(self) -> None:
+        """Profile CRUD + friendship flow with a peer (player2 by default)."""
+        p1, p2 = self.player1, self.player2
+        self._request("GET", "/players/me", player=p1, name="players_me_get")
+        self._request(
+            "PATCH",
+            "/players/me",
+            player=p1,
+            json={"region": random.choice(REGIONS)},
+            name="players_me_patch",
         )
-        if self.player_a.user_id:
-            self.client.get(
-                _service_url("game_engine", f"/matches/history/{self.player_a.user_id}"),
-                name="game_engine_player_history",
-                headers=headers_a,
-                verify=VERIFY_TLS,
-                timeout=REQUEST_TIMEOUT,
+        if p1.user_id:
+            self._request(
+                "GET",
+                f"/players/{p1.user_id}",
+                player=p1,
+                name="players_by_id",
             )
+        self._request(
+            "GET",
+            f"/players/search/{p1.username}",
+            player=p1,
+            name="players_search_self",
+        )
+        self._request(
+            "GET",
+            f"/players/search/{p2.username}",
+            player=p1,
+            name="players_search_peer",
+        )
+
+        # Friendship lifecycle
+        self._request(
+            "POST",
+            f"/players/me/friends/{p2.username}",
+            player=p1,
+            name="friends_send_request",
+        )
+        self._request(
+            "GET",
+            f"/players/me/friends/{p2.username}",
+            player=p1,
+            name="friends_status_pending",
+        )
+        self._request(
+            "POST",
+            f"/players/me/friends/{p1.username}",
+            player=p2,
+            json={"accepted": True},
+            name="friends_accept",
+        )
+        self._request(
+            "GET",
+            "/players/me/friends",
+            player=p1,
+            name="friends_list",
+        )
+        self._request(
+            "GET",
+            f"/players/me/friends/{p2.username}",
+            player=p1,
+            name="friends_status_accepted",
+        )
+
+        # Internal validation endpoints
+        if p1.user_id and p2.user_id:
+            self._request(
+                "POST",
+                "/internal/players/validation",
+                json={"user_id": p1.user_id},
+                name="players_internal_validation",
+            )
+            self._request(
+                "POST",
+                "/internal/players/friendship/validation",
+                json={"player1_id": p1.user_id, "player2_id": p2.user_id},
+                name="players_internal_friendship_validation",
+            )
+
+    @task(3)
+    def catalogue_validation_flow(self) -> None:
+        """Stress catalogue listing, single fetch, and deck validation."""
+        p = self.player1
+        resp = self._request("GET", "/cards", player=p, name="catalogue_cards_all")
+        cards = self._safe_json(resp).get("data", [])
+        if cards:
+            card_id = cards[0].get("id")
+        else:
+            card_id = DECK1[0]
+
+        self._request(
+            "GET",
+            f"/cards/{card_id}",
+            player=p,
+            name="catalogue_card_single",
+        )
+        self._request(
+            "GET",
+            f"/cards/{MISSING_CARD_ID}",
+            player=p,
+            name="catalogue_card_missing",
+        )
+        self._request(
+            "POST",
+            "/internal/cards/validation",
+            json={"data": DECK1},
+            name="catalogue_validate_success",
+        )
+        self._request(
+            "POST",
+            "/internal/cards/validation",
+            json={"data": INVALID_DECK},
+            name="catalogue_validate_failure",
+        )
 
     @task(4)
-    def matchmaking_and_play(self):
-        """Full flow: enqueue both players, submit decks, play a round, fetch history."""
-        queue_token_a, match_id = self._enqueue_player(self.player_a)
-        queue_token_b, immediate_match = self._enqueue_player(self.player_b)
-        if not match_id:
-            match_id = immediate_match
+    def matchmaking_and_gameplay(self) -> None:
+        """
+        Exercises the full game loop:
+        enqueue → status → dequeue (success and TooLate) → deck submission → five moves →
+        round status → match and history queries → leaderboard and player history.
+        """
+        p1, p2 = self.player1, self.player2
 
-        # Poll matchmaking status until both players see a match
-        if not match_id:
-            match_id = self._poll_match_status(self.player_a, queue_token_a)
-        if not match_id:
-            match_id = self._poll_match_status(self.player_b, queue_token_b)
+        # First run: demonstrate dequeue before a match
+        if not self.did_dequeue_once:
+            token, _ = self._enqueue(p1, name_suffix="first_pass")
+            if token:
+                self._status_poll(p1, token, max_attempts=2)
+                self._dequeue(p1, token, name_suffix="first_pass")
+            self.did_dequeue_once = True
+
+        # Enqueue both players for an actual match
+        token1, match_id = self._enqueue(p1)
+        token2, immediate = self._enqueue(p2)
+        match_id = match_id or immediate
 
         if not match_id:
-            # Clean up queue if nothing happened
-            for player in (self.player_a, self.player_b):
-                self.client.post(
-                    _service_url("matchmaking", "/dequeue"),
-                    name="matchmaking_dequeue",
-                    headers=self._auth_headers(player),
-                    verify=VERIFY_TLS,
-                    timeout=REQUEST_TIMEOUT,
-                )
+            match_id = self._status_poll(p1, token1)
+        if not match_id:
+            match_id = self._status_poll(p2, token2)
+        if not match_id:
+            # Clean up if no match could be found
+            if token1:
+                self._dequeue(p1, token1, name_suffix="cleanup")
+            if token2:
+                self._dequeue(p2, token2, name_suffix="cleanup")
             return
 
-        # Submit decks for both players
-        decks = {}
-        for player in (self.player_a, self.player_b):
-            deck = self._submit_deck(player, match_id)
-            decks[player.user_id] = deck[::-1]  # reverse for pop()
+        p1.last_match_id = p2.last_match_id = match_id
 
-        # Play a single round to exercise move submission
-        round_number = self._current_round(match_id) or 1
-        self._play_round(match_id, round_number, decks)
+        # Dequeue attempt after match (TooLate scenario)
+        if token1:
+            self._dequeue(p1, token1, name_suffix="too_late")
 
-        # Fetch match snapshots
-        self.client.get(
-            _service_url("game_engine", f"/matches/{match_id}"),
-            name="game_engine_match",
-            headers=self._auth_headers(self.player_a),
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
-        )
-        self.client.get(
-            _service_url("game_engine", f"/matches/{match_id}/history"),
-            name="game_engine_match_history",
-            headers=self._auth_headers(self.player_a),
-            verify=VERIFY_TLS,
-            timeout=REQUEST_TIMEOUT,
+        # Deck submissions
+        self._submit_deck(match_id, p1, DECK1)
+        self._submit_deck(match_id, p2, DECK2)
+
+        # Current round status before moves
+        self._request(
+            "GET",
+            f"/matches/{match_id}/round",
+            player=p1,
+            name="game_engine_round_status_start",
         )
 
-        # Clean queue state for future runs
-        for player in (self.player_a, self.player_b):
-            self.client.post(
-                _service_url("matchmaking", "/dequeue"),
-                name="matchmaking_dequeue",
-                headers=self._auth_headers(player),
-                verify=VERIFY_TLS,
-                timeout=REQUEST_TIMEOUT,
+        # Five rounds of moves (mirrors integration deck order)
+        for idx, (c1, c2) in enumerate(zip(DECK1, DECK2), start=1):
+            self._submit_move(match_id, p1, idx, c1)
+            self._submit_move(match_id, p2, idx, c2)
+            gevent.sleep(0.1)
+            self._request(
+                "GET",
+                f"/matches/{match_id}/history",
+                player=p1,
+                name=f"game_engine_history_after_round_{idx}",
             )
+
+        # Final match status and history
+        self._request(
+            "GET",
+            f"/matches/{match_id}",
+            player=p1,
+            name="game_engine_match_final",
+        )
+        self._request(
+            "GET",
+            f"/matches/{match_id}/history",
+            player=p1,
+            name="game_engine_history_final",
+        )
+        self._request(
+            "GET",
+            f"/matches/history/{p1.user_id}?status=finished&limit=5",
+            player=p1,
+            name="game_engine_player_history_finished",
+        )
+        self._request(
+            "GET",
+            "/leaderboard?limit=10",
+            player=p1,
+            name="game_engine_leaderboard",
+        )
+
+        # Refresh token to keep sessions alive
+        self._refresh_token(p1)
+
+    # ---- Matchmaking / engine helpers ----
+
+    def _enqueue(self, player: PlayerCtx, name_suffix: str = "enqueue") -> Tuple[Optional[str], Optional[int]]:
+        resp = self._request(
+            "POST",
+            "/enqueue",
+            player=player,
+            name=f"matchmaking_{name_suffix}",
+        )
+        payload = self._safe_json(resp)
+        token = payload.get("queue_token")
+        player.last_queue_token = token or player.last_queue_token
+        match_id = payload.get("match_id")
+        return token, match_id
+
+    def _status_poll(self, player: PlayerCtx, token: Optional[str], max_attempts: Optional[int] = None) -> Optional[int]:
+        attempts = max_attempts or MATCH_POLL_RETRIES
+        for _ in range(attempts):
+            resp = self._request(
+                "GET",
+                "/status",
+                player=player,
+                params={"token": token},
+                name="matchmaking_status",
+            )
+            payload = self._safe_json(resp)
+            if payload.get("status") == "Matched":
+                return payload.get("match_id")
+            gevent.sleep(MATCH_POLL_INTERVAL)
+        return None
+
+    def _dequeue(self, player: PlayerCtx, token: str, name_suffix: str = "dequeue") -> None:
+        self._request(
+            "POST",
+            "/dequeue",
+            player=player,
+            json={"token": token},
+            name=f"matchmaking_{name_suffix}",
+        )
+
+    def _submit_deck(self, match_id: int, player: PlayerCtx, cards: List[int]) -> None:
+        self._request(
+            "POST",
+            f"/matches/{match_id}/deck",
+            player=player,
+            json={"data": cards},
+            name=f"game_engine_deck_{player.username}",
+        )
+
+    def _submit_move(self, match_id: int, player: PlayerCtx, round_number: int, card_id: int) -> None:
+        self._request(
+            "POST",
+            f"/matches/{match_id}/moves/{round_number}",
+            player=player,
+            json={"card_id": card_id},
+            name=f"game_engine_move_r{round_number}_{player.username}",
+        )

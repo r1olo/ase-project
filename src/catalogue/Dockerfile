@@ -18,4 +18,5 @@ COPY assets/cards.json /app/assets/cards.json
 
 EXPOSE 5000
 
-CMD ["flask", "--app=catalogue.app", "run", "--cert=/run/secrets/catalogue.crt", "--key=/run/secrets/catalogue.key", "--host=0.0.0.0", "--port=5000"]
+#CMD ["flask", "--app=catalogue.app", "run", "--cert=/run/secrets/catalogue.crt", "--key=/run/secrets/catalogue.key", "--host=0.0.0.0", "--port=5000"]
+CMD ["gunicorn", "--workers=4", "--threads=8", "--bind=0.0.0.0:5000", "--certfile=/run/secrets/catalogue.crt", "--keyfile=/run/secrets/catalogue.key", "catalogue.app:create_app()"]

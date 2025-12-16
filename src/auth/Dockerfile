@@ -15,4 +15,5 @@ COPY src/auth /app/auth
 
 EXPOSE 5000
 
-CMD ["flask", "--app=auth.app", "run", "--cert=/run/secrets/auth.crt", "--key=/run/secrets/auth.key", "--host=0.0.0.0", "--port=5000"]
+#CMD ["flask", "--app=auth.app", "run", "--cert=/run/secrets/auth.crt", "--key=/run/secrets/auth.key", "--host=0.0.0.0", "--port=5000"]
+CMD ["gunicorn", "--workers=4", "--threads=8", "--bind=0.0.0.0:5000", "--certfile=/run/secrets/auth.crt", "--keyfile=/run/secrets/auth.key", "auth.app:create_app()"]
