@@ -49,7 +49,13 @@ The numbering as well as the headings used below corresponds to the indexes of t
     \item \api{GET /matches/<match\_id>} \\
         Gateway $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Matches} $\longrightarrow$ Game Engine $\longrightarrow$ Gateway
 
-    \item Know the turns.
+    \item
+    \begin{enumerate}
+        \item \api{GET /matches/<match\_id>} \\
+            Gateway $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Matches} $\longrightarrow$ Game Engine $\longrightarrow$ Gateway
+        \item \api{GET /matches/<match\_id>/history} \\
+            Gateway $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Matches} $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Rounds} $\longrightarrow$ Game Engine $\longrightarrow$ Gateway
+    \end{enumerate}
 
     \item \api{GET /matches/<match\_id>} \\
         Gateway $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Matches} $\longrightarrow$ Game Engine $\longrightarrow$ Gateway
