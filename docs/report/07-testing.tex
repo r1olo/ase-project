@@ -1,40 +1,24 @@
-\section{Testing Strategy}
-To guarantee the robustness and reliability of the microservices architecture, we adopted a multi-layered testing strategy. This approach ensures that individual components function correctly in isolation before verifying their interaction within the distributed system.
+\FloatBarrier\section{Testing}\label{sec:testing}
 
 \subsection{Unit Testing}
-Unit tests focus on the internal logic of each microservice. They are implemented using the \textbf{Pytest} framework and are located in the \texttt{tests/} directory.
-\begin{itemize}
-    \item \textbf{Implementation:} We utilize \texttt{pytest} fixtures (defined in \texttt{tests/conftest.py}) to initialize Flask application contexts and test clients (e.g., \texttt{auth\_client}, \texttt{catalogue\_client}).
-    \item \textbf{White-box Verification:} Unlike standard black-box API tests, these tests verify the internal state changes. For instance, in the Authentication service (\texttt{tests/test\_auth.py}), we explicitly assert the presence of cryptographic keys in Redis and the correct setting of \texttt{HttpOnly} cookies after login.
-    \item \textbf{Mocking:} Dependencies such as database sessions or external API calls are managed via isolated test databases or mocked where necessary to ensure speed and determinism.
-\end{itemize}
+Unit tests are implemented using \textbf{Pytest}, initializing Flask application contexts and test clients, and are located in the \texttt{tests/} directory.
+
+Dependencies such as database sessions or external API calls are managed via isolated test databases or mocked where necessary to ensure speed and determinism.
 
 \subsection{Isolation Testing}
-Isolation tests treat each microservice as a "black box" container to verify its behavior in a production-like environment, ensuring it correctly handles network requests and database interactions.
-\begin{itemize}
-    \item \textbf{Containerization:} Specific Docker Compose files (e.g., \texttt{tests/compose/auth-isolation.yml}, \texttt{catalogue-isolation.yml}) are used to spin up the single service along with its backing services (PostgreSQL, Redis) in a clean environment.
-    \item \textbf{API Verification:} We use \textbf{Newman} (the command-line collection runner for Postman) to execute comprehensive API test suites defined in \texttt{docs/postman/}. These tests validate the OpenAPI contract, checking status codes, headers, and JSON schemas against the running container.
-\end{itemize}
+Isolation tests are designed with specific Docker Compose files, and are located in the\newline\mbox{\texttt{tests/compose}} directory.
+
+We use \textbf{Newman} to execute comprehensive API test suites defined in \mbox{\texttt{docs/postman/}}. These tests validate the OpenAPI contract, checking status codes, headers, and JSON schemas against the running container.
+
+In order to test Game Engine Service, we mock the communication with the Card Catalogue Service and avoid the communication with Players Service, so that it is possible to verify the correct behavior of the game logic without relying on the actual services.
 
 \subsection{System and Integration Testing}
-Once services are verified in isolation, we perform integration testing to ensure they communicate correctly.
-\begin{itemize}
-    \item \textbf{End-to-End Scenarios:} A dedicated Postman collection (\texttt{docs/postman/integration.postman\_collection.json}) orchestrates complex user flows that span multiple services, such as a user registering (Auth), buying a card (Catalogue), and joining a match (Matchmaking).
-    \item \textbf{Health Checks:} Scripts like \texttt{scripts/verify\_health.sh} are used to ensure all services in the orchestration are responsive and healthy before traffic is simulated.
-\end{itemize}
+A dedicated Postman collection, located in \mbox{\texttt{docs/\allowbreak\_postman/}}, orchestrates complex user flows that span multiple services, such as a user registering and logging (Authentication Service), player profile creation (Player Service), joining and playing a match (Matchmaking Service and Game Engine Service).
 
-\subsection{Security and Static Analysis}
-Security is integrated into the testing lifecycle via the Continuous Integration pipeline.
-\begin{itemize}
-    \item \textbf{SAST:} We use \textbf{Bandit} to analyze the Python source code for common security issues (e.g., hardcoded secrets, unsafe imports).
-    \item \textbf{Dependency Scanning:} \textbf{Pip-audit} checks \texttt{requirements.txt} for known vulnerabilities in Python libraries.
-    \item \textbf{Container Scanning:} We employ \textbf{Trivy} to scan the built Docker images for OS-level vulnerabilities (CVEs) before they are deployed.
-\end{itemize}
-
-\subsection{Continuous Integration (CI)}
-The testing process is fully automated via \textbf{GitHub Actions} (\texttt{.github/workflows/ci.yml}). The pipeline defines specific jobs for each testing stage:
+\paragraph{Continuous Integration}~\\
+The testing process is fully automated via \textbf{GitHub Actions}. The pipeline defines specific jobs for each testing stage:
 \begin{enumerate}
-    \item \textbf{unit-tests:} Runs the Pytest suite on the codebase.
-    \item \textbf{*-isolation-tests:} Builds individual service images, spins them up, and runs Newman.
-    \item \textbf{static-analysis \& build-and-scan:} Executes security audits and vulnerability scans.
+    \item \textbf{unit-tests}: Runs the Pytest suite on the codebase.
+    \item \textbf{*-isolation-tests}: Builds individual service images, spins them up, and runs Newman.
+    \item \textbf{static-analysis \& build-and-scan}: Executes security audits and vulnerability scans.
 \end{enumerate}
