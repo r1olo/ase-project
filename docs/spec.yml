@@ -1050,13 +1050,17 @@ paths:
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
           $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/GameEngine.InternalServerError'
 
   /matches/history/{player_id}:
     get:
       tags: [Game Engine]
       summary: Get match history for a specific player
+      description: |
+        Returns match history with statistics for a player. 
+        Requires friendship with the player if requesting someone else's history.
+        Status filter accepts uppercase enum values: SETUP, IN_PROGRESS, FINISHED.
       security:
         - bearerAuth: []
       parameters:
@@ -1068,22 +1072,54 @@ paths:
           required: false
           schema:
             type: string
-            enum: [setup, in_progress, finished]
-          description: Filter by match status
+            enum: [SETUP, IN_PROGRESS, FINISHED]
+          description: Filter by match status (uppercase enum values)
       responses:
         '200':
-          description: Match history
+          description: Player match history with statistics
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  data:
+                  player_id: 
+                    type: integer
+                    description: ID of the player whose history is returned
+                  matches:
                     type: array
                     items:
-                      $ref: '#/components/schemas/Match'
+                      allOf:
+                        - $ref: '#/components/schemas/Match'
+                        - type: object
+                          properties:
+                            player_won:
+                              type: boolean
+                              nullable: true
+                              description: True if player won, false if lost, null if not finished
+                            player_was_player1:
+                              type: boolean
+                              description: True if player was player1 in this match
+                            opponent_id:
+                              type: integer
+                              description: ID of the opponent
+                            player_score:
+                              type: integer
+                              description: This player's score
+                            opponent_score:
+                              type: integer
+                              description: Opponent's score
+                  summary:
+                    $ref: '#/components/schemas/MatchStatistics'
+                  pagination:
+                    type: object
+                    properties:
+                      limit: { type: integer }
+                      offset: { type: integer }
+                      count: { type: integer, description: "Number of matches in this response" }
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
+        '403':
+          $ref: '#/components/responses/GameEngine.PermissionDenied'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
@@ -1094,36 +1130,47 @@ paths:
   /leaderboard:
     get:
       tags: [Game Engine]
-      summary: Get leaderboard
+      summary: Get global leaderboard
+      description: |
+        Returns top players ranked by number of wins.
+        Maximum limit is 500 players.
       security:
         - bearerAuth: []
       parameters:
-        - $ref: '#/components/parameters/Limit'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            maximum: 500
+          description: Number of players to return (max 500)
         - $ref: '#/components/parameters/Offset'
       responses:
         '200':
-          description: Leaderboard
+          description: Leaderboard with player statistics
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  data:
+                  leaderboard:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        player_id: { type: integer }
-                        username: { type: string }
-                        wins: { type: integer }
+                      $ref: '#/components/schemas/LeaderboardEntry'
+                  limit: 
+                    type: integer
+                    description: Limit applied to this query
+                  offset: 
+                    type: integer
+                    description: Offset applied to this query
+                  count: 
+                    type: integer
+                    description: Number of entries in this response
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
-        '404':
-          $ref: '#/components/responses/GameEngine.NotFound'
         '500':
           $ref: '#/components/responses/GameEngine.InternalServerError'
-        '503':
-          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
   # card catalogue
   /cards:
