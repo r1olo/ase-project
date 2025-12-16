@@ -28,6 +28,8 @@ class Config:
     PLAYERS_URL = os.getenv("PLAYERS_URL", "https://players:5000")
     PLAYERS_REQUEST_TIMEOUT = float(os.getenv("PLAYERS_REQUEST_TIMEOUT", "3"))
 
+    # cert verification?
+    GAME_ENGINE_ENABLE_VERIFY = _bool_env("GAME_ENGINE_ENABLE_VERIFY", False)
 
     def __init__(self):
         # init jwt keys or fallback secret
@@ -53,7 +55,7 @@ class Config:
             "GAME_ENGINE_JWT_SECRET", os.getenv("SECRET_KEY", "supersecretkey")
         )
 
-class TestConfig():
+class TestConfig:
     # JWT
     JWT_SECRET_KEY = "test-secret" # nosec
     JWT_COOKIE_SECURE = False
@@ -61,3 +63,6 @@ class TestConfig():
 
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     TESTING = True
+
+    # no cert verification in testing
+    GAME_ENGINE_ENABLE_VERIFY = False

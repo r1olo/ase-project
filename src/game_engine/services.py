@@ -255,7 +255,8 @@ class MatchService:
             response = requests.post(
                 f"{players_url}/internal/players/friendship/validation",
                 json={"player1_id": player1_id, "player2_id": player2_id},
-                timeout=timeout
+                timeout=timeout,
+                verify=current_app.config.get("GAME_ENGINE_ENABLE_VERIFY", False)
             )
             
             if response.status_code != 200:
@@ -389,7 +390,8 @@ class MatchService:
             response = requests.post(
                 f"{base_url}/internal/cards/validation",
                 json=payload,
-                timeout=timeout
+                timeout=timeout,
+                verify=current_app.config.get("GAME_ENGINE_ENABLE_VERIFY", False)
             )
         except requests.RequestException as exc:
             current_app.logger.error(f"Failed to reach catalogue service: {exc}")

@@ -898,7 +898,30 @@
 			"response": []
 		},
 		{
-			"name": "7. Enqueue User [1]",
+			"name": "7. Enqueue User [1] (first pass)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"User1 queued and waiting\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+							"    pm.expect(data.status).to.eql(\"Waiting\");",
+							"    pm.expect(data).to.have.property(\"queue_token\");",
+							"});",
+							"",
+							"pm.collectionVariables.set(\"queue_token1\", data.queue_token);",
+							"pm.collectionVariables.unset(\"match_id1\");",
+							"pm.collectionVariables.set(\"queue_status1\", data.status);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -925,7 +948,191 @@
 			"response": []
 		},
 		{
-			"name": "7. Enqueue User [2]",
+			"name": "8. Queue Status User [1] (Waiting)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Queue status shows waiting\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"Waiting\");",
+							"    pm.expect(data.queue_token).to.eql(pm.collectionVariables.get(\"queue_token1\"));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/status?token={{queue_token1}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"status"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "{{queue_token1}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "9. Dequeue User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"User1 dequeued\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"Removed\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"token\": \"{{queue_token1}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/dequeue",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"dequeue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "10. Re-Enqueue User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"User1 re-queued\", function () {",
+							"    pm.expect(pm.response.code).to.be.oneOf([200, 202]);",
+							"    pm.expect(data.status).to.eql(\"Waiting\");",
+							"    pm.expect(data.queue_token).to.be.a(\"string\");",
+							"});",
+							"",
+							"pm.collectionVariables.set(\"queue_token1\", data.queue_token);",
+							"pm.collectionVariables.set(\"queue_status1\", data.status);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/enqueue",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"enqueue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "11. Enqueue User [2] (Match)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"User2 matched\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"Matched\");",
+							"    pm.expect(data).to.have.property(\"match_id\");",
+							"});",
+							"",
+							"pm.collectionVariables.set(\"queue_token2\", data.queue_token);",
+							"pm.collectionVariables.set(\"match_id2\", data.match_id);",
+							"pm.collectionVariables.set(\"match_id1\", data.match_id);",
+							"pm.collectionVariables.set(\"opponent_id2\", data.opponent_id);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
 			"request": {
 				"auth": {
 					"type": "bearer",
@@ -946,6 +1153,1452 @@
 					],
 					"path": [
 						"enqueue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "12. Queue Status User [1] (Matched)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"User1 sees match\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"Matched\");",
+							"    pm.expect(data.match_id).to.eql(Number(pm.collectionVariables.get(\"match_id2\")));",
+							"    pm.expect(data.opponent_id).to.eql(pm.collectionVariables.get(\"user_id2\"));",
+							"});",
+							"",
+							"pm.collectionVariables.set(\"match_id1\", data.match_id);",
+							"pm.collectionVariables.set(\"opponent_id1\", data.opponent_id);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/status?token={{queue_token1}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"status"
+					],
+					"query": [
+						{
+							"key": "token",
+							"value": "{{queue_token1}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "13. Dequeue User [1] Too Late",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Cannot dequeue after match\", function () {",
+							"    pm.response.to.have.status(409);",
+							"    pm.expect(data.status).to.eql(\"TooLate\");",
+							"    pm.expect(data.match_id).to.eql(Number(pm.collectionVariables.get(\"match_id1\")));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"token\": \"{{queue_token1}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/dequeue",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"dequeue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "14. Submit Deck User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Deck accepted for user1\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"match_id1\")));",
+							"    pm.expect(data.status).to.eql(\"SETUP\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {{deck1_cards}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/deck",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"deck"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "15. Submit Deck User [2]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Deck accepted for user2 and match started\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"match_id2\")));",
+							"    pm.expect(data.status).to.eql(\"IN_PROGRESS\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"data\": {{deck2_cards}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/deck",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"deck"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "16. Current Round Status (Start)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Round 1 created\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.current_round_number).to.eql(1);",
+							"    pm.expect(data.round_status).to.eql(\"WAITING_FOR_BOTH_PLAYERS\");",
+							"});",
+							"pm.collectionVariables.set(\"round_category\", data.current_category);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/round",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"round"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "17. Move Round 1 - User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"First move queued\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"    pm.expect(data.round.round_number).to.eql(1);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r1}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/moves/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"moves",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "18. Move Round 1 - User [2]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Round 1 processed\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(data.next_round).to.eql(2);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r1}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/moves/1",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"moves",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "19. Match History After Round 1",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"History shows processed round and next one\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.rounds.length).to.be.at.least(2);",
+							"    pm.expect(data.rounds[0].round_number).to.eql(1);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "20. Move Round 2 - User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Second round move accepted\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(pm.response.json().status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r2}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/moves/2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"moves",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "21. Move Round 2 - User [2]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Round 2 processed\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(data.next_round).to.eql(3);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r2}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/moves/2",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"moves",
+						"2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "22. Move Round 3 - User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Round 3 move accepted\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(pm.response.json().status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r3}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/moves/3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"moves",
+						"3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "23. Move Round 3 - User [2]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Round 3 processed\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(data.next_round).to.eql(4);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r3}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/moves/3",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"moves",
+						"3"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "24. Move Round 4 - User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Round 4 move accepted\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(pm.response.json().status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r4}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/moves/4",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"moves",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "25. Move Round 4 - User [2]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Round 4 processed\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(data.next_round).to.eql(5);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r4}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/moves/4",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"moves",
+						"4"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "26. Move Round 5 - User [1]",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Final round move accepted\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(pm.response.json().status).to.eql(\"WAITING_FOR_OPPONENT\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p1_move_r5}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/moves/5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"moves",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "27. Move Round 5 - User [2] (Finish)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Match finished after round 5\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ROUND_PROCESSED\");",
+							"    pm.expect(data.game_status).to.eql(\"FINISHED\");",
+							"    pm.expect(data.next_round).to.be.null;",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token2}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"card_id\": {{p2_move_r5}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id2}}/moves/5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id2}}",
+						"moves",
+						"5"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "28. Match Status Final",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Match is finished\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"FINISHED\");",
+							"    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"match_id1\")));",
+							"});",
+							"pm.collectionVariables.set(\"winner_id\", data.winner_id);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "29. Full Match History Final",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"All 5 rounds recorded\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.rounds.length).to.eql(5);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/matches/{{match_id1}}/history",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"{{match_id1}}",
+						"history"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "30. Player [1] History",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Player history available\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.player_id).to.eql(Number(pm.collectionVariables.get(\"user_id1\")));",
+							"    pm.expect(data.matches.length).to.be.at.least(1);",
+							"    pm.expect(data.summary.total_matches).to.be.at.least(1);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/matches/history/{{user_id1}}?status=finished&limit=5",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"matches",
+						"history",
+						"{{user_id1}}"
+					],
+					"query": [
+						{
+							"key": "status",
+							"value": "finished"
+						},
+						{
+							"key": "limit",
+							"value": "5"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "31. Leaderboard",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Leaderboard populated\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.leaderboard).to.be.an(\"array\");",
+							"    pm.expect(data.leaderboard.length).to.be.at.least(1);",
+							"});",
+							"pm.test(\"Players appear in leaderboard\", function () {",
+							"    const ids = data.leaderboard.map(row => row.player_id);",
+							"    pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"user_id1\")));",
+							"    pm.expect(ids).to.include(Number(pm.collectionVariables.get(\"user_id2\")));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/leaderboard?limit=10",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"leaderboard"
+					],
+					"query": [
+						{
+							"key": "limit",
+							"value": "10"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "32. Catalogue Health",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"pm.test(\"Catalogue health\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.status).to.eql(\"ok\");",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/health",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"health"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "33. Catalogue Get All Cards",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Fetched catalogue\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.data).to.be.an(\"array\");",
+							"    pm.expect(data.data.length).to.be.above(0);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/cards",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"cards"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "34. Catalogue Get Single Card",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Single card found\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data).to.have.property(\"name\");",
+							"    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"catalogue_card_id\")));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/cards/{{catalogue_card_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"cards",
+						"{{catalogue_card_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "35. Catalogue Get Missing Card",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Missing card returns 404\", function () {",
+							"    pm.response.to.have.status(404);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/cards/{{missing_card_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"cards",
+						"{{missing_card_id}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "36. Catalogue Validate Deck Success",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"const data = pm.response.json();",
+							"",
+							"pm.test(\"Valid deck passes\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    pm.expect(data.data.length).to.eql(pm.collectionVariables.get(\"deck1_cards\").split(',').length);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"data\": {{deck1_cards}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/internal/cards/validation",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"internal",
+						"cards",
+						"validation"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "37. Catalogue Validate Deck Failure",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Invalid deck rejected\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"data\": {{invalid_deck}}\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/internal/cards/validation",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"internal",
+						"cards",
+						"validation"
 					]
 				}
 			},
@@ -1012,6 +2665,82 @@
 		{
 			"key": "region2",
 			"value": ""
+		},
+		{
+			"key": "queue_token1",
+			"value": ""
+		},
+		{
+			"key": "queue_token2",
+			"value": ""
+		},
+		{
+			"key": "match_id1",
+			"value": ""
+		},
+		{
+			"key": "match_id2",
+			"value": ""
+		},
+		{
+			"key": "deck1_cards",
+			"value": "[8, 9, 12, 16, 7]"
+		},
+		{
+			"key": "deck2_cards",
+			"value": "[4, 15, 13, 14, 5]"
+		},
+		{
+			"key": "p1_move_r1",
+			"value": "8"
+		},
+		{
+			"key": "p1_move_r2",
+			"value": "9"
+		},
+		{
+			"key": "p1_move_r3",
+			"value": "12"
+		},
+		{
+			"key": "p1_move_r4",
+			"value": "16"
+		},
+		{
+			"key": "p1_move_r5",
+			"value": "7"
+		},
+		{
+			"key": "p2_move_r1",
+			"value": "4"
+		},
+		{
+			"key": "p2_move_r2",
+			"value": "15"
+		},
+		{
+			"key": "p2_move_r3",
+			"value": "13"
+		},
+		{
+			"key": "p2_move_r4",
+			"value": "14"
+		},
+		{
+			"key": "p2_move_r5",
+			"value": "5"
+		},
+		{
+			"key": "catalogue_card_id",
+			"value": "8"
+		},
+		{
+			"key": "missing_card_id",
+			"value": "99999"
+		},
+		{
+			"key": "invalid_deck",
+			"value": "[-1, -2, -3]"
 		}
 	]
 }
