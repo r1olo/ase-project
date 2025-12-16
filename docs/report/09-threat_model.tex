@@ -44,7 +44,82 @@ The possible attack surfaces identified in the architecture are:
 \end{itemize}
 
 \subsubsection*{External Attack Surfaces}
-The external surface is primarily defined by the \textbf{API Gateway (Nginx)} exposed on port 443, which acts as the single entry point for all traffic, handling TLS termination and routing to upstream services. It exposes the \textbf{Public API Endpoints}, including unauthenticated routes (\texttt{/login}, \texttt{/register}) accessible to anonymous actors, and authenticated routes (\texttt{/players}, \texttt{/matches}) which, despite requiring valid JWTs, remain susceptible to attacks from malicious registered users.
+(\texttt{/login}, \texttt{/register}, \texttt{/health}) 
 
 \subsubsection*{Internal Attack Surfaces}
-The internal surface encompasses privileged components accessible only within the trusted network, such as \textbf{Internal Service APIs} (e.g., \texttt{/internal/players/validation}) designed for inter-service communication. It includes \textbf{Backend Data Services} like PostgreSQL databases and Redis caches protected by Docker Secrets, and the \textbf{Infrastructure \& Deployment} layer (CI/CD pipelines), where access allows modification of source code and runtime configurations.
+(e.g., \texttt{/internal/players/validation})
+
+\subsection{Identify Trust Boundaries}
+
+\begin{itemize}
+    \item \textbf{TB1: External Network Boundary (Internet vs. API Gateway)} \\
+    \item \textbf{TB2: Application Boundary (Gateway vs. Microservices)} \\
+    \item \textbf{TB3: Persistence Boundary (Microservices vs. Databases)} \\
+    
+\end{itemize}
+
+\includegraphics[width=\textwidth]{boundaries.drawio.png}
+
+\subsection{Identify Threats (STRIDE)}
+
+\paragraph{S - Spoofing}
+\begin{itemize}
+    \item \textbf{T1: JWT Token Impersonation (Spoofing Identity)} \\
+    An attacker steals a valid access token (via XSS or network sniffing if TLS fails) or attempts to sign a forged token using a weak key, gaining access to authenticated endpoints like \texttt{/players/me} as the victim (Affects \textbf{A1}; Crosses \textbf{TB1}).
+\end{itemize}
+
+\paragraph{T - Tampering}
+\begin{itemize}
+    \item \textbf{T2: Game State Manipulation via API Injection} \\
+    A malicious user intercepts the API call to \texttt{/matches/\{mId\}/moves} and modifies the card ID or round parameters to play illegal moves or cards they do not own, compromising the match integrity (Affects \textbf{A3}, \textbf{A7}; Crosses \textbf{TB2}).
+    
+    \item \textbf{T3: Injection Attacks (SQL/NoSQL)} \\
+    Malicious payloads injected into input fields (e.g., username in \texttt{/players/search}) manipulate the backend database queries, potentially corrupting data (Affects \textbf{A3}, \textbf{A4}; Crosses \textbf{TB3}).
+\end{itemize}
+
+\paragraph{R - Repudiation}
+\begin{itemize}
+    \item \textbf{T4: Lack of Proof for Game Actions} \\
+    If the Game Engine does not log every move with a timestamp and user signature, a player could deny having made a losing move or claim the server glitched, and there would be no audit trail to verify the claim (Affects \textbf{A6}, \textbf{A7}).
+\end{itemize}
+
+\paragraph{I - Information Disclosure}
+\begin{itemize}
+    \item \textbf{T5: Insecure Direct Object Reference (IDOR) on Matches} \\
+    An authenticated user iterates through match IDs (e.g., \texttt{GET /matches/1234}) to view the state or cards of games they are not participating in, gaining an unfair advantage (Affects \textbf{A3}; Crosses \textbf{TB2}).
+    
+    \item \textbf{T6: Verbose Error Leakage} \\
+    The application returns stack traces or database errors (e.g., "IntegrityError") in the HTTP response body when an exception occurs, revealing internal structure or logic to an attacker (Affects \textbf{A2}, \textbf{A5}; Crosses \textbf{TB1}).
+\end{itemize}
+
+\paragraph{D - Denial of Service}
+\begin{itemize}
+    \item \textbf{T7: Matchmaking Queue Saturation} \\
+    An attacker uses a botnet to flood the \texttt{POST /enqueue} endpoint with valid tokens, filling the Redis queue and preventing legitimate players from finding a match (Affects \textbf{A5}; Crosses \textbf{TB2}).
+    
+    \item \textbf{T8: Regex Denial of Service (ReDoS) on Username} \\
+    Sending a specially crafted, extremely long username to \texttt{/register} triggers catastrophic backtracking in the validation regex, freezing the CPU of the Auth service (Affects \textbf{A5}; Crosses \textbf{TB2}).
+\end{itemize}
+
+\paragraph{E - Elevation of Privilege}
+\begin{itemize}
+    \item \textbf{T9: Bypassing Gateway to Access Internal APIs} \\
+    If the internal network ports (e.g., 5000) are accidentally exposed or if a container is compromised, an attacker could call \texttt{/internal/players/validation} directly, bypassing the authentication checks enforced by the Gateway (Affects \textbf{A1}, \textbf{A5}; Crosses \textbf{TB2}).
+\end{itemize}
+
+\subsection{Mitigate Threats}
+To address the identified threats, the following mitigation strategies have been implemented or designed into the system architecture:
+
+\begin{itemize}
+    \item \textbf{M1: Cryptographic Session Verification (Addresses T1)} \\
+    All authenticated endpoints require a valid RS256-signed JWT. The API Gateway and microservices enforce signature verification using the public key mounted via Docker Secrets, preventing token forgery or tampering.
+
+    \item \textbf{M2: Strict Input \& Logic Validation (Addresses T2, T3, T8)} \\
+    Input data is strictly validated against the OpenAPI schema (types, formats, and patterns) before processing. Furthermore, the Game Engine implements server-side logic to verify card ownership and move legality, ensuring that client-side manipulation cannot corrupt the game state.
+
+    \item \textbf{M3: Network Isolation \& Access Control (Addresses T5, T9)} \\
+    Internal microservices and databases are isolated within a private Docker network, inaccessible from the public internet. Direct access is blocked by the API Gateway, which acts as the sole entry point, while ownership checks (e.g., matching \texttt{user\_id} in the token with the requested resource) mitigate IDOR attacks.
+
+    \item \textbf{M4: Asynchronous Processing \& Generic Errors (Addresses T6, T7)} \\
+    To mitigate Denial of Service, resource-intensive operations like matchmaking are offloaded to Redis queues, decoupling request intake from processing. Additionally, the application is configured to return generic error messages to clients, suppressing stack traces to prevent information leakage.
+\end{itemize}
