@@ -29,19 +29,15 @@ The distributed system architecture is based on a microservices-oriented decoupl
 The architectural design splits data and functionalities among microservices, ensuring that each component serves as the authoritative owner of the data most relevant to its specific domain logic.
 \begin{itemize}
     \item \textbf{Authentication Service} manages \textit{Users Database}. Since this service handles authentication and authorization logic, it must own the persistent user profiles to enforce security and access control centrally.
-    
-    \item \textbf{Players Service} manages \textit{Players Database}. Since this service handles authentication and friendship logic, it must own the persistent user profiles and relationship metadata to enforce security and access control centrally.
-    
-    \item \textbf{Card Catalogue} maintains the \textit{Static Game Definitions}. As the data describing cards and regions is reference-heavy and rarely changes, it is decoupled into this service to act as a read-optimized Single Source of Truth for the entire system.
-    
-    \item \textbf{Matchmaking Service} controls the \textit{Ephemeral Queue State}. This service owns the temporary data regarding active tickets and waiting players because this state is highly volatile and only relevant until a match is successfully formed.
-    
-    \item \textbf{Game Engine} handles the \textit{Real-Time Match State}. It manages the dynamic data of ongoing games (e.g., turns, scores, board status) in memory, as this data requires high-frequency updates and low-latency access that would be inefficient to store in a standard persistent database.
+    \item \textbf{Players Service} manages \textit{Players Database}. As this service is responsible for all information related to players, it must own the persistent player profiles and friendship relations to ensure data integrity.
+    \item \textbf{Card Catalogue} manages the \textit{Cards Database}. This service acts as interface to the Cards Database and serves as the authoritative source for card data for the entire system, ensuring consistency.
+    \item \textbf{Matchmaking Service} manages the \textit{Queue Database}. This service owns the temporary data regarding the players currently in the queue. This state is highly volatile and only relevant until a match is successfully formed.
+    \item \textbf{Game Engine} manages the \textit{Matches Database} and \textit{Rounds Database}. This service manages the persistent data related to active and completed matches, as well as individual rounds within those matches, since it is responsible for the core game logic and state transitions.
 \end{itemize}
 
 \subsection{Inter-Service Communication}
-The key service-to-service dependencies are justified as follows.\begin{itemize}
-    \item \textbf{API Gateway} to Microservices: API Gateway acts as the entry point for the system, handling request routing to all internal microservices, load balancing, and enforcing security policies.
+The key service-to-service dependencies are justified as follows.
+\begin{itemize}
     \item \textbf{Matchmaking} to \textbf{Players}: Matchmaking Service is connected to Players Service in order to ensure data integrity, by validating that the requesting user possesses a player profile. This prevents unauthorized users from entering the queue and start a game.
     \item \textbf{Matchmaking} to \textbf{Game Engine}: Matchmaking Service is connected to Game Engine Service in order to orchestrate the transition from the queue to an active game session by triggering a match initialization, after pairing two enqueued players.
     \item \textbf{Game Engine} to \textbf{Players}: Game Engine Service is connected to Players Service in order to validate permissions. This ensures match history is only shared between players with a friendship relation, thereby enforcing data privacy.
