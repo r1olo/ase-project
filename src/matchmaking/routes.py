@@ -362,25 +362,26 @@ def status():
 def dequeue():
     conn = _redis()
     user_id = str(get_jwt_identity())
-    token_in_query = request.args.get("token")
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
 
-    if not token_in_query:
+    if token is None:
         return jsonify({"status": ERROR, "msg": "Token required"}), 400
 
-    result = _dequeue_atomic(conn, _queue_key(), _active_key(), user_id, token_in_query)
+    result = _dequeue_atomic(conn, _queue_key(), _active_key(), user_id, token)
 
     if result == "invalid_token":
         return jsonify({"status": ERROR, "msg": "Invalid token"}), 404
     
     if result == "too_late":
-        payload_raw = conn.get(_token_key(token_in_query))
+        payload_raw = conn.get(_token_key(token))
         payload = _load_status(payload_raw) or {}
         return jsonify({
             "status": "TooLate",
             "msg": "Match already found",
             "match_id": payload.get("match_id"),
             "opponent_id": payload.get("opponent_id"),
-            "queue_token": token_in_query
+            "queue_token": token
         }), 409
 
     return jsonify({"status": "Removed"}), 200
