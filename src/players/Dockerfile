@@ -15,5 +15,4 @@ COPY src/common /app/common
 
 EXPOSE 5000
 
-#CMD ["flask", "--app=players.app", "run", "--cert=/run/secrets/players.crt", "--key=/run/secrets/players.key", "--host=0.0.0.0", "--port=5000"]
-CMD ["gunicorn", "--workers=4", "--threads=8", "--bind=0.0.0.0:5000", "--certfile=/run/secrets/players.crt", "--keyfile=/run/secrets/players.key", "players.app:create_app()"]
+CMD ["flask", "--app=players.app", "run", "--cert=/run/secrets/players.crt", "--key=/run/secrets/players.key", "--host=0.0.0.0", "--port=5000"]

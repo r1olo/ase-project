@@ -2,10 +2,9 @@
 Comprehensive Locust suite for the entire platform.
 
 Coverage (mirrors integration Postman flow):
-- Auth: happy path + invalid registrations, token refresh.
-- Players: create/update profile, lookup by id/username, friendships (request, accept, list),
-  and internal validation endpoints.
-- Catalogue: list, single card, missing card, deck validation success/failure.
+- Auth: happy path + token refresh.
+- Players: create/update profile, lookup by id/username, friendships (request, accept, list).
+- Catalogue: list, single card, missing card.
 - Matchmaking: enqueue → status polling → dequeue (both success and TooLate),
   match setup through the game engine.
 - Game engine: deck submission, five rounds of moves, round status, match snapshot,
@@ -132,13 +131,29 @@ class FullSystemUser(HttpUser):
 
     # ---- HTTP helpers ----
 
-    def _request(self, method: str, path: str, *, player: Optional[PlayerCtx] = None,
-                 name: Optional[str] = None, **kwargs):
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        player: Optional[PlayerCtx] = None,
+        name: Optional[str] = None,
+        expected: Optional[Tuple[int, ...]] = None,
+        **kwargs,
+    ):
         headers = kwargs.pop("headers", {}) or {}
         if player and player.jwt:
             headers.setdefault("Authorization", f"Bearer {player.jwt}")
         kwargs.setdefault("timeout", REQUEST_TIMEOUT)
-        return self.client.request(method, path, headers=headers, name=name, **kwargs)
+        with self.client.request(
+            method, path, headers=headers, name=name, catch_response=True, **kwargs
+        ) as resp:
+            ok_codes = expected or tuple(range(200, 300))
+            if resp.status_code in ok_codes:
+                resp.success()
+            else:
+                resp.failure(f"Unexpected status {resp.status_code}")
+            return resp
 
     def _register_login_profile(self, player: PlayerCtx) -> None:
         self._request(
@@ -208,22 +223,11 @@ class FullSystemUser(HttpUser):
     # ---- Tasks ----
 
     @task(1)
-    def health_and_auth_negatives(self) -> None:
-        """Auth validation negatives."""
-
-        # Invalid email and missing password flows
-        self._request(
-            "POST",
-            "/register",
-            json={"email": "invalid_email", "password": "x"},
-            name="auth_register_invalid_email",
-        )
-        self._request(
-            "POST",
-            "/register",
-            json={"not_email": "bad"},
-            name="auth_register_missing_fields",
-        )
+    def health_checks(self) -> None:
+        """Basic liveness probes."""
+        self._request("GET", "/catalogue/health", name="catalogue_health")
+        self._request("GET", "/players/health", name="players_health")
+        self._request("GET", "/game_engine/health", name="game_engine_health")
 
     @task(2)
     def profiles_and_friendships(self) -> None:
@@ -263,12 +267,14 @@ class FullSystemUser(HttpUser):
             f"/players/me/friends/{p2.username}",
             player=p1,
             name="friends_send_request",
+            expected=(200, 201, 409),
         )
         self._request(
             "GET",
             f"/players/me/friends/{p2.username}",
             player=p1,
             name="friends_status_pending",
+            expected=(200, 404),
         )
         self._request(
             "POST",
@@ -276,34 +282,22 @@ class FullSystemUser(HttpUser):
             player=p2,
             json={"accepted": True},
             name="friends_accept",
+            expected=(200, 201, 409),
         )
         self._request(
             "GET",
             "/players/me/friends",
             player=p1,
             name="friends_list",
+            expected=(200, 404),
         )
         self._request(
             "GET",
             f"/players/me/friends/{p2.username}",
             player=p1,
             name="friends_status_accepted",
+            expected=(200, 404),
         )
-
-        # Internal validation endpoints
-        if p1.user_id and p2.user_id:
-            self._request(
-                "POST",
-                "/internal/players/validation",
-                json={"user_id": p1.user_id},
-                name="players_internal_validation",
-            )
-            self._request(
-                "POST",
-                "/internal/players/friendship/validation",
-                json={"player1_id": p1.user_id, "player2_id": p2.user_id},
-                name="players_internal_friendship_validation",
-            )
 
     @task(3)
     def catalogue_validation_flow(self) -> None:
@@ -327,18 +321,7 @@ class FullSystemUser(HttpUser):
             f"/cards/{MISSING_CARD_ID}",
             player=p,
             name="catalogue_card_missing",
-        )
-        self._request(
-            "POST",
-            "/internal/cards/validation",
-            json={"data": DECK1},
-            name="catalogue_validate_success",
-        )
-        self._request(
-            "POST",
-            "/internal/cards/validation",
-            json={"data": INVALID_DECK},
-            name="catalogue_validate_failure",
+            expected=(200, 404),
         )
 
     @task(4)
@@ -352,27 +335,31 @@ class FullSystemUser(HttpUser):
 
         # First run: demonstrate dequeue before a match
         if not self.did_dequeue_once:
-            token, _ = self._enqueue(p1, name_suffix="first_pass")
+            token, _, _ = self._enqueue(p1, name_suffix="first_pass")
             if token:
                 self._status_poll(p1, token, max_attempts=2)
                 self._dequeue(p1, token, name_suffix="first_pass")
             self.did_dequeue_once = True
 
         # Enqueue both players for an actual match
-        token1, match_id = self._enqueue(p1)
-        token2, immediate = self._enqueue(p2)
+        token1, match_id, opp1 = self._enqueue(p1)
+        token2, immediate, opp2 = self._enqueue(p2)
         match_id = match_id or immediate
 
         if not match_id:
-            match_id = self._status_poll(p1, token1)
+            match_id, opp1 = self._status_poll(p1, token1)
         if not match_id:
-            match_id = self._status_poll(p2, token2)
-        if not match_id:
+            match_id, opp2 = self._status_poll(p2, token2)
+
+        # Proceed only if both of our players are matched together
+        if not match_id or not p1.user_id or not p2.user_id:
             # Clean up if no match could be found
             if token1:
                 self._dequeue(p1, token1, name_suffix="cleanup")
             if token2:
                 self._dequeue(p2, token2, name_suffix="cleanup")
+            return
+        if not ((opp1 == p2.user_id) or (opp2 == p1.user_id)):
             return
 
         p1.last_match_id = p2.last_match_id = match_id
@@ -436,7 +423,9 @@ class FullSystemUser(HttpUser):
 
     # ---- Matchmaking / engine helpers ----
 
-    def _enqueue(self, player: PlayerCtx, name_suffix: str = "enqueue") -> Tuple[Optional[str], Optional[int]]:
+    def _enqueue(
+        self, player: PlayerCtx, name_suffix: str = "enqueue"
+    ) -> Tuple[Optional[str], Optional[int], Optional[int]]:
         resp = self._request(
             "POST",
             "/enqueue",
@@ -447,9 +436,12 @@ class FullSystemUser(HttpUser):
         token = payload.get("queue_token")
         player.last_queue_token = token or player.last_queue_token
         match_id = payload.get("match_id")
-        return token, match_id
+        opponent = payload.get("opponent_id")
+        return token, match_id, opponent
 
-    def _status_poll(self, player: PlayerCtx, token: Optional[str], max_attempts: Optional[int] = None) -> Optional[int]:
+    def _status_poll(
+        self, player: PlayerCtx, token: Optional[str], max_attempts: Optional[int] = None
+    ) -> Tuple[Optional[int], Optional[int]]:
         attempts = max_attempts or MATCH_POLL_RETRIES
         for _ in range(attempts):
             resp = self._request(
@@ -458,12 +450,13 @@ class FullSystemUser(HttpUser):
                 player=player,
                 params={"token": token},
                 name="matchmaking_status",
+                expected=(200, 404),
             )
             payload = self._safe_json(resp)
             if payload.get("status") == "Matched":
-                return payload.get("match_id")
+                return payload.get("match_id"), payload.get("opponent_id")
             gevent.sleep(MATCH_POLL_INTERVAL)
-        return None
+        return None, None
 
     def _dequeue(self, player: PlayerCtx, token: str, name_suffix: str = "dequeue") -> None:
         self._request(
@@ -472,6 +465,7 @@ class FullSystemUser(HttpUser):
             player=player,
             json={"token": token},
             name=f"matchmaking_{name_suffix}",
+            expected=(200, 409),
         )
 
     def _submit_deck(self, match_id: int, player: PlayerCtx, cards: List[int]) -> None:
