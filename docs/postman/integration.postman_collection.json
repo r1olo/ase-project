@@ -1,0 +1,492 @@
+{
+	"info": {
+		"_postman_id": "ec0dd6c0-7c20-4cf4-9478-bc36ea76b31a",
+		"name": "Integration Tests",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50720942",
+		"_collection_link": "https://andry06082002-6699507.postman.co/workspace/Andrea-Riolo's-Workspace~d84244a4-348e-4b8a-81a5-c012262a2e6b/collection/50720942-ec0dd6c0-7c20-4cf4-9478-bc36ea76b31a?action=share&source=collection_link&creator=50720942"
+	},
+	"item": [
+		{
+			"name": "0.1 Invalid User Email",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 400\", function() {",
+							"    pm.response.to.have.status(400);",
+							"})"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"nomail\",\n    \"password\": \"me\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "1. User [1] Registration",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Generate a random string to make the email unique",
+							"const randomString = Math.random().toString(36).substring(7);",
+							"const userEmail = `testuser_${randomString}@example.com`;",
+							"",
+							"// Save this to a Collection Variable so other requests (like Login) can access it",
+							"pm.collectionVariables.set(\"email1\", userEmail);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Status code is 201\", function() {",
+							"    pm.response.to.have.status(201);",
+							"})"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"{{email1}}\",\n    \"password\": \"me\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/register",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "2. User [1] Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// 1. Assert that the status code is 200 OK",
+							"pm.test(\"Status code is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"// 2. Extract and save the token if the request was successful",
+							"pm.test(\"Save data to Collection Variables\", function () {",
+							"    // Only parse if the request was successful",
+							"    pm.expect(pm.response.code).to.eql(200);",
+							"    ",
+							"    var jsonData = pm.response.json();",
+							"",
+							"    // Verify the key exists in the response body to prevent saving 'undefined'",
+							"    pm.expect(jsonData).to.have.property(\"access_token\");",
+							"    pm.expect(jsonData).to.have.property(\"user_id\");",
+							"",
+							"    // Save the token to the Collection Variables",
+							"    pm.collectionVariables.set(\"jwt_token1\", jsonData.access_token);",
+							"    pm.collectionVariables.set(\"user_id1\", jsonData.user_id);",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"email\": \"{{email1}}\",\n    \"password\": \"me\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/login",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "3. Create User [1] Profile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is 201 and has appropriate fields\", function () {",
+							"    pm.response.to.have.status(201);",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('username');",
+							"    pm.expect(jsonData).to.have.property('user_id');",
+							"    pm.expect(jsonData).to.have.property('region');",
+							"",
+							"    // Assert data is consistent",
+							"    pm.expect(jsonData.username).to.eql(pm.collectionVariables.get(\"username1\"));",
+							"    pm.expect(jsonData.user_id).to.eql(pm.collectionVariables.get(\"user_id1\"));",
+							"    pm.expect(jsonData.region).to.eql(pm.collectionVariables.get(\"region1\"));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// Generate a random string to make the username unique",
+							"const randomString = Math.random().toString(36).substring(7);",
+							"const username = `testplayer_${randomString}`;",
+							"",
+							"// Save this to a Collection Variable so other requests (like Login) can access it",
+							"pm.collectionVariables.set(\"username1\", username);",
+							"",
+							"// 1. Define your array of strings",
+							"const regions = [",
+							"    \"Sicilia\",",
+							"    \"Toscana\",",
+							"    \"Abruzzo\",",
+							"    \"Campania\",",
+							"    \"Calabria\",",
+							"    \"Lazio\"",
+							"];",
+							"",
+							"// 2. Pick a random index based on the array length",
+							"const randomIndex = Math.floor(Math.random() * regions.length);",
+							"",
+							"// 3. Select the string",
+							"const selectedRegion = regions[randomIndex];",
+							"",
+							"// 4. Save it to a variable so you can use it in the Body/URL",
+							"pm.collectionVariables.set(\"region1\", selectedRegion);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\" : \"{{username1}}\",\n    \"region\": \"{{region1}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/players",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"players"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "4. Update User [1] Profile",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is 200 and has appropriate fields\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('username');",
+							"    pm.expect(jsonData).to.have.property(\"user_id\");",
+							"    pm.expect(jsonData).to.have.property('region');",
+							"",
+							"    // Assert content of such fields",
+							"    pm.expect(jsonData.region).to.eql(pm.collectionVariables.get(\"region1\"));",
+							"    pm.expect(jsonData.user_id).to.eql(pm.collectionVariables.get(\"user_id1\"));",
+							"    pm.expect(jsonData.username).to.eql(pm.collectionVariables.get(\"username1\"));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"// 1. Define your array of strings",
+							"const regions = [",
+							"    \"Sicilia\",",
+							"    \"Toscana\",",
+							"    \"Abruzzo\",",
+							"    \"Campania\",",
+							"    \"Calabria\",",
+							"    \"Lazio\"",
+							"];",
+							"",
+							"// 2. Pick a random index based on the array length",
+							"const randomIndex = Math.floor(Math.random() * regions.length);",
+							"",
+							"// 3. Select the string",
+							"const selectedRegion = regions[randomIndex];",
+							"",
+							"// 4. Save it to a variable so you can use it in the Body/URL",
+							"pm.collectionVariables.set(\"region1\", selectedRegion);"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"region\": \"{{region1}}\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/players/me",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"players",
+						"me"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "5. Get User [1] Profile By ID",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Response is 200 and has appropriate fields\", function () {",
+							"    pm.response.to.have.status(200);",
+							"    var jsonData = pm.response.json();",
+							"    pm.expect(jsonData).to.have.property('username');",
+							"    pm.expect(jsonData).to.have.property('user_id');",
+							"    pm.expect(jsonData).to.have.property('region');",
+							"",
+							"    // Assert data is consistent",
+							"    pm.expect(jsonData.username).to.eql(pm.collectionVariables.get(\"username1\"));",
+							"    pm.expect(jsonData.user_id).to.eql(pm.collectionVariables.get(\"user_id1\"));",
+							"    pm.expect(jsonData.region).to.eql(pm.collectionVariables.get(\"region1\"));",
+							"});"
+						],
+						"type": "text/javascript",
+						"packages": {},
+						"requests": {}
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/players/{{user_id1}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"players",
+						"{{user_id1}}"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "7. Enqueue User [1]",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{jwt_token1}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_url}}/enqueue",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"enqueue"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "cur_user_email",
+			"value": ""
+		},
+		{
+			"key": "jwt_token",
+			"value": ""
+		},
+		{
+			"key": "user_id",
+			"value": ""
+		},
+		{
+			"key": "username",
+			"value": ""
+		},
+		{
+			"key": "region",
+			"value": ""
+		},
+		{
+			"key": "region1",
+			"value": ""
+		},
+		{
+			"key": "email1",
+			"value": ""
+		},
+		{
+			"key": "jwt_token1",
+			"value": ""
+		},
+		{
+			"key": "user_id1",
+			"value": ""
+		},
+		{
+			"key": "username1",
+			"value": ""
+		},
+		{
+			"key": "email2",
+			"value": ""
+		},
+		{
+			"key": "jwt_token2",
+			"value": ""
+		},
+		{
+			"key": "user_id2",
+			"value": ""
+		},
+		{
+			"key": "username2",
+			"value": ""
+		},
+		{
+			"key": "region2",
+			"value": ""
+		}
+	]
+}
