@@ -20,7 +20,7 @@ class FakeResponse:
 def _stub_game_engine(monkeypatch, match_id_start=1, recorded=None):
     counter = {"value": match_id_start}
 
-    def fake_post(url, json=None, timeout=3):
+    def fake_post(url, json=None, timeout=3, **kwargs):
         player1 = json.get("player1_id")
         player2 = json.get("player2_id")
         match_id = counter["value"]
