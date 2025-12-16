@@ -4,7 +4,8 @@
 \includegraphics[width=\textwidth]{architecture_report.png}
 \vskip 0.5cm
 
-The distributed system architecture is based on a microservices-oriented decoupled pattern, ensuring modularity and independent scalability of the core game logic. The following table details the functional responsibilities for each service.
+The distributed system architecture is based on a microservices-oriented decoupled pattern, ensuring modularity and independent scalability of the core game logic.
+The following table details the functional responsibilities for each service.
 \vskip 0.25cm
 \noindent
 \begin{tabularx}{\textwidth}{l X}
@@ -24,6 +25,8 @@ The distributed system architecture is based on a microservices-oriented decoupl
     \bottomrule
 \end{tabularx}
 \vskip 0.25cm
+All of the microservices described above are implemented in Python.
+Nginx is the only third-party sofware used as the API Gateway.
 
 \subsection{Design Choices}
 The architectural design splits data and functionalities among microservices, ensuring that each component serves as the authoritative owner of the data most relevant to its specific domain logic.
