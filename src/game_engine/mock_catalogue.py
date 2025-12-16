@@ -12,13 +12,13 @@ MOCK_CARD_CATALOGUE = {}
 
 def _load_mock_cards():
     """
-    Loads cards from cards/cards.json into the MOCK_CARD_CATALOGUE.
+    Loads cards from assets/cards.json into the MOCK_CARD_CATALOGUE.
     """
     global MOCK_CARD_CATALOGUE
     
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir) # Adjust if mocks.py is deeper
-    file_path = os.path.join(project_root, "cards", "cards.json")
+    file_path = os.path.join(project_root, "assets", "cards.json")
     
     print(f"[mock_catalogue] Loading from: {file_path}", flush=True)
 

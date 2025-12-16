@@ -14,7 +14,7 @@ COPY src/catalogue /app/catalogue
 COPY src/common /app/common
 
 RUN mkdir -p /app/cards
-COPY cards/cards.json /app/cards/cards.json
+COPY assets/cards.json /app/assets/cards.json
 
 EXPOSE 5000
 

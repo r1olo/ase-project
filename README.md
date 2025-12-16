@@ -18,38 +18,38 @@ Each card is represented by an image of the region, its total score and the cate
 The scores of Economy, Environment and Food were assigned on the basis of real data, while the Special score was assigned according to subjective criteria.
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/04-campania.png?raw=true" alt="Campania" width="200"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/07-lazio.png?raw=true" alt="Lazio" width="200"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/08-liguria.png?raw=true" alt="Liguria" width="200"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/15-sicilia.png?raw=true" alt="Sicilia" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/04-campania.png?raw=true" alt="Campania" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/07-lazio.png?raw=true" alt="Lazio" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/08-liguria.png?raw=true" alt="Liguria" width="200"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/15-sicilia.png?raw=true" alt="Sicilia" width="200"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/01-abruzzo.png?raw=true" alt="Abruzzo" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/02-basilicata.png?raw=true" alt="Basilicata" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/03-calabria.png?raw=true" alt="Calabria" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/05-emilia_romagna.png?raw=true" alt="Emilia-Romagna" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/01-abruzzo.png?raw=true" alt="Abruzzo" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/02-basilicata.png?raw=true" alt="Basilicata" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/03-calabria.png?raw=true" alt="Calabria" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/05-emilia_romagna.png?raw=true" alt="Emilia-Romagna" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/06-friuli_venezia_giulia.png?raw=true" alt="Friuli-Venezia Giulia" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/09-lombardia.png?raw=true" alt="Lombardia" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/10-marche.png?raw=true" alt="Marche" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/11-molise.png?raw=true" alt="Molise" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/06-friuli_venezia_giulia.png?raw=true" alt="Friuli-Venezia Giulia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/09-lombardia.png?raw=true" alt="Lombardia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/10-marche.png?raw=true" alt="Marche" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/11-molise.png?raw=true" alt="Molise" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/12-piemonte.png?raw=true" alt="Piemonte" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/13-puglia.png?raw=true" alt="Puglia" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/14-sardegna.png?raw=true" alt="Sardegna" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/16-toscana.png?raw=true" alt="Toscana" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/12-piemonte.png?raw=true" alt="Piemonte" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/13-puglia.png?raw=true" alt="Puglia" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/14-sardegna.png?raw=true" alt="Sardegna" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/16-toscana.png?raw=true" alt="Toscana" width="150"/>
 </p>
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/17-trentino_alto_adige.png?raw=true" alt="Trentino-Alto Adige" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/18-umbria.png?raw=true" alt="Umbria" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/19-valle_aosta.png?raw=true" alt="Valle d'Aosta" width="150"/>
-<img src="https://github.com/r1olo/ase-project/blob/master/cards/images/20-veneto.png?raw=true" alt="Veneto" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/17-trentino_alto_adige.png?raw=true" alt="Trentino-Alto Adige" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/18-umbria.png?raw=true" alt="Umbria" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/19-valle_aosta.png?raw=true" alt="Valle d'Aosta" width="150"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/assets/cards/20-veneto.png?raw=true" alt="Veneto" width="150"/>
 </p>
 
 ### Game rules
@@ -92,7 +92,7 @@ The main components are:
 - **API Gateway (`src/api_gateway`)** &ndash; the main application entrypoint, which exposes all the RESTful API methods as specified in `spec.yaml`. It reads internal components' upstream URLs from `Config.SERVICE_DEFAULTS`. Requests are routed to the appropriate service based on the path prefix.
 - **Authentication service (`src/auth`)** &ndash; implements `/register`, `/login`, `/refresh`, and `/logout`. Users are stored via SQLAlchemy in its own database, passwords are hashed with Bcrypt, JWT access/refresh tokens are generated via Flask-JWT-Extended, and refresh JTIs are stored inside Redis so `logout` can revoke every session. RSA keys arrive via Docker secrets (`AUTH_PRIVATE_KEY`/`AUTH_PUBLIC_KEY`), and all other services verify tokens with the shared public key.
 - **Players service (`src/players`)** &ndash; stores public player profiles (`PlayerProfile`). The `/players/<user_id>` endpoints let clients create or update usernames, bios, avatars, and other metadata tied to the authenticated `user_id`. This service purposefully does not communicate with the Authentication service as to separate profile data from user credentials, enhancing security.
-- **Catalogue service (`src/catalogue`)** &ndash; is the authoritative source of the game cards found in `cards/cards.json`. It exposes `/cards`, `/cards/<id>`, and `/cards/validation` so the game engine or the frontend(s) can fetch stats or confirm that a submitted deck matches what the database contains.
+- **Catalogue service (`src/catalogue`)** &ndash; is the authoritative source of the game cards found in `assets/cards.json`. It exposes `/cards`, `/cards/<id>`, and `/cards/validation` so the game engine or the frontend(s) can fetch stats or confirm that a submitted deck matches what the database contains.
 - **Matchmaking service (`src/matchmaking`)** &ndash; exposes `/enqueue` and `/dequeue` with JWTs and keeps a Redis sorted set (indexed by `MATCHMAKING_QUEUE_KEY`) as a lobby. `_enqueue_atomic` guarantees atomic queue mutations, pairs the oldest two players, invokes the `call_game_engine` hook, and records match info per-player so `/status` polling can surface the match ID to players who previously got a `Waiting` response.
 - **Game Engine service (`src/game_engine`)** &ndash; the main orchestrator of a match, which stores `Match` and `Move` rows, exposes various routes that allow the players to make their moves and query the match status. It delegates the core rules to the `GameEngine` class, which defines constants such as `DECK_SIZE = 10` and `MAX_ROUNDS = 10`, enabling modularity.
 

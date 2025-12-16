@@ -5,7 +5,7 @@ import json
 
 # fill the database with cards from the json file
 def _fill_db():
-    with open("cards/cards.json") as file:
+    with open("assets/cards.json") as file:
         cards_data = json.load(file)
         for _, card_info in cards_data.items():
             card = Card(
@@ -39,7 +39,7 @@ def test_get_all_cards(disable_jwt, catalogue_client):
     assert resp.status_code == 200
     data = resp.get_json()
     assert data is not None
-    with open("cards/cards.json") as file:
+    with open("assets/cards.json") as file:
         cards = json.load(file)
         assert len(data["data"]) == len(cards)
 
@@ -113,7 +113,7 @@ def test_cards_validation_failure(disable_jwt, catalogue_client):
     disable_jwt()
     _fill_db()
 
-    with open("cards/cards.json") as file:
+    with open("assets/cards.json") as file:
         cards = json.load(file)
         # define the request payload from json file with no id field
         data = [-1, -2, -3, -4, -5, -6, -7]

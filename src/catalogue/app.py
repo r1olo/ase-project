@@ -16,7 +16,7 @@ def _init_cards_db(_):
 
     # fill database if DB_INIT is set
     if current_app.config.get("DB_INIT", False):
-        with open("cards/cards.json") as file:
+        with open("assets/cards.json") as file:
             cards_data = json.load(file)
             for _, card_info in cards_data.items():
                 card = Card.query.filter_by(name=card_info["name"]).first()

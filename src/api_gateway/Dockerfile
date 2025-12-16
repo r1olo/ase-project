@@ -2,7 +2,7 @@ FROM nginx:alpine
 
 COPY src/api_gateway/nginx.conf /etc/nginx/nginx.conf.template
 
-COPY cards/images /var/www/images
+COPY assets/cards /var/www/images
 
 CMD ["/bin/sh", "-c", "\
   : \"${AUTH_URL:=https://auth:5000}\"; \

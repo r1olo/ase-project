@@ -9,7 +9,7 @@ mock_catalogue = Blueprint("mock_catalogue", __name__)
 # fill the database at init
 def _init_mock_cards_db():
     current_app.cards_db = {}
-    with open("cards/cards.json") as file:
+    with open("assets/cards.json") as file:
         cards = json.load(file)
         for idx, card in enumerate(cards):
             card["id"] = idx + 1
