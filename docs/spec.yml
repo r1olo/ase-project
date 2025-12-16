@@ -990,8 +990,6 @@ paths:
                     description: Round details, or null if no active round
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
-        '403':
-          $ref: '#/components/responses/GameEngine.PermissionDenied'
         '422':
           $ref: '#/components/responses/UnprocessableContent'
         '404':
@@ -1044,14 +1042,12 @@ paths:
           $ref: '#/components/responses/GameEngine.ValidationError'
         '422':
           $ref: '#/components/responses/UnprocessableContent'
-        '403':
-          $ref: '#/components/responses/GameEngine.PermissionDenied'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
           $ref: '#/components/responses/GameEngine.InternalServerError'
-        '500':
-          $ref: '#/components/responses/GameEngine.InternalServerError'
+        '503':
+          $ref: '#/components/responses/GameEngine.ServiceUnavailable'
 
   /matches/history/{player_id}:
     get:
@@ -1087,27 +1083,9 @@ paths:
                     description: ID of the player whose history is returned
                   matches:
                     type: array
+                    description: List of matches with player-specific context
                     items:
-                      allOf:
-                        - $ref: '#/components/schemas/Match'
-                        - type: object
-                          properties:
-                            player_won:
-                              type: boolean
-                              nullable: true
-                              description: True if player won, false if lost, null if not finished
-                            player_was_player1:
-                              type: boolean
-                              description: True if player was player1 in this match
-                            opponent_id:
-                              type: integer
-                              description: ID of the opponent
-                            player_score:
-                              type: integer
-                              description: This player's score
-                            opponent_score:
-                              type: integer
-                              description: Opponent's score
+                      $ref: '#/components/schemas/Match'
                   summary:
                     $ref: '#/components/schemas/MatchStatistics'
                   pagination:
@@ -1118,8 +1096,6 @@ paths:
                       count: { type: integer, description: "Number of matches in this response" }
         '400':
           $ref: '#/components/responses/GameEngine.ValidationError'
-        '403':
-          $ref: '#/components/responses/GameEngine.PermissionDenied'
         '404':
           $ref: '#/components/responses/GameEngine.NotFound'
         '500':
