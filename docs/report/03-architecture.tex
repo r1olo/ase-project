@@ -27,17 +27,17 @@ The distributed system architecture is based on a microservices-oriented decoupl
 
 \subsection{Design Choices}
 The architectural design splits data and functionalities among microservices, ensuring that each component serves as the authoritative owner of the data most relevant to its specific domain logic.
-\begin{description}
-    \item[Authentication Service] manages \textit{Users Database}.
+\begin{itemize}
+    \item \textbf{Authentication Service} manages \textit{Users Database}. Since this service handles authentication and authorization logic, it must own the persistent user profiles to enforce security and access control centrally.
     
-    \item[Players Service] manages \textit{Players Database} Database. Since this service handles authentication and friendship logic, it must own the persistent user profiles and relationship metadata to enforce security and access control centrally.
+    \item \textbf{Players Service} manages \textit{Players Database}. Since this service handles authentication and friendship logic, it must own the persistent user profiles and relationship metadata to enforce security and access control centrally.
     
     \item \textbf{Card Catalogue} maintains the \textit{Static Game Definitions}. As the data describing cards and regions is reference-heavy and rarely changes, it is decoupled into this service to act as a read-optimized Single Source of Truth for the entire system.
     
     \item \textbf{Matchmaking Service} controls the \textit{Ephemeral Queue State}. This service owns the temporary data regarding active tickets and waiting players because this state is highly volatile and only relevant until a match is successfully formed.
     
     \item \textbf{Game Engine} handles the \textit{Real-Time Match State}. It manages the dynamic data of ongoing games (e.g., turns, scores, board status) in memory, as this data requires high-frequency updates and low-latency access that would be inefficient to store in a standard persistent database.
-\end{description}
+\end{itemize}
 
 \subsection{Inter-Service Communication}
 The key service-to-service dependencies are justified as follows.\begin{itemize}
