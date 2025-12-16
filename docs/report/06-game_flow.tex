@@ -1,22 +1,16 @@
 \section{Game Flow}\label{sec:game-flow}
 
-Assuming two players logged in, the game flow of APIs calls is as follows.
+Assuming two players are authenticated, the game proceeds through the following API calls.
 \begin{enumerate}
     \item \api{POST /enqueue}: each player must enqueue to find another player and start a game.
     \item \api{GET /status}: each player must poll the status endpoint to check if a player has been found and a match has been created.
     \item \api{POST /matches/<match\_id>/deck}: each player must submit their deck for the match.
-    \item \begin{enumerate}
-        \item \api{GET /matches/<match\_id>/round}: each player must check the current round state.
+    \item\label{item:play-round}
+    \begin{enumerate}
+        \item \api{GET /matches/<match\_id>/round}: each player can check the current round status.
         \item \api{POST /matches/<match\_id>/moves/<round\_id>}: each player must submit their move for the current round.
     \end{enumerate}
-    \item \api{GET /matches/<match\_id>}
-
-    \item The game starts with a lobby where players can join or create games.
-    \item Once two players are in a lobby, the game can begin.
-    \item Each player is dealt a hand of cards.
-    \item The game proceeds in rounds, with players taking turns.
-    \item During a player's turn, they can play a card from their hand.
-    \item The effects of the played card are resolved.
-    \item If a player's health reaches zero, they lose the game.
-    \item The last player remaining wins the game.
+    \item \api{GET /matches/<match\_id>}: each player can check the match status.
+    \item \api{GET /leaderboards}: each player can check his ranking and overall score.
 \end{enumerate}
+Step~\ref{item:play-round} must be repeated until the match ends.
