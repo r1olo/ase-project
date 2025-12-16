@@ -257,10 +257,12 @@ def get_player_history(player_id: int):
         
         # Parse status filter
         status = None
-        if status_filter and status_filter in [s.name for s in MatchStatus]:
-            status = MatchStatus[status_filter]
+        if status_filter:
+            status_key = status_filter.upper()
+            if status_key in [s.name for s in MatchStatus]:
+                status = MatchStatus[status_key]
         
-        result = match_service.get_player_history(requester_id, player_id, status, limit, offset)
+        result = match_service.get_player_history(player_id, status, limit, offset, requester_id)
         return jsonify(result), 200
     except Exception as e:
         return _handle_service_error(e)

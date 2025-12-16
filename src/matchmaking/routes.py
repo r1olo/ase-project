@@ -325,7 +325,7 @@ def enqueue():
         with conn.pipeline() as pipe:
             for pid in players:
                 tok = player_tokens[pid]
-                m_payload = _matched_payload(tok, match_id, opponents[pid])
+                m_payload = _matched_payload(tok, match_id, int(opponents[pid]))
                 # Set TTL to 10 minutes (600s)
                 _set_token_status(pipe, tok, m_payload, ttl=600)
                 # Clear active pointer (allows re-queuing immediately if they want)
@@ -334,7 +334,7 @@ def enqueue():
 
         # Return response for THIS user
         opponent_id = players[1] if players[0] == user_id else players[0]
-        return jsonify(_matched_payload(token, match_id, opponent_id)), 200
+        return jsonify(_matched_payload(token, match_id, int(opponent_id))), 200
 
     # Default: successfully queued (Waiting)
     return jsonify(_waiting_payload(token)), 202
