@@ -84,7 +84,7 @@ All microservices live under their own modules, each one of which has its own `D
 The `src/common` package contains shared functionality needed by the modules, including a custom-made Flask extension (`RedisManager`) and a generic app factory function.
 
 <p align="center">
-<img src="https://github.com/r1olo/ase-project/blob/master/docs/images/architecture.png?raw=true" alt="Architecture" width="500"/>
+<img src="https://github.com/r1olo/ase-project/blob/master/docs/images/architecture_readme.png?raw=true" alt="Architecture" width="500"/>
 </p>
 
 The main components are:

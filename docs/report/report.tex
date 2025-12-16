@@ -23,6 +23,11 @@
 %\usepackage{listings}   % main package for code
 %\usepackage{xcolor}   % required for custom colors in code
 
+\graphicspath{ 
+    {../../assets/cards/},  % path to card images
+    {../images/}            % path to other images
+}
+
 % define a custom command for endpoints
 \newcommand{\api}[1]{\texttt{#1}}
 
@@ -47,28 +52,28 @@
 
 \newpage
 
-\input{report/01-group}
+\input{01-group}
 
 \newpage
 
-\input{report/02-cards_overview}
-\input{report/03-architecture}
-\input{report/04-user_stories}
+\input{02-cards_overview}
+\input{03-architecture}
+\input{04-user_stories}
 
 \newpage
 
-\input{report/05-game_rules}
-\input{report/06-game_flow}
+\input{05-game_rules}
+\input{06-game_flow}
 
 \newpage
 
-\input{report/07-testing}
-\input{report/08-security}
-\input{report/09-threat_model}
+\input{07-testing}
+\input{08-security}
+\input{09-threat_model}
 
 \newpage
 
-\input{report/10-generative_ai}
-\input{report/11-additional_features}
+\input{10-generative_ai}
+\input{11-additional_features}
 
 \end{document}
