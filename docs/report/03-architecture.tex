@@ -9,7 +9,7 @@ The distributed system architecture is based on a microservices-oriented decoupl
 \noindent
 \begin{tabularx}{\textwidth}{l X}
     \toprule
-    \textbf{Service} & \textbf{Functional Description} \\
+    \textbf{Service} & \textbf{Description} \\
     \midrule
     \textbf{API Gateway} & Serves as the single entry point for all client requests, preventing direct client access to internal services. It routes external requests to the appropriate microservices based on the requested endpoint. \\
     \textbf{Authentication} & Handles user-related functionalities, provides centralized identity management and secure session persistence via stateless JWT issuance. \\
@@ -25,4 +25,14 @@ The distributed system architecture is based on a microservices-oriented decoupl
 \end{tabularx}
 \vskip 0.25cm
 
-The \textbf{API Gateway} communicates with all of the microservices.
+\subsection{Design Choices}
+Splitting data and functionalities among microservices.
+
+\subsection{Inter-Service Communication}
+The key service-to-service dependencies are justified as follows.\begin{itemize}
+    \item \textbf{API Gateway} to all of the microservices
+    \item \textbf{Matchmaking} to \textbf{Players}
+    \item \textbf{Matchmaking} to \textbf{Game Engine}
+    \item \textbf{Game Engine} to \textbf{Players}
+    \item \textbf{Game Engine} to \textbf{Card Catalogue}
+\end{itemize}

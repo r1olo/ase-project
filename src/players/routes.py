@@ -271,7 +271,7 @@ def get_friendship_status(username: str):
     return jsonify({"username": username, "status": status}), 200
 
 # 9. POST /players/me/friends/<username> (Handle friend request)
-# Note: status of new created friendship is pending by default
+# Notice: status of new created friendship is pending by default
 @bp.post("/players/me/friends/<string:username>")
 @jwt_required()
 def handle_friend_request(username: str):
