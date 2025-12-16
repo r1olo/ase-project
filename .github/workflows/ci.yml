@@ -132,6 +132,39 @@ jobs:
         if: always()
         run: docker compose -f tests/compose/players-isolation.yml down
 
+  integration-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Create keys and certificates
+        run: ./scripts/genkeys.sh
+
+      - name: Build and start everything
+        run: docker compose up --build -d
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Run integration tests with Newman
+        run: |
+          newman run docs/postman/integration.postman_collection.json \
+          --insecure --env-var 'base_url=https://localhost' --bail
+
+      - name: Teardown everything
+        if: always()
+        run: docker compose down
+
   user-registration:
     runs-on: ubuntu-latest
     

@@ -4,7 +4,6 @@ flask
 flask-bcrypt
 flask-jwt-extended
 flask-sqlalchemy
-gunicorn
 pytest
 pytest-mock
 psycopg
