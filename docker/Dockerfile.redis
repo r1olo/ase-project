@@ -1,5 +1,8 @@
 FROM redis:alpine
 
+# install gosu from alpine's repos
+RUN apk add --no-cache gosu
+
 COPY docker/redis-entrypoint.sh /redis-entrypoint.sh
 RUN chmod +x /redis-entrypoint.sh
 

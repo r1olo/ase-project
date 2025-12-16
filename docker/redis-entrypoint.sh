@@ -44,5 +44,6 @@ exec gosu redis redis-server \
     --tls-cert-file "$DEST_CERT" \
     --tls-key-file "$DEST_KEY" \
     --tls-ca-cert-file "$DEST_CA" \
+    --tls-auth-clients no \
     --save "" \
     --appendonly "no"

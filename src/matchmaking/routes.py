@@ -177,6 +177,7 @@ def _lookup_active_match(user_id):
                 f"{base_url}/matches/history/{user_id}",
                 params={"status": status, "limit": 1},
                 timeout=timeout,
+                verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False)
             )
         except requests.RequestException as exc:
             current_app.logger.warning("Game engine status lookup failed: %s", exc)
@@ -219,7 +220,10 @@ def call_game_engine(player_ids, player_tokens=None):
     }
 
     try:
-        resp = requests.post(f"{base_url}/internal/matches/create", json=payload, timeout=timeout)
+        resp = requests.post(f"{base_url}/internal/matches/create",
+             json=payload,
+             timeout=timeout,
+             verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False))
     except requests.RequestException as exc:
         current_app.logger.error("Game engine unavailable: %s", exc)
         _requeue_players_atomic(conn, queue_key, status_key, player_tokens)
@@ -262,7 +266,8 @@ def _validate_player_profile(user_id):
         resp = requests.post(
             url, 
             json={"user_id": int(user_id)}, 
-            timeout=3
+            timeout=3,
+            verify=current_app.config.get("MATCHMAKING_ENABLE_VERIFY", False)
         )
         if resp.status_code == 200:
             data = resp.json()

@@ -32,6 +32,9 @@ class Config:
     # testing
     TESTING = False
 
+    # cert verification?
+    MATCHMAKING_ENABLE_VERIFY = _bool_env("MATCHMAKING_ENABLE_VERIFY", False)
+
     def __init__(self):
         # init jwt keys or fallback secret
         self._init_keys()
@@ -67,3 +70,6 @@ class TestConfig(Config):
 
     # testing
     TESTING = True
+
+    # disable cert verification
+    MATCHMAKING_ENABLE_VERIFY = False
