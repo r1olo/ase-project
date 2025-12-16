@@ -1,1 +1,16 @@
 \FloatBarrier\section{Additional Features}\label{sec:additional-features}
+
+The endpoints listed below were not part of the initial project requirements but were added as additional features.
+These are the ones related to the implementation of the friendship system.
+As before, the numbering corresponds to the indexes of the user stories defined in the project documentation.
+\begin{enumerate}[start=36]
+    \item \api{POST /players/me/friends/<username>}
+    \item \api{GET /players/me/friends} \\
+        \api{GET /players/me/friends/<username>}
+    \item \api{DELETE /players/me/friends/<username>}
+    \item \api{GET /matches/<match\_id>/history/<player\_id>}
+\end{enumerate}
+This feature allows players to have friends within the game, enhancing the game experience.
+It is implemented in the Players Service, and it is also used by the Game Engine so that players can see the match history of their friends.
+
+In addition, the project also included the original design of all cards used in the game.
