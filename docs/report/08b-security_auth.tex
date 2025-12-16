@@ -1,2 +1,16 @@
 \subsection{Authorization and Authentication}\label{subsec:security-auth}
 
+The system implements a stateless, distributed authentication architecture.
+Instead of relying on centralized session validation --- which introduces latency and a single point of failure --- the architecture utilizes JWTs (JSON Web Tokens) signed with asymmetric cryptography.
+
+In this schema, the Authentication Server retains exclusive access to the private key, while the other microservices utilize the corresponding public key to independently verify the token's integrity and authenticity.
+This verification logic is implemented via the \texttt{@jwt\_required} decorator, which intercepts incoming requests to validate the signature.
+
+This approach ensures horizontal scalability, as validation overhead is distributed across the microservices rather than concentrated on the authentication service.
+
+%TODO
+keys
+
+payload format of access token
+
+expired tokens
