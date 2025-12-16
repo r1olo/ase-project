@@ -2,10 +2,19 @@
 
 The cards set is based on the twenty regions of Italy.
 
-Each card is represented by an image of the region, its total score and the category subscores which it is based upon --- namely \textit{Economy}, \textit{Environment}, \textit{Food}, and \textit{Special}.
+Each card is represented by an image of the region, its total score and the category subscores which it is based upon.
+The categories are defined as follows:
+\begin{itemize}
+    \item \textit{Economy} reflects the financial health and industrial output of the region, primarily based on the PIL (\textit{Prodotto Interno Lordo}, or GDP).
+    \item \textit{Environment} is a comprehensive metric covering both the natural and cultural assets. It accounts for the historical heritage, as well as the density of monuments and the beauty of the regional scenery.
+    \item \textit{Food} represents the richness of the culinary tradition.
+    \item \textit{Special} is a wildcard score assigned to highlight unique regional traits and other characteristics not captured by the other categories.
+    \item \textit{Total} is a composite metric representing the arithmetic mean of the four subscores listed above.
+\end{itemize}
 The scores of \textit{Economy}, \textit{Environment} and \textit{Food} were assigned on the basis of real data, meanwhile the \textit{Special} score was assigned according to subjective criteria.
 
-\begin{center}
+\begin{figure}[htbp]
+    \centering
     \includegraphics[width=0.18\textwidth]{01-abruzzo.png}
     \includegraphics[width=0.18\textwidth]{02-basilicata.png}
     \includegraphics[width=0.18\textwidth]{03-calabria.png}
@@ -26,4 +35,6 @@ The scores of \textit{Economy}, \textit{Environment} and \textit{Food} were assi
     \includegraphics[width=0.18\textwidth]{18-umbria.png}
     \includegraphics[width=0.18\textwidth]{19-valle_aosta.png}
     \includegraphics[width=0.18\textwidth]{20-veneto.png}
-\end{center}
+
+    \caption{Overview of all cards used in the service.}\label{fig:cards-overview}
+\end{figure}
