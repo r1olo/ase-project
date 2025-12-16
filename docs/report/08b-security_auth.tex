@@ -4,13 +4,47 @@ The system implements a stateless, distributed authentication architecture.
 Instead of relying on centralized session validation --- which introduces latency and a single point of failure --- the architecture utilizes JWTs (JSON Web Tokens) signed with asymmetric cryptography.
 
 In this schema, the Authentication Server retains exclusive access to the private key, while the other microservices utilize the corresponding public key to independently verify the token's integrity and authenticity.
-This verification logic is implemented via the \texttt{@jwt\_required} decorator, which intercepts incoming requests to validate the signature.
+This verification logic is implemented via the \texttt{@jwt\_required} decorator, which intercepts incoming requests to validate the signature as the basic steps are performed as follows:
+\begin{enumerate}
+    \item it grabs the public key used for validation, through Docker Compose's secrets mechanism;
+    \item it verifies the digital signature on the token passed through the HTTP headers;
+    \item it allows extracting useful authentication data, such as the user ID\@.
+\end{enumerate}
 
 This approach ensures horizontal scalability, as validation overhead is distributed across the microservices rather than concentrated on the authentication service.
 
 %TODO
-keys
+The private and public keys are used to sign and verify the JWTs, respectively. The keys are stored securely using Docker secrets to prevent unauthorized access.
 
-payload format of access token
+The format of the Access Token is the one provided by the Flask JWT extension. An example of a decoded JWT access token is shown below. It includes some of the standard fields, such as:
+\begin{itemize}
+    \item \texttt{alg}, which specifies the cryptographic algorithm used to sign the token;
+    \item \texttt{typ}, which declares the type of token;
+    \item \texttt{sub}, which identifies the subject of the token, typically a unique identifier for the user.
+\end{itemize}
+\begin{figure}[htbp]
+    \begin{verbatim}
+        {
+          "alg": "HS256",
+          "typ": "JWT"
+        }
+    \end{verbatim}
+    \caption{JWT access token header.}
+\end{figure}
+\begin{figure}[htbp]
+    \begin{verbatim}
+        {
+          "fresh": false,
+          "iat": 1765911626,
+          "jti": "db246459-ca33-44a5-b520-6a107ce992e4",
+          "type": "access",
+          "sub": "0",
+          "nbf": 1765911626,
+          "csrf": "19452d2c-e6de-4b6e-aa83-77a18fa51a55"
+        }
+    \end{verbatim}
+    \caption{JWT access token payload.}
+\end{figure}
 
-expired tokens
+Once the token is expired, the client can request a new one by providing a valid refresh token to the Authentication Server.
+When a refresh token becomes invalid or expires, the user must re-authenticate by providing their credentials again to regain access protected the endpoints.
