@@ -644,7 +644,7 @@
 							"const selectedRegion = regions[randomIndex];",
 							"",
 							"// 4. Save it to a variable so you can use it in the Body/URL",
-							"pm.collectionVariables.set(\"region1\", selectedRegion);"
+							"pm.collectionVariables.set(\"region2\", selectedRegion);"
 						],
 						"type": "text/javascript",
 						"packages": {},
