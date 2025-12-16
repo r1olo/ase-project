@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 COPY src/common /app/common
 COPY src/game_engine /app/game_engine
-COPY cards /app/cards
+COPY assets/cards /app/cards
 
 # Expose the application port
 EXPOSE 5000
