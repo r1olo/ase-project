@@ -3,7 +3,7 @@ The numbering below corresponds to the indexes of the User Stories defined in th
 
 \vskip 0.5cm
 
-\noindent \textbf{Account}
+\paragraph{Account}
 \begin{enumerate}[start=2]
     \item \api{POST /register} \\
         Gateway $\longrightarrow$ Authentication $\longrightarrow$ \textit{Users} $\longrightarrow$ Authentication $\longrightarrow$ Gateway
@@ -19,10 +19,8 @@ The numbering below corresponds to the indexes of the User Stories defined in th
             Gateway $\longrightarrow$ Players $\longrightarrow$ \textit{Players} $\longrightarrow$ Players $\longrightarrow$ Gateway
     \end{enumerate}
 \end{enumerate}
-  
-\vskip 0.25cm
 
-\noindent \textbf{Cards}
+\paragraph{Cards}
 \begin{enumerate}[start=6]
     \item \api{GET /cards} \\
         Gateway $\longrightarrow$ Cards $\longrightarrow$ \textit{Cards} $\longrightarrow$ Cards $\longrightarrow$ Gateway
@@ -30,9 +28,7 @@ The numbering below corresponds to the indexes of the User Stories defined in th
         Gateway $\longrightarrow$ Cards $\longrightarrow$ \textit{Cards} $\longrightarrow$ Cards $\longrightarrow$ Gateway
 \end{enumerate}
 
-\vskip 0.25cm
-
-\noindent \textbf{Game}
+\paragraph{Game}
 \begin{enumerate}[start=8]
     \item
     \begin{enumerate}
@@ -68,7 +64,7 @@ The numbering below corresponds to the indexes of the User Stories defined in th
     \end{enumerate}
 \end{enumerate}
 
-\noindent \textbf{Others}
+\paragraph{Others}
 \begin{enumerate}[start=17]
     \item \api{GET /matches/history/{<player\_id}}* \\
         Gateway $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Matches} $\longrightarrow$ Game Engine $\longrightarrow$ \textit{Rounds} $\longrightarrow$ Game Engine $\longrightarrow$ Gateway

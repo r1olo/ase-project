@@ -1,5 +1,28 @@
 \FloatBarrier\section{Architecture}\label{sec:architecture}
 
 \vskip 0.5cm
-
 \includegraphics[width=\textwidth]{architecture_report.png}
+\vskip 0.5cm
+
+The distributed system architecture is based on a microservices-oriented decoupled pattern, ensuring modularity and independent scalability of the core game logic. The following table details the functional responsibilities for each service.
+\vskip 0.25cm
+\noindent
+\begin{tabularx}{\textwidth}{l X}
+    \toprule
+    \textbf{Service} & \textbf{Functional Description} \\
+    \midrule
+    \textbf{API Gateway} & Serves as the single entry point for all client requests, preventing direct client access to internal services. It routes external requests to the appropriate microservices based on the requested endpoint. \\
+    \textbf{Authentication} & Handles user-related functionalities, provides centralized identity management and secure session persistence via stateless JWT issuance. \\
+    \addlinespace
+    \textbf{Players} & Handles players-related functionalities, such as profile management and friendship features. \\
+    \addlinespace
+    \textbf{Matchmaking} & Manages the player queue in order pair users for game sessions. \\
+    \addlinespace
+    \textbf{Game Engine} & Manages the core game logic, including state transitions and scoring. \\
+    \addlinespace
+    \textbf{Card Catalogue} & Provides an interface for retrieving card data. \\
+    \bottomrule
+\end{tabularx}
+\vskip 0.25cm
+
+The \textbf{API Gateway} communicates with all of the microservices.
