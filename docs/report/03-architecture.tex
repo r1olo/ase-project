@@ -38,6 +38,9 @@ The architectural design splits data and functionalities among microservices, en
     \item \textbf{Game Engine} manages the \textit{Matches Database} and \textit{Rounds Database}. This service manages the persistent data related to active and completed matches, as well as individual rounds within those matches, since it is responsible for the core game logic and state transitions.
 \end{itemize}
 
+We decided to split the database used by Authentication Service and Players Service into a Users Database and a Players Database in order to protect users' sensitive data.
+In fact, the first one contains user credentials, while the second one does not contain any private or confidential data. 
+
 \subsection{Inter-Service Communication}
 The key service-to-service dependencies are justified as follows.
 \begin{itemize}
