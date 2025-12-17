@@ -56,7 +56,7 @@ The scores of Economy, Environment and Food were assigned on the basis of real d
 
 The game is played between two players.
 
-1. Each player builds a deck of 10 unique cards drawn from the full set of Italian regions.
+1. Each player builds a deck of 5 unique cards drawn from the full set of Italian regions.
 
 2. After both players have submitted their decks, the match begins.
 
@@ -94,7 +94,7 @@ The main components are:
 - **Players service (`src/players`)** &ndash; stores public player profiles (`PlayerProfile`). The `/players/<user_id>` endpoints let clients create or update usernames, bios, avatars, and other metadata tied to the authenticated `user_id`. This service purposefully does not communicate with the Authentication service as to separate profile data from user credentials, enhancing security.
 - **Catalogue service (`src/catalogue`)** &ndash; is the authoritative source of the game cards found in `assets/cards.json`. It exposes `/cards`, `/cards/<id>`, and `/cards/validation` so the game engine or the frontend(s) can fetch stats or confirm that a submitted deck matches what the database contains.
 - **Matchmaking service (`src/matchmaking`)** &ndash; exposes `/enqueue` and `/dequeue` with JWTs and keeps a Redis sorted set (indexed by `MATCHMAKING_QUEUE_KEY`) as a lobby. `_enqueue_atomic` guarantees atomic queue mutations, pairs the oldest two players, invokes the `call_game_engine` hook, and records match info per-player so `/status` polling can surface the match ID to players who previously got a `Waiting` response.
-- **Game Engine service (`src/game_engine`)** &ndash; the main orchestrator of a match, which stores `Match` and `Move` rows, exposes various routes that allow the players to make their moves and query the match status. It delegates the core rules to the `GameEngine` class, which defines constants such as `DECK_SIZE = 10` and `MAX_ROUNDS = 10`, enabling modularity.
+- **Game Engine service (`src/game_engine`)** &ndash; the main orchestrator of a match, which stores `Match` and `Move` rows, exposes various routes that allow the players to make their moves and query the match status. It delegates the core rules to the `GameEngine` class, which defines constants such as `DECK_SIZE = 5` and `MAX_ROUNDS = 5`, enabling modularity.
 
 Other supporting elements include the `cards/` directory (images plus JSON used to seed the catalogue) and the environment wiring provided by Docker Compose. The tests reuse in-memory SQLite databases and `fakeredis` via each service’s `create_test_app`, so they never touch the production containers.
 
@@ -107,7 +107,7 @@ A single match goes through several services and HTTP endpoints:
 2. **Profile setup** &ndash; Players must call the Players Service (`POST /players`) to create their public profile. This step is mandatory before initiating a match, as the Game Engine requires a full profile to proceed. This guarantees a proper separation of concerns between user credentials and public player profiles.
 3. **Queueing** Ready players call `POST /enqueue` on Matchmaking Service that stores their identity inside a Redis sorted set keyed by `MATCHMAKING_QUEUE_KEY`. Each enqueue returns a queue token; clients poll `GET /status` with their JWT (and optional token) until a match ID appears. As soon as the second player arrives, the oldest two Redis entries are popped atomically and the Game Engine is invoked to form the match while both players' status snapshots are updated in Redis.
 4. **Match creation** &ndash; Once the Matchmaking Service calls the Game Engine with the two players' IDs, a new match is created and stored within the database. Matched IDs are persisted alongside queue tokens so that both players can discover the match even if only one received the immediate HTTP response.
-5. **Deck selection** &ndash; Each player submits exactly 10 unique card IDs via `POST /matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
+5. **Deck selection** &ndash; Each player submits exactly 5 unique card IDs via `POST /matches/<match_id>/deck`. Once the decks have been submitted by both players, the match enters the ongoing status. At this point the players can start submitting their moves.
 6. **Rounds** &ndash; Every round compares a single category chosen from `["economy", "food", "environment", "special", "total"]`. The first player to call `POST /matches/<match_id>/moves/<round_id>` receives `{"status": "WAITING_FOR_OPPONENT"}`. When the second move arrives, the round row is updated, both moves are analyzed through and the winner is computed, and either the next round begins (with a fresh random category) or the match ends when all the rounds have been played.
 7. **Status tracking** &ndash; Clients can poll `/matches/<match_id>/round` to see whether both moves have been submitted, fetch `/matches/<match_id>` for a summary without moves, or `/matches/<match_id>/history` for the entire round log.
 8. **Completion** &ndash; When the match is over, its status is set to finished, and the `winner_id` (or `None` for a draw) is stored in the database.
