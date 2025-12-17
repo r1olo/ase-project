@@ -1190,19 +1190,4 @@ paths:
               schema: { $ref: '#/components/schemas/ResponseMessage'}
         '422':
           $ref: '#/components/responses/UnprocessableContent'
-  
-  # utilities
-  /health:
-    get:
-      tags: [Utilities]
-      summary: Health check
-      responses:
-        '200':
-          description: Service is healthy
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status: { type: string }
                   

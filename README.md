@@ -118,12 +118,14 @@ A single match goes through several services and HTTP endpoints:
 1. Install Docker and Docker Compose.
 2. Place an RSA key pair under `secrets/jwtRS256.key` and `secrets/jwtRS256.key.pub` (they are mounted as the `jwt_*` secrets referenced by `docker-compose.yml`). The keys can be generated using the script in `scripts/genkeys.sh`. Without those files the containers fall back to symmetric JWTs, which is acceptable only for ad-hoc local runs.
 3. From the repository root execute `docker compose up --build`.
-4. Once the stack is up, you may access the API Gateway at port `150`. You can access endpoint `/health` for a general service overview.
+4. Once the stack is up, you may access the API Gateway at port `443`.
 5. You can simulate a client using the script in `scripts/client.py`. In order to play a game, you need to execute two instances of the client scripts to be able to enqueue and send various moves. The list of available commands can be accessed by running `python scripts/client.py --help`. Notice: the `requests` Python library is required to run the client script.
 
+*Notice*: the client script is not update to date with the latest API changes, so some modifications may be required to make it work properly.
 
-### Tests
+### Testing instructions
 
+#### Unit tests
 All automated checks live under `tests/` and use pytest. `tests/conftest.py` spins up isolated Flask apps for every microservice, swaps in-memory SQLite databases plus `fakeredis` through each `TestConfig`, and tears everything down after every test, so the suite runs without Docker.
 
 Run the full suite with:
@@ -142,3 +144,34 @@ Key suites:
 
 - `tests/test_auth.py` verifies registration, login, refresh, and logout, asserting that refresh tokens are stored in and removed from Redis.
 - `tests/test_catalogue.py` checks cards and card by id, and validates decks submitted by players.
+
+#### Isolation tests
+Isolation tests are located under `tests/compose/`.
+Each file provisions a specific microservice in isolation.
+
+To run each one of them:
+
+```bash
+docker compose -f tests/compose/<test_file>.yml up --build
+```
+
+To test a service in isolation, you can use the corresponding Postman collection available at `docs/postman/`.
+Each collection is named after the service it tests.
+The available test files are related to the following services:
+- Players service;
+- Card Catalogue service;
+- Game Engine service.
+
+#### Integration tests
+
+In order to run the integration tests, run the full service with:
+
+```bash
+docker compose up --build
+```
+
+Then, you can use the Postman collection available at `docs/postman/`, to test the full game flow, from registration to playing a full match, or Newman to run the collection from the command line:
+
+```bash
+newman run docs/postman/integration.postman_collection.json --insecure --env-var 'base_url=http://localhost' --bail
+```
