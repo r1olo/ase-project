@@ -170,7 +170,8 @@ In order to run the integration tests, run the full service with:
 docker compose up --build
 ```
 
-Then, you can use the Postman collection available at `docs/postman/`, to test the full game flow, from registration to playing a full match, or Newman to run the collection from the command line:
+Then, you can use the Postman collection available at `docs/postman/` to test the full game flow, from registration to playing a full match.
+In alternative, you can use Newman to run the collection from the command line with the following command:
 
 ```bash
 newman run docs/postman/integration.postman_collection.json --insecure --env-var 'base_url=http://localhost' --bail
