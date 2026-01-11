@@ -16,12 +16,14 @@ In order to test Game Engine Service, we mock the communication with Card Catalo
 For instance, the cards are loaded directly from the JSON file.
 
 \subsection{System and Integration Testing}
-A dedicated Postman collection, located in \mbox{\texttt{docs/\allowbreak\_postman/}}, orchestrates complex user flows that span multiple services, such as a user registering and logging (Authentication Service), player profile creation (Player Service), joining and playing a match (Matchmaking Service and Game Engine Service).
+A dedicated Postman collection, located in \mbox{\texttt{docs\allowbreak/postman/}}, orchestrates complex user flows that span multiple services, such as a user registering and logging (Authentication Service), player profile creation (Player Service), joining and playing a match (Matchmaking Service and Game Engine Service).
 
 \paragraph{Continuous Integration}~\\
 The testing process is fully automated via \textbf{GitHub Actions}. The pipeline defines specific jobs for each testing stage:
 \begin{enumerate}
     \item \textbf{unit-tests}: Runs the Pytest suite on the codebase.
     \item \textbf{*-isolation-tests}: Builds individual service images, spins them up, and runs Newman.
+    \item \textbf{integration-tests}: Builds the entire application image, and runs system-wide tests.
     \item \textbf{static-analysis \& build-and-scan}: Executes security audits and vulnerability scans.
+    \item \textbf{pip-audit}: Performs security audits on Python dependencies.
 \end{enumerate}

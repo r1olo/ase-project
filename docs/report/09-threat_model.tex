@@ -24,12 +24,12 @@
 \subsection{Identify Attack Surfaces}
 \begin{itemize}
     \item \textbf{Network Attack Surface}: Consists of the API Gateway (Nginx), which serves as the entry point for all external traffic.
-    \item \textbf{Application Attack Surface}: Composed of the public REST API endpoints defined in the OpenAPI specification.
+    \item \textbf{External Attack Surface}: Composed of the public REST API endpoints defined in the OpenAPI specification.
     \item \textbf{Internal Attack Surface}: Represented by the internal Docker network, inter-service communication, and access to persistent datastores protected by credentials injected via Docker secrets.
     \item \textbf{Supply Chain Attack Surface}: Includes external Python dependencies and base Docker images. Vulnerabilities in these third-party components could be exploited to compromise the application runtime.
 \end{itemize}
 
-\paragraph{External Attack Surfaces}
+\paragraph{External Attack Surfaces (no JWT required)}
 \begin{itemize}
     \item \api{/login}
     \item \api{/register}
@@ -38,6 +38,9 @@
 \paragraph{Internal Attack Surfaces}
 \begin{itemize}
     \item \api{/internal/players/validation}
+    \item \api{/internal/players/friendship/validation}
+    \item \api{/internal/matches/create}
+    \item \api{/internal/cards/validation}
 \end{itemize}
 
 \subsection{Identify Trust Boundaries}
@@ -59,7 +62,7 @@
 \paragraph{T - Tampering}
 \begin{itemize}
     \item \textbf{T2: Injection Attacks (SQL/NoSQL)} \\
-    Malicious payloads injected into input fields (e.g., username in \api{/players/search}) manipulate the backend database queries, potentially corrupting data (Affects \textbf{A3}, \textbf{A4}; Crosses \textbf{TB3}).
+    Malicious payloads injected into input fields (e.g., username in \api{/players/search}) manipulate the backend database queries, potentially corrupting data (Affects \textbf{A3}, \textbf{A4}, \textbf{A7}; Crosses \textbf{TB3}).
 \end{itemize}
 
 \paragraph{R - Repudiation}
@@ -88,12 +91,12 @@
 
 \subsection{Mitigate Threats}
 \begin{itemize}
-    \item \textbf{M1: Cryptographic Session Verification } \\
+    \item \textbf{M1: Cryptographic Session Verification (Addresses T1)} \\
     All authenticated endpoints require a valid RS256-signed JWT. The API Gateway and microservices enforce signature verification using the public key mounted via Docker Secrets, preventing token forgery or tampering.
     \item \textbf{M2: Short-lived Access Tokens (Addresses T1)} \\
     To minimize the window of opportunity for an attacker using a stolen token, the system issues JWTs with a short expiration time.
     \item \textbf{M3: Strict Input \& Logic Validation (Addresses T2, T3, T5)} \\
-    Input data is strictly validated against the OpenAPI schema (types, formats, and patterns) before processing. Furthermore, the Game Engine for example, implements logic to verify if a player is already enqued.
+    Input data is strictly validated against the OpenAPI schema (types, formats, and patterns) before processing. Furthermore, the Game Engine, for example, implements logic to verify if a player is already enqued.
     \item \textbf{M4: Network Isolation \& Access Control (Addresses T6)} \\
     Internal microservices and databases are isolated within a private Docker network, inaccessible from the public internet. Direct access is blocked by the API Gateway, which acts as the sole entry point.
     \item \textbf{M5: Generic Errors (Addresses T4)} \\
