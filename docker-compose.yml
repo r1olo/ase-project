@@ -58,7 +58,7 @@ services:
       POSTGRES_CERT: /run/secrets/auth-db.crt
       POSTGRES_KEY: /run/secrets/auth-db.key
     volumes:
-      - auth-db-data:/var/lib/postgresql/data
+      - auth-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
       interval: 5s
@@ -108,7 +108,7 @@ services:
       POSTGRES_CERT: /run/secrets/catalogue-db.crt
       POSTGRES_KEY: /run/secrets/catalogue-db.key
     volumes:
-      - catalogue-db-data:/var/lib/postgresql/data
+      - catalogue-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U catalogue_user -d catalogue_db"]
       interval: 5s
@@ -144,7 +144,7 @@ services:
       POSTGRES_CERT: /run/secrets/players-db.crt
       POSTGRES_KEY: /run/secrets/players-db.key
     volumes:
-      - players-db-data:/var/lib/postgresql/data
+      - players-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U players_user -d players_db"]
       interval: 5s
@@ -182,7 +182,7 @@ services:
       POSTGRES_CERT: /run/secrets/game-engine-db.crt
       POSTGRES_KEY: /run/secrets/game-engine-db.key
     volumes:
-      - game-engine-db-data:/var/lib/postgresql/data
+      - game-engine-db-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U engine_user -d game_engine_db"]
       interval: 5s

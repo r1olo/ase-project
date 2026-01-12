@@ -62,12 +62,82 @@ def _set_token_status(pipe, token, payload, ttl=3600):
     """Helper to set token payload with expiry in a pipeline."""
     pipe.setex(_token_key(token), ttl, json.dumps(payload))
 
+def _safely_requeue_user(conn, queue_key, active_key, user_id, token, score):
+    """
+    ATOMIC HELPER: Puts user back in queue ONLY if they haven't cancelled.
+    
+    This fixes the 'Zombie' race condition. If a user dequeues (cancels)
+    during the microsecond they were popped from the queue, their Active Pointer
+    will be gone or different. We must check this before putting them back.
+    
+    Args:
+        score: The original timestamp. Passing this ensures we preserve 
+               queue fairness (they keep their spot in line).
+    """
+    queue_member = f"{user_id}:{token}"
+    
+    while True:
+        try:
+            with conn.pipeline() as pipe:
+                pipe.watch(active_key)
+                
+                # Check: Is this specific token still the active one?
+                current_active = pipe.hget(active_key, user_id)
+                
+                if current_active == token:
+                    # User is still valid. Re-insert at ORIGINAL score.
+                    pipe.multi()
+                    pipe.zadd(queue_key, {queue_member: score})
+                    
+                    # Refresh the status key TTL just in case
+                    _set_token_status(pipe, token, _waiting_payload(token, score), ttl=3600)
+                    
+                    pipe.execute()
+                else:
+                    # User cancelled (pointer gone) or re-queued (pointer changed).
+                    # Do nothing. Drop this 'zombie' entry.
+                    pipe.unwatch()
+                return
+        except WatchError:
+            continue
+
+def _requeue_popped_atomic(conn, queue_key, active_key, popped_entries):
+    """
+    Recover from a failed match pop (ZPOPMIN) by putting users back.
+    Wraps _safely_requeue_user to handle list processing.
+    """
+    for member, score in popped_entries:
+        user_id = member.split(":")[0]
+        token = member.split(":")[1]
+        
+        # Uses the Score from the pop to preserve position
+        _safely_requeue_user(conn, queue_key, active_key, user_id, token, score)
+
+def _revert_match_failure(conn, queue_key, active_key, player_ids, player_tokens):
+    """
+    Revert players to queue on Engine Failure (HTTP 500).
+    Now attempts to recover the original timestamp for fairness.
+    """
+    for pid in player_ids:
+        token = player_tokens[pid]
+        original_score = time.time() # Default fallback (unfair)
+
+        # 1. Try to fetch original queue time from the token payload
+        # This ensures that if the engine fails, users don't lose their spot.
+        try:
+            raw_payload = conn.get(_token_key(token))
+            payload = _load_status(raw_payload)
+            if payload and payload.get("queued_at"):
+                original_score = float(payload["queued_at"])
+        except Exception:
+            pass # Keep fallback time
+
+        # 2. Requeue safely
+        _safely_requeue_user(conn, queue_key, active_key, pid, token, original_score)
+
 def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
     """
     Atomically enqueue a user.
-    1. If User has an Active Token that is WAITING -> Return it.
-    2. If User has an Active Token that is MATCHED -> Generate NEW token, enqueue.
-    3. If User has no Active Token -> Generate NEW token, enqueue.
     """
     while True:
         try:
@@ -78,7 +148,7 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                 existing_token = pipe.hget(active_key, user_id)
                 
                 if existing_token:
-                    # Check the actual status of this token
+                    # Check status of existing token
                     token_status_raw = conn.get(_token_key(existing_token))
                     token_payload = _load_status(token_status_raw)
                     
@@ -86,9 +156,6 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                     if token_payload and token_payload.get("status") == WAITING:
                         pipe.unwatch()
                         return WAITING, None, existing_token, None
-
-                    # If MATCHED or Expired, we treat them as 'new' for the queue
-                    # (The old token remains in Redis with its own TTL for query purposes)
 
                 # Check queue limit
                 queue_len = pipe.zcard(queue_key)
@@ -102,7 +169,6 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                 queue_member = f"{user_id}:{new_token}"
 
                 # Optimization: Check if this addition triggers a match
-                # (Simple logic: if 1+ people waiting, we likely match)
                 should_match = queue_len >= 1
 
                 pipe.multi()
@@ -110,7 +176,7 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                 pipe.hset(active_key, user_id, new_token)
                 # 2. Add to Queue
                 pipe.zadd(queue_key, {queue_member: now})
-                # 3. Create Status Key (1 hour TTL for waiting)
+                # 3. Create Status Key
                 _set_token_status(pipe, new_token, _waiting_payload(new_token, now), ttl=3600)
 
                 if should_match:
@@ -123,7 +189,6 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                     
                     # Handle Match Success
                     if len(popped) == 2:
-                        # popped members are "user_id:token"
                         p1_data = popped[0][0].split(":")
                         p2_data = popped[1][0].split(":")
                         
@@ -132,11 +197,11 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
                         
                         return MATCHED, players, new_token, tokens
                     
-                    # Edge Case: We popped < 2 (Concurrent race where someone dequeued).
-                    # We must re-queue anyone we popped to ensure they don't get lost.
+                    # Handle Failed Pop (Race condition)
                     if popped:
-                        _requeue_popped_atomic(conn, queue_key, popped)
-                        # If we are one of them, return Waiting
+                        _requeue_popped_atomic(conn, queue_key, active_key, popped)
+                        
+                        # If we were one of them, we are Waiting
                         for p in popped:
                             if p[0] == queue_member:
                                 return WAITING, None, new_token, None
@@ -146,17 +211,9 @@ def _enqueue_atomic(conn, queue_key, active_key, user_id, max_size):
         except WatchError:
             continue
 
-def _requeue_popped_atomic(conn, queue_key, popped_entries):
-    """Recover from a failed match pop by putting users back in queue."""
-    with conn.pipeline() as pipe:
-        for member, score in popped_entries:
-            pipe.zadd(queue_key, {member: score})
-        pipe.execute()
-
 def _dequeue_atomic(conn, queue_key, active_key, user_id, token_in_query):
     """
     Remove user from queue if and only if the token matches and is WAITING.
-    Does NOT remove token if status is MATCHED (returns 'too_late').
     """
     token_k = _token_key(token_in_query)
     
@@ -184,7 +241,7 @@ def _dequeue_atomic(conn, queue_key, active_key, user_id, token_in_query):
 
                 pipe.multi()
                 pipe.zrem(queue_key, queue_member)
-                pipe.delete(token_k) # Clean up the token key
+                pipe.delete(token_k) 
                 
                 # Only remove the Active Pointer if it still points to THIS token
                 if active_token == token_in_query:
@@ -195,43 +252,6 @@ def _dequeue_atomic(conn, queue_key, active_key, user_id, token_in_query):
         except WatchError:
             continue
 
-def _revert_match_failure(conn, queue_key, active_key, player_ids, player_tokens):
-    """
-    Revert players to queue on Engine Failure.
-    CRITICAL: Check if player has re-enqueued (Active Token changed) before reverting.
-    If they re-enqueued, DO NOT overwrite their new state; just orphan the failed token.
-    If they haven't, put them back in queue with the OLD token.
-    """
-    timestamp = time.time()
-    
-    for pid in player_ids:
-        old_token = player_tokens[pid]
-        old_member = f"{pid}:{old_token}"
-        
-        while True:
-            try:
-                with conn.pipeline() as pipe:
-                    pipe.watch(active_key)
-                    current_active = pipe.hget(active_key, pid)
-                    
-                    # Case A: User has already re-enqueued (Active token is different)
-                    # We do nothing to the Queue or Active Pointer. 
-                    if current_active and current_active != old_token:
-                        pipe.unwatch()
-                        break
-                    
-                    # Case B: User is still "Active" with this token (or pointer is missing)
-                    # We put them back in queue using the OLD token.
-                    pipe.multi()
-                    pipe.zadd(queue_key, {old_member: timestamp})
-                    pipe.hset(active_key, pid, old_token) # Ensure pointer is set
-                    _set_token_status(pipe, old_token,
-                                      _waiting_payload(old_token, timestamp), ttl=3600)
-                    pipe.execute()
-                    break
-            except WatchError:
-                continue
-
 # --- External Interactions ---
 
 def call_game_engine(player_ids):
@@ -239,12 +259,10 @@ def call_game_engine(player_ids):
     Call Game Engine.
     Returns: (response_dict, status_code, is_success_bool)
     """
-    # 1. Mock Mode (Testing)
     if current_app.config.get("TESTING", False):
         mock_id = uuid.uuid4().int
         return {"id": mock_id, "status": "mock_started"}, 200, True
 
-    # 2. Real Implementation
     base_url = current_app.config.get("GAME_ENGINE_URL", "https://game-engine:5000").rstrip("/")
     timeout = current_app.config.get("GAME_ENGINE_REQUEST_TIMEOUT", 3)
     payload = {"player1_id": int(player_ids[0]), "player2_id": int(player_ids[1])}
@@ -267,7 +285,6 @@ def call_game_engine(player_ids):
             data = {"id": None}
         return data, resp.status_code, True
     
-    # Engine returned 4xx or 5xx
     current_app.logger.error("Game engine error: %s", resp.text)
     return {"msg": "Failed to create match"}, resp.status_code, False
 
@@ -286,7 +303,6 @@ def _validate_player_profile(user_id):
 
 # --- API Routes ---
 
-# TODO: when re-enqueueing with an existing token, return original timestamp
 @bp.post("/enqueue")
 @jwt_required()
 def enqueue():
@@ -298,7 +314,6 @@ def enqueue():
 
     max_size = current_app.config.get("MATCHMAKING_MAX_QUEUE_SIZE")
     
-    # Atomic Enqueue
     status_code, players, token, player_tokens = _enqueue_atomic(
         conn, _queue_key(), _active_key(), user_id, max_size
     )
@@ -311,12 +326,11 @@ def enqueue():
         engine_data, http_code, success = call_game_engine(players)
         
         if not success:
-            # Handle Failure: Revert players safely
-            # Note: We pass the player_tokens map so we know WHICH token to try and revert for each user
+            # Handle Failure: Revert players safely using the new atomic helper
             _revert_match_failure(conn, _queue_key(), _active_key(), players, player_tokens)
             return jsonify(_waiting_payload(token)), 200
             
-        # Handle Success: Persist 'Matched' status
+        # Handle Success
         assert players is not None
         assert player_tokens is not None
         match_id = engine_data.get("id") or engine_data.get("match_id")
@@ -326,7 +340,7 @@ def enqueue():
             for pid in players:
                 tok = player_tokens[pid]
                 m_payload = _matched_payload(tok, match_id, int(opponents[pid]))
-                # Set TTL to 10 minutes (600s)
+                # Set TTL to 10 minutes
                 _set_token_status(pipe, tok, m_payload, ttl=600)
                 # Clear active pointer (allows re-queuing immediately if they want)
                 pipe.hdel(_active_key(), pid)
@@ -348,7 +362,6 @@ def status():
     if not token_in_query:
         return jsonify({"status": ERROR, "msg": "Token required"}), 400
 
-    # Direct lookup by token key (Independent of current queue status)
     payload_raw = conn.get(_token_key(token_in_query))
     payload = _load_status(payload_raw)
 
